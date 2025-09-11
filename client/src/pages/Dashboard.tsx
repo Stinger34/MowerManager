@@ -80,6 +80,7 @@ export default function Dashboard() {
             <AssetCard
               key={mower.id}
               {...mower}
+              id={String(mower.id)}
               attachmentCount={0}
               lastService="N/A"
               nextService="N/A"
