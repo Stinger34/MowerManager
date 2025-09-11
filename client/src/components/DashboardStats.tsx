@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tractor, Wrench, AlertTriangle, Calendar } from "lucide-react";
-import { useLocation } from "wouter";
 
 interface DashboardStatsProps {
   totalMowers: number;
@@ -20,7 +19,6 @@ export default function DashboardStats({
   overdueServices,
   onScrollToMowers
 }: DashboardStatsProps) {
-  const [, setLocation] = useLocation();
   const handleStatClick = (title: string) => {
     if (title === "Total Mowers" || title === "Active" || title === "In Maintenance") {
       onScrollToMowers?.();
