@@ -1,4 +1,4 @@
-import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, mowers, tasks, serviceRecords } from "@shared/schema";
+import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, mowers, tasks, serviceRecords, attachments } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -25,15 +25,23 @@ export interface IStorage {
   // Service Record methods
   getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]>;
   createServiceRecordWithMowerUpdate(serviceRecord: InsertServiceRecord): Promise<ServiceRecord>;
+  
+  // Attachment methods
+  getAttachment(id: string): Promise<Attachment | undefined>;
+  getAttachmentsByMowerId(mowerId: string): Promise<Attachment[]>;
+  createAttachment(attachment: InsertAttachment): Promise<Attachment>;
+  deleteAttachment(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private mowers: Map<string, Mower>;
   private tasks: Map<string, Task>;
+  private attachments: Map<string, Attachment>;
 
   constructor() {
     this.mowers = new Map();
     this.tasks = new Map();
+    this.attachments = new Map();
   }
 
   async getMower(id: string): Promise<Mower | undefined> {
@@ -53,6 +61,7 @@ export class MemStorage implements IStorage {
       serialNumber: insertMower.serialNumber || null,
       purchaseDate: insertMower.purchaseDate || null,
       purchasePrice: insertMower.purchasePrice || null,
+      location: insertMower.location || null,
       condition: insertMower.condition || "good",
       status: insertMower.status || "active",
       notes: insertMower.notes || null,
@@ -179,6 +188,32 @@ export class MemStorage implements IStorage {
 
     return serviceRecord;
   }
+
+  // Attachment methods
+  async getAttachment(id: string): Promise<Attachment | undefined> {
+    return this.attachments.get(id);
+  }
+
+  async getAttachmentsByMowerId(mowerId: string): Promise<Attachment[]> {
+    return Array.from(this.attachments.values()).filter(attachment => attachment.mowerId === parseInt(mowerId));
+  }
+
+  async createAttachment(insertAttachment: InsertAttachment): Promise<Attachment> {
+    const id = randomUUID();
+    const now = new Date();
+    const attachment: Attachment = {
+      ...insertAttachment,
+      id,
+      description: insertAttachment.description || null,
+      uploadedAt: now,
+    };
+    this.attachments.set(id, attachment);
+    return attachment;
+  }
+
+  async deleteAttachment(id: string): Promise<boolean> {
+    return this.attachments.delete(id);
+  }
 }
 
 export class DbStorage implements IStorage {
@@ -289,6 +324,32 @@ export class DbStorage implements IStorage {
       .where(eq(mowers.id, insertServiceRecord.mowerId));
 
     return createdServiceRecord;
+  }
+
+  // Attachment methods
+  async getAttachment(id: string): Promise<Attachment | undefined> {
+    const result = await db.select().from(attachments).where(eq(attachments.id, id));
+    return result[0];
+  }
+
+  async getAttachmentsByMowerId(mowerId: string): Promise<Attachment[]> {
+    return await db.select().from(attachments).where(eq(attachments.mowerId, parseInt(mowerId)));
+  }
+
+  async createAttachment(insertAttachment: InsertAttachment): Promise<Attachment> {
+    const attachmentData: typeof attachments.$inferInsert = {
+      ...insertAttachment,
+      id: randomUUID(),
+      uploadedAt: new Date(),
+    };
+    
+    const result = await db.insert(attachments).values(attachmentData).returning();
+    return result[0];
+  }
+
+  async deleteAttachment(id: string): Promise<boolean> {
+    const result = await db.delete(attachments).where(eq(attachments.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

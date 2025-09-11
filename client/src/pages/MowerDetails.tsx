@@ -365,8 +365,14 @@ export default function MowerDetails() {
               tasks={tasks.map(task => ({
                 ...task,
                 description: task.description || undefined,
+                priority: task.priority as "low" | "medium" | "high" | "urgent",
+                status: task.status as "pending" | "in_progress" | "completed" | "cancelled",
+                category: task.category as "maintenance" | "repair" | "parts" | "inspection" | "other",
                 dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : undefined,
                 estimatedCost: task.estimatedCost ? `$${task.estimatedCost}` : undefined,
+                partNumber: task.partNumber || undefined,
+                createdAt: new Date(task.createdAt).toISOString(),
+                completedAt: task.completedAt ? new Date(task.completedAt).toISOString() : undefined,
               }))}
               onAddTask={(task) => addTaskMutation.mutate({
                 ...task,
@@ -389,7 +395,15 @@ export default function MowerDetails() {
         
         <TabsContent value="service-history">
           <ServiceHistoryTable
-            serviceRecords={serviceRecords}
+            serviceRecords={serviceRecords.map(record => ({
+              ...record,
+              serviceDate: new Date(record.serviceDate).toLocaleDateString(),
+              serviceType: record.serviceType as "maintenance" | "repair" | "inspection" | "warranty",
+              cost: record.cost || undefined,
+              performedBy: record.performedBy || undefined,
+              nextServiceDue: record.nextServiceDue ? new Date(record.nextServiceDue).toLocaleDateString() : undefined,
+              mileage: record.mileage ?? undefined,
+            }))}
             onAddService={() => setLocation(`/mowers/${mowerId}/service/new`)}
             onEditService={(id) => setLocation(`/mowers/${mowerId}/service/${id}/edit`)}
           />

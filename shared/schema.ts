@@ -38,8 +38,8 @@ export const attachments = pgTable("attachments", {
   mowerId: integer("mower_id").notNull().references(() => mowers.id, { onDelete: "cascade" }),
   fileName: text("file_name").notNull(),
   fileType: text("file_type").notNull(), // pdf, image, document
-  filePath: text("file_path").notNull(),
-  fileSize: integer("file_size"),
+  fileData: text("file_data").notNull(), // Base64 encoded file content
+  fileSize: integer("file_size").notNull(),
   description: text("description"),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
