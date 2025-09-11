@@ -46,16 +46,8 @@ export default function App() {
                 <header className="flex items-center justify-between p-4 border-b bg-background">
                   <div className="flex items-center gap-4">
                     <SidebarTrigger data-testid="button-sidebar-toggle" />
-                    <div className="flex items-center gap-3">
-                      <img 
-                        src="/logo.png" 
-                        alt="Mower Manager Logo" 
-                        className="h-8 w-8 object-contain"
-                        data-testid="img-logo"
-                      />
-                      <div className="hidden md:block">
-                        <h2 className="text-lg font-semibold">Mower Manager</h2>
-                      </div>
+                    <div className="hidden md:block">
+                      <h2 className="text-lg font-semibold">Mower Manager</h2>
                     </div>
                   </div>
                   <ThemeToggle />
