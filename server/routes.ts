@@ -19,12 +19,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/mowers/:id', async (req: Request, res: Response) => {
     try {
+      console.log('Fetching mower with ID:', req.params.id);
       const mower = await storage.getMower(req.params.id);
+      console.log('Mower result:', mower);
       if (!mower) {
         return res.status(404).json({ error: 'Mower not found' });
       }
       res.json(mower);
     } catch (error) {
+      console.error('Error fetching mower:', error);
       res.status(500).json({ error: 'Failed to fetch mower' });
     }
   });
@@ -67,9 +70,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Task routes
   app.get('/api/mowers/:mowerId/tasks', async (req: Request, res: Response) => {
     try {
+      console.log('Fetching tasks for mower ID:', req.params.mowerId);
       const tasks = await storage.getTasksByMowerId(req.params.mowerId);
+      console.log('Tasks result:', tasks);
       res.json(tasks);
     } catch (error) {
+      console.error('Error fetching tasks:', error);
       res.status(500).json({ error: 'Failed to fetch tasks' });
     }
   });

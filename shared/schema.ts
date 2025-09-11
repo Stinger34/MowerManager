@@ -1,27 +1,26 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, decimal, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, decimal, integer, boolean, serial, date } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const mowers = pgTable("mowers", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: serial("id").primaryKey(),
   make: text("make").notNull(),
   model: text("model").notNull(),
   year: integer("year"),
-  serialNumber: text("serial_number"),
-  purchaseDate: timestamp("purchase_date"),
-  purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }),
+  serialNumber: text("serialnumber"),
+  purchaseDate: date("purchasedate"),
+  purchasePrice: decimal("purchaseprice", { precision: 10, scale: 2 }),
+  location: text("location"),
   condition: text("condition").notNull().default("good"), // excellent, good, fair, poor
   status: text("status").notNull().default("active"), // active, maintenance, retired
   notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const serviceRecords = pgTable("service_records", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  mowerId: varchar("mower_id").notNull().references(() => mowers.id, { onDelete: "cascade" }),
+  mowerId: integer("mower_id").notNull().references(() => mowers.id, { onDelete: "cascade" }),
   serviceDate: timestamp("service_date").notNull(),
   serviceType: text("service_type").notNull(), // maintenance, repair, inspection, warranty
   description: text("description").notNull(),
@@ -34,7 +33,7 @@ export const serviceRecords = pgTable("service_records", {
 
 export const attachments = pgTable("attachments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  mowerId: varchar("mower_id").notNull().references(() => mowers.id, { onDelete: "cascade" }),
+  mowerId: integer("mower_id").notNull().references(() => mowers.id, { onDelete: "cascade" }),
   fileName: text("file_name").notNull(),
   fileType: text("file_type").notNull(), // pdf, image, document
   filePath: text("file_path").notNull(),
@@ -45,7 +44,7 @@ export const attachments = pgTable("attachments", {
 
 export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  mowerId: varchar("mower_id").notNull().references(() => mowers.id, { onDelete: "cascade" }),
+  mowerId: integer("mower_id").notNull().references(() => mowers.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description"),
   priority: text("priority").notNull().default("medium"), // low, medium, high, urgent

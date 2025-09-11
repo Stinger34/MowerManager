@@ -1,5 +1,7 @@
-import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask } from "@shared/schema";
+import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, mowers, tasks } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -138,4 +140,84 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DbStorage implements IStorage {
+  // Mower methods
+  async getMower(id: string): Promise<Mower | undefined> {
+    const result = await db.select().from(mowers).where(eq(mowers.id, parseInt(id)));
+    return result[0];
+  }
+
+  async getAllMowers(): Promise<Mower[]> {
+    return await db.select().from(mowers);
+  }
+
+  async createMower(insertMower: InsertMower): Promise<Mower> {
+    const result = await db.insert(mowers).values(insertMower).returning();
+    return result[0];
+  }
+
+  async updateMower(id: string, updateData: Partial<InsertMower>): Promise<Mower | undefined> {
+    const result = await db
+      .update(mowers)
+      .set(updateData)
+      .where(eq(mowers.id, parseInt(id)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteMower(id: string): Promise<boolean> {
+    const result = await db.delete(mowers).where(eq(mowers.id, parseInt(id)));
+    return result.rowCount > 0;
+  }
+
+  // Task methods
+  async getTask(id: string): Promise<Task | undefined> {
+    const result = await db.select().from(tasks).where(eq(tasks.id, id));
+    return result[0];
+  }
+
+  async getTasksByMowerId(mowerId: string): Promise<Task[]> {
+    return await db.select().from(tasks).where(eq(tasks.mowerId, mowerId));
+  }
+
+  async createTask(insertTask: InsertTask): Promise<Task> {
+    const id = randomUUID();
+    const now = new Date();
+    const taskData: typeof tasks.$inferInsert = {
+      ...insertTask,
+      id,
+      createdAt: now,
+    };
+    
+    const result = await db.insert(tasks).values(taskData).returning();
+    return result[0];
+  }
+
+  async updateTask(id: string, updateData: Partial<InsertTask>): Promise<Task | undefined> {
+    const result = await db
+      .update(tasks)
+      .set(updateData)
+      .where(eq(tasks.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    const result = await db.delete(tasks).where(eq(tasks.id, id));
+    return result.rowCount > 0;
+  }
+
+  async markTaskComplete(id: string): Promise<Task | undefined> {
+    const result = await db
+      .update(tasks)
+      .set({ 
+        status: "completed",
+        completedAt: new Date()
+      })
+      .where(eq(tasks.id, id))
+      .returning();
+    return result[0];
+  }
+}
+
+export const storage = new DbStorage();
