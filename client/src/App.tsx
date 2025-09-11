@@ -11,6 +11,7 @@ import Dashboard from "@/pages/Dashboard";
 import MowerDetails from "@/pages/MowerDetails";
 import MowerList from "@/pages/MowerList";
 import AddMower from "@/pages/AddMower";
+import EditMower from "@/pages/EditMower";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/mowers" component={MowerList} />
       <Route path="/mowers/new" component={AddMower} />
+      <Route path="/mowers/:id/edit" component={EditMower} />
       <Route path="/mowers/:id" component={MowerDetails} />
       <Route component={NotFound} />
     </Switch>
