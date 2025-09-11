@@ -1,11 +1,40 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import multer from "multer";
 import { storage } from "./storage";
-import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema } from "@shared/schema";
+import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertAttachmentSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // put application routes here
   // prefix all routes with /api
+
+  // Configure multer for file uploads (memory storage for base64 conversion)
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+    fileFilter: (req, file, cb) => {
+      // Accept PDF, images, and common document types
+      const allowedTypes = [
+        'application/pdf',
+        'image/jpeg',
+        'image/jpg', 
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain'
+      ];
+      
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid file type. Only PDF, images, and documents are allowed.'));
+      }
+    }
+  });
 
   // Mower routes
   app.get('/api/mowers', async (_req: Request, res: Response) => {
@@ -54,7 +83,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(mower);
     } catch (error) {
       console.error('Mower creation error:', error);
-      res.status(400).json({ error: 'Invalid mower data', details: error.message });
+      res.status(400).json({ error: 'Invalid mower data', details: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -83,7 +112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(mower);
     } catch (error) {
       console.error('Mower update error:', error);
-      res.status(400).json({ error: 'Invalid mower data', details: error.message });
+      res.status(400).json({ error: 'Invalid mower data', details: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -212,6 +241,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Service record creation error:', error);
       res.status(400).json({ error: 'Invalid service record data' });
+    }
+  });
+
+  // Attachment routes
+  app.post('/api/mowers/:id/attachments', upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      console.log('Attachment upload request:', { params: req.params, file: req.file, body: req.body });
+      
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Convert file buffer to base64
+      const fileData = req.file.buffer.toString('base64');
+      
+      // Determine file type category
+      let fileType = 'document';
+      if (req.file.mimetype.startsWith('image/')) {
+        fileType = 'image';
+      } else if (req.file.mimetype === 'application/pdf') {
+        fileType = 'pdf';
+      }
+
+      const attachmentData = {
+        mowerId: parseInt(req.params.id),
+        fileName: req.file.originalname,
+        fileType,
+        fileData,
+        fileSize: req.file.size,
+        description: req.body.description || null,
+      };
+
+      console.log('Attachment data (without file content):', {
+        ...attachmentData,
+        fileData: `[${fileData.length} characters]`
+      });
+
+      const validatedData = insertAttachmentSchema.parse(attachmentData);
+      const attachment = await storage.createAttachment(validatedData);
+      
+      // Return attachment without file data for response
+      const { fileData: _, ...attachmentResponse } = attachment;
+      res.status(201).json(attachmentResponse);
+    } catch (error) {
+      console.error('Attachment upload error:', error);
+      if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+        }
+      }
+      res.status(400).json({ error: 'Invalid attachment data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.get('/api/mowers/:id/attachments', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching attachments for mower ID:', req.params.id);
+      const attachments = await storage.getAttachmentsByMowerId(req.params.id);
+      
+      // Return attachments without file data for list view
+      const attachmentsResponse = attachments.map(({ fileData, ...attachment }) => attachment);
+      console.log('Attachments result:', attachmentsResponse.length, 'attachments found');
+      res.json(attachmentsResponse);
+    } catch (error) {
+      console.error('Error fetching attachments:', error);
+      res.status(500).json({ error: 'Failed to fetch attachments' });
+    }
+  });
+
+  app.get('/api/attachments/:id/download', async (req: Request, res: Response) => {
+    try {
+      console.log('Downloading attachment with ID:', req.params.id);
+      const attachment = await storage.getAttachment(req.params.id);
+      
+      if (!attachment) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+
+      // Convert base64 back to buffer
+      const fileBuffer = Buffer.from(attachment.fileData, 'base64');
+      
+      // Set appropriate headers for file download
+      let contentType = 'application/octet-stream'; // Default
+      if (attachment.fileType === 'image') {
+        // Try to determine specific image type from filename
+        const ext = attachment.fileName.split('.').pop()?.toLowerCase();
+        if (ext === 'png') contentType = 'image/png';
+        else if (ext === 'jpg' || ext === 'jpeg') contentType = 'image/jpeg';
+        else if (ext === 'gif') contentType = 'image/gif';
+        else if (ext === 'webp') contentType = 'image/webp';
+      } else if (attachment.fileType === 'pdf') {
+        contentType = 'application/pdf';
+      } else if (attachment.fileName.endsWith('.txt')) {
+        contentType = 'text/plain';
+      } else if (attachment.fileName.endsWith('.doc')) {
+        contentType = 'application/msword';
+      } else if (attachment.fileName.endsWith('.docx')) {
+        contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      }
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${attachment.fileName}"`);
+      res.setHeader('Content-Length', fileBuffer.length);
+      
+      console.log('Sending file:', attachment.fileName, 'Size:', fileBuffer.length, 'Type:', contentType);
+      res.send(fileBuffer);
+    } catch (error) {
+      console.error('Error downloading attachment:', error);
+      res.status(500).json({ error: 'Failed to download attachment' });
+    }
+  });
+
+  app.delete('/api/attachments/:id', async (req: Request, res: Response) => {
+    try {
+      console.log('Deleting attachment with ID:', req.params.id);
+      const deleted = await storage.deleteAttachment(req.params.id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+      
+      console.log('Attachment deleted successfully');
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
+      res.status(500).json({ error: 'Failed to delete attachment' });
     }
   });
 
