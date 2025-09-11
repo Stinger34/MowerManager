@@ -285,13 +285,13 @@ export default function MowerDetails() {
             Notes
           </TabsTrigger>
           <TabsTrigger value="tasks" data-testid="tab-tasks">
-            Tasks ({mockTasks.length})
+            Tasks ({tasks.length})
           </TabsTrigger>
           <TabsTrigger value="service-history" data-testid="tab-service-history">
             Service History
           </TabsTrigger>
           <TabsTrigger value="attachments" data-testid="tab-attachments">
-            Attachments ({mockAttachments.length})
+            Attachments (0)
           </TabsTrigger>
         </TabsList>
         
@@ -364,8 +364,6 @@ export default function MowerDetails() {
                 description: task.description || undefined,
                 dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : undefined,
                 estimatedCost: task.estimatedCost ? `$${task.estimatedCost}` : undefined,
-                createdAt: task.createdAt.toISOString(),
-                completedAt: task.completedAt?.toISOString(),
               }))}
               onAddTask={(task) => addTaskMutation.mutate({
                 ...task,
