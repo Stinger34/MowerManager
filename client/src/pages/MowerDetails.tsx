@@ -548,6 +548,7 @@ export default function MowerDetails() {
                 ...attachment,
                 fileType: attachment.fileType as "pdf" | "image" | "document",
                 uploadedAt: new Date(attachment.uploadedAt).toLocaleDateString(),
+                description: attachment.description ?? undefined,
               }))}
               onUpload={handleFileUpload}
               onView={(id) => {
