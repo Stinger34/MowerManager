@@ -96,7 +96,7 @@ export default function Dashboard() {
               key={mower.id}
               {...mower}
               id={String(mower.id)}
-              attachmentCount={0}
+              attachmentCount={0} // TODO: Fetch real attachment count from API
               lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
               nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
               onViewDetails={handleViewDetails}

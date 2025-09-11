@@ -155,9 +155,6 @@ export default function MowerDetails() {
     );
   }
 
-  // Mock data for service records and attachments (until backend integration is added)
-  const mockServiceRecords: any[] = [];
-  const mockAttachments: any[] = [];
 
   const conditionColors = {
     excellent: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400",
@@ -400,7 +397,7 @@ export default function MowerDetails() {
         
         <TabsContent value="attachments">
           <AttachmentGallery
-            attachments={mockAttachments}
+            attachments={[]} // TODO: Fetch real attachments from API
             onUpload={() => console.log('Upload files')}
             onView={(id) => console.log('View attachment:', id)}
             onDownload={(id) => console.log('Download attachment:', id)}
