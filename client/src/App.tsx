@@ -47,7 +47,7 @@ export default function App() {
                   <div className="flex items-center gap-4">
                     <SidebarTrigger data-testid="button-sidebar-toggle" />
                     <div className="hidden md:block">
-                      <h2 className="text-lg font-semibold">Lawn Mower Asset Tracker</h2>
+                      <h2 className="text-lg font-semibold">Mower Manager</h2>
                     </div>
                   </div>
                   <ThemeToggle />

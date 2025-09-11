@@ -1,4 +1,4 @@
-# Lawn Mower Asset Tracker Design Guidelines
+# Mower Manager Design Guidelines
 
 ## Design Approach
 **Utility-Focused Design System Approach** - Using a professional, dashboard-style interface optimized for asset management workflows. Drawing inspiration from modern productivity tools like Linear and Notion for clean data presentation.

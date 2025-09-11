@@ -1,8 +1,8 @@
-# Lawn Mower Asset Tracker
+# Mower Manager
 
 ## Overview
 
-The Lawn Mower Asset Tracker is a comprehensive fleet management application designed for tracking and managing lawn mower assets. The system enables users to maintain detailed records of their lawn mower fleet, including asset information, service history, task management, and file attachments. Built as a modern web application, it provides a dashboard-style interface optimized for asset management workflows.
+Mower Manager is a comprehensive fleet management application designed for tracking and managing lawn mower assets. The system enables users to maintain detailed records of their lawn mower fleet, including asset information, service history, task management, and file attachments. Built as a modern web application, it provides a dashboard-style interface optimized for asset management workflows.
 
 ## User Preferences
 
