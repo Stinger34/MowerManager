@@ -2,23 +2,49 @@ import { Button } from "@/components/ui/button";
 import MowerForm from "@/components/MowerForm";
 import { ArrowLeft } from "lucide-react";
 import { useLocation, useRoute } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import type { Mower } from "@shared/schema";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { Mower, InsertMower } from "@shared/schema";
 
 export default function EditMower() {
   const [, setLocation] = useLocation();
   const [match, params] = useRoute("/mowers/:id/edit");
   const mowerId = params?.id;
+  const { toast } = useToast();
 
   const { data: mower, isLoading, error } = useQuery<Mower>({
     queryKey: ['/api/mowers', mowerId],
     enabled: !!mowerId,
   });
 
-  const handleSubmit = (data: any) => {
-    console.log('Updating mower:', mowerId, data);
-    // todo: remove mock functionality - integrate with API to update mower
-    setLocation(`/mowers/${mowerId}`);
+  const updateMowerMutation = useMutation({
+    mutationFn: async (data: InsertMower) => {
+      console.log('Updating mower:', mowerId, data);
+      const response = await apiRequest('PUT', `/api/mowers/${mowerId}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Mower updated",
+        description: "The mower has been successfully updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId] });
+      setLocation(`/mowers/${mowerId}`);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update mower. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Failed to update mower:', error);
+    },
+  });
+
+  const handleSubmit = (data: InsertMower) => {
+    updateMowerMutation.mutate(data);
   };
 
   const handleCancel = () => {

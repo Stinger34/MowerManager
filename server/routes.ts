@@ -60,14 +60,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/mowers/:id', async (req: Request, res: Response) => {
     try {
-      const updates = insertMowerSchema.partial().parse(req.body);
+      console.log('Updating mower with data:', req.body);
+      
+      // Transform data to match schema expectations
+      const transformedData = {
+        ...req.body,
+        purchaseDate: req.body.purchaseDate ? req.body.purchaseDate.split('T')[0] : null, // Convert to date string
+        lastServiceDate: req.body.lastServiceDate ? req.body.lastServiceDate.split('T')[0] : null, // Convert to date string  
+        nextServiceDate: req.body.nextServiceDate ? req.body.nextServiceDate.split('T')[0] : null, // Convert to date string
+        purchasePrice: req.body.purchasePrice || null, // Convert empty string to null
+        serialNumber: req.body.serialNumber || null, // Convert empty string to null
+        notes: req.body.notes || null, // Convert empty string to null
+      };
+      
+      console.log('Transformed update data:', transformedData);
+      const updates = insertMowerSchema.partial().parse(transformedData);
+      console.log('Validated update data:', updates);
       const mower = await storage.updateMower(req.params.id, updates);
       if (!mower) {
         return res.status(404).json({ error: 'Mower not found' });
       }
       res.json(mower);
     } catch (error) {
-      res.status(400).json({ error: 'Invalid mower data' });
+      console.error('Mower update error:', error);
+      res.status(400).json({ error: 'Invalid mower data', details: error.message });
     }
   });
 
