@@ -3,17 +3,40 @@ import DashboardStats from "@/components/DashboardStats";
 import AssetCard from "@/components/AssetCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Search, Plus, Trash2, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { Mower } from "@shared/schema";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [mowerToDelete, setMowerToDelete] = useState<Mower | null>(null);
+  const { toast } = useToast();
 
   const { data: mowers, isLoading, error } = useQuery<Mower[]>({
     queryKey: ['/api/mowers'],
+  });
+
+  // Delete mower mutation
+  const deleteMowerMutation = useMutation({
+    mutationFn: async (mowerId: string) => {
+      const response = await apiRequest('DELETE', `/api/mowers/${mowerId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers'] });
+      toast({ title: "Success", description: "Mower deleted successfully" });
+      setShowDeleteDialog(false);
+      setMowerToDelete(null);
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to delete mower", variant: "destructive" });
+    },
   });
 
   const filteredMowers = (mowers || []).filter(mower =>
@@ -50,6 +73,20 @@ export default function Dashboard() {
   const handleAddService = (id: string) => {
     console.log('Navigate to add service:', id);
     setLocation(`/mowers/${id}/service/new`);
+  };
+
+  const handleDelete = (id: string) => {
+    const mower = mowers?.find(m => String(m.id) === id);
+    if (mower) {
+      setMowerToDelete(mower);
+      setShowDeleteDialog(true);
+    }
+  };
+
+  const confirmDelete = () => {
+    if (mowerToDelete) {
+      deleteMowerMutation.mutate(String(mowerToDelete.id));
+    }
   };
 
 
@@ -94,14 +131,20 @@ export default function Dashboard() {
           {filteredMowers.map((mower) => (
             <AssetCard
               key={mower.id}
-              {...mower}
               id={String(mower.id)}
+              make={mower.make}
+              model={mower.model}
+              year={mower.year ?? undefined}
+              serialNumber={mower.serialNumber ?? undefined}
+              condition={mower.condition as "excellent" | "good" | "fair" | "poor"}
+              status={mower.status as "active" | "maintenance" | "retired"}
               attachmentCount={0} // TODO: Fetch real attachment count from API
               lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
               nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
               onViewDetails={handleViewDetails}
               onEdit={handleEdit}
               onAddService={handleAddService}
+              onDelete={handleDelete}
             />
           ))}
         </div>
@@ -113,6 +156,39 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Mower</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {mowerToDelete?.make} {mowerToDelete?.model}? This action cannot be undone. All associated service records, tasks, and attachments will also be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              data-testid="button-cancel-delete"
+              disabled={deleteMowerMutation.isPending}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteMowerMutation.isPending}
+              data-testid="button-confirm-delete"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMowerMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Delete Mower
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

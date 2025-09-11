@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ServiceHistoryTable from "@/components/ServiceHistoryTable";
 import AttachmentGallery from "@/components/AttachmentGallery";
 import TaskList from "@/components/TaskList";
-import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2 } from "lucide-react";
+import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Mower, Task, InsertTask, ServiceRecord, Attachment } from "@shared/schema";
@@ -23,6 +24,7 @@ export default function MowerDetails() {
   
   const [notes, setNotes] = useState("");
   const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Fetch mower data
   const { data: mower, isLoading: isMowerLoading, error: mowerError } = useQuery<Mower>({
@@ -46,6 +48,22 @@ export default function MowerDetails() {
   const { data: attachments = [], isLoading: isAttachmentsLoading, error: attachmentsError } = useQuery<Omit<Attachment, 'fileData'>[]>({
     queryKey: ['/api/mowers', mowerId, 'attachments'],
     enabled: !!mowerId,
+  });
+
+  // Delete mower mutation
+  const deleteMowerMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('DELETE', `/api/mowers/${mowerId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers'] });
+      setLocation("/");
+      toast({ title: "Success", description: "Mower deleted successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to delete mower", variant: "destructive" });
+    },
   });
 
   // Update notes mutation
@@ -312,13 +330,54 @@ export default function MowerDetails() {
           </p>
         </div>
 
-        <Button
-          onClick={() => setLocation(`/mowers/${mowerId}/edit`)}
-          data-testid="button-edit-mower"
-        >
-          <Edit className="h-4 w-4 mr-2" />
-          Edit
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setLocation(`/mowers/${mowerId}/edit`)}
+            data-testid="button-edit-mower"
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+          
+          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                data-testid="button-delete-mower"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Mower</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete {mower.make} {mower.model}? This action cannot be undone. All associated service records, tasks, and attachments will also be deleted.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    deleteMowerMutation.mutate();
+                    setShowDeleteDialog(false);
+                  }}
+                  disabled={deleteMowerMutation.isPending}
+                  data-testid="button-confirm-delete"
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleteMowerMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-2" />
+                  )}
+                  Delete Mower
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

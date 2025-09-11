@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Wrench, FileText, MoreHorizontal } from "lucide-react";
+import { Calendar, MapPin, Wrench, FileText, MoreHorizontal, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface AssetCardProps {
@@ -18,6 +18,7 @@ interface AssetCardProps {
   onViewDetails: (id: string) => void;
   onEdit: (id: string) => void;
   onAddService: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
 const conditionColors = {
@@ -46,7 +47,8 @@ export default function AssetCard({
   attachmentCount,
   onViewDetails,
   onEdit,
-  onAddService
+  onAddService,
+  onDelete
 }: AssetCardProps) {
   return (
     <Card className="hover-elevate cursor-pointer" data-testid={`card-mower-${id}`}>
@@ -75,6 +77,17 @@ export default function AssetCard({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onAddService(id)} data-testid={`button-add-service-${id}`}>
               Add Service Record
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(id);
+              }} 
+              data-testid={`button-delete-${id}`}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
