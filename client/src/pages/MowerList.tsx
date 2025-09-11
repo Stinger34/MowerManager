@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, ArrowLeft } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import type { Mower } from "@shared/schema";
 
 interface MowerListProps {}
 
@@ -17,89 +19,35 @@ export default function MowerList() {
   const urlParams = new URLSearchParams(window.location.search);
   const filter = urlParams.get('filter') || 'all';
   
-  // Mock mower data (should be replaced with real API data)
-  const mockMowers = [
-    {
-      id: "1",
-      make: "John Deere",
-      model: "X350",
-      year: 2022,
-      serialNumber: "JD123456",
-      condition: "excellent" as const,
-      status: "active" as const,
-      lastService: "Dec 15, 2024",
-      nextService: "Mar 15, 2025",
-      attachmentCount: 3,
-      serviceOverdue: false,
-      upcomingService: true
-    },
-    {
-      id: "2",
-      make: "Cub Cadet",
-      model: "XT1 LT42",
-      year: 2021,
-      serialNumber: "CC789012", 
-      condition: "good" as const,
-      status: "maintenance" as const,
-      lastService: "Nov 20, 2024",
-      nextService: "Jan 20, 2025",
-      attachmentCount: 1,
-      serviceOverdue: true,
-      upcomingService: false
-    },
-    {
-      id: "3",
-      make: "Troy-Bilt",
-      model: "TB30R",
-      year: 2019,
-      serialNumber: "TB345678",
-      condition: "fair" as const,
-      status: "active" as const,
-      lastService: "Oct 5, 2024",
-      nextService: "Apr 5, 2025",
-      attachmentCount: 0,
-      serviceOverdue: false,
-      upcomingService: true
-    },
-    {
-      id: "4",
-      make: "Craftsman",
-      model: "T110",
-      year: 2020,
-      serialNumber: "CR987654",
-      condition: "good" as const,
-      status: "retired" as const,
-      lastService: "Sep 10, 2024",
-      nextService: "N/A",
-      attachmentCount: 2,
-      serviceOverdue: true,
-      upcomingService: false
-    }
-  ];
+  const { data: mowers, isLoading, error } = useQuery<Mower[]>({
+    queryKey: ['/api/mowers'],
+  });
 
   // Filter mowers based on the filter parameter
   const getFilteredMowers = () => {
-    let filtered = mockMowers;
+    let filtered = mowers || [];
     
     switch (filter) {
       case 'active':
-        filtered = mockMowers.filter(m => m.status === 'active');
+        filtered = (mowers || []).filter(m => m.status === 'active');
         break;
       case 'maintenance':
-        filtered = mockMowers.filter(m => m.status === 'maintenance');
+        filtered = (mowers || []).filter(m => m.status === 'maintenance');
         break;
       case 'retired':
-        filtered = mockMowers.filter(m => m.status === 'retired');
+        filtered = (mowers || []).filter(m => m.status === 'retired');
         break;
       case 'upcoming-services':
-        filtered = mockMowers.filter(m => m.upcomingService);
+        // TODO: Implement service tracking
+        filtered = [];
         break;
       case 'overdue-services':
-        filtered = mockMowers.filter(m => m.serviceOverdue);
+        // TODO: Implement service tracking
+        filtered = [];
         break;
       case 'all':
       default:
-        filtered = mockMowers;
+        filtered = mowers || [];
         break;
     }
     
@@ -128,18 +76,18 @@ export default function MowerList() {
   const getFilterInfo = () => {
     switch (filter) {
       case 'active':
-        return { title: "Active Mowers", description: "Mowers currently in active service", count: mockMowers.filter(m => m.status === 'active').length };
+        return { title: "Active Mowers", description: "Mowers currently in active service", count: (mowers || []).filter(m => m.status === 'active').length };
       case 'maintenance':
-        return { title: "Mowers in Maintenance", description: "Mowers currently undergoing maintenance", count: mockMowers.filter(m => m.status === 'maintenance').length };
+        return { title: "Mowers in Maintenance", description: "Mowers currently undergoing maintenance", count: (mowers || []).filter(m => m.status === 'maintenance').length };
       case 'retired':
-        return { title: "Retired Mowers", description: "Mowers that are no longer in service", count: mockMowers.filter(m => m.status === 'retired').length };
+        return { title: "Retired Mowers", description: "Mowers that are no longer in service", count: (mowers || []).filter(m => m.status === 'retired').length };
       case 'upcoming-services':
-        return { title: "Upcoming Services", description: "Mowers with services scheduled soon", count: mockMowers.filter(m => m.upcomingService).length };
+        return { title: "Upcoming Services", description: "Mowers with services scheduled soon", count: 0 };
       case 'overdue-services':
-        return { title: "Overdue Services", description: "Mowers with overdue maintenance", count: mockMowers.filter(m => m.serviceOverdue).length };
+        return { title: "Overdue Services", description: "Mowers with overdue maintenance", count: 0 };
       case 'all':
       default:
-        return { title: "All Mowers", description: "Complete list of your mower fleet", count: mockMowers.length };
+        return { title: "All Mowers", description: "Complete list of your mower fleet", count: mowers?.length || 0 };
     }
   };
 
@@ -198,6 +146,9 @@ export default function MowerList() {
             <AssetCard
               key={mower.id}
               {...mower}
+              attachmentCount={0}
+              lastService="N/A"
+              nextService="N/A"
               onViewDetails={handleViewDetails}
               onEdit={handleEdit}
               onAddService={handleAddService}

@@ -5,72 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Plus } from "lucide-react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import type { Mower } from "@shared/schema";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // todo: remove mock functionality
-  const mockMowers = [
-    {
-      id: "1",
-      make: "John Deere",
-      model: "X350",
-      year: 2022,
-      serialNumber: "JD123456",
-      condition: "excellent" as const,
-      status: "active" as const,
-      lastService: "Dec 15, 2024",
-      nextService: "Mar 15, 2025",
-      attachmentCount: 3,
-      serviceOverdue: false,
-      upcomingService: true
-    },
-    {
-      id: "2",
-      make: "Cub Cadet",
-      model: "XT1 LT42",
-      year: 2021,
-      serialNumber: "CC789012", 
-      condition: "good" as const,
-      status: "maintenance" as const,
-      lastService: "Nov 20, 2024",
-      nextService: "Jan 20, 2025",
-      attachmentCount: 1,
-      serviceOverdue: true,
-      upcomingService: false
-    },
-    {
-      id: "3",
-      make: "Troy-Bilt",
-      model: "TB30R",
-      year: 2019,
-      serialNumber: "TB345678",
-      condition: "fair" as const,
-      status: "active" as const,
-      lastService: "Oct 5, 2024",
-      nextService: "Apr 5, 2025",
-      attachmentCount: 0,
-      serviceOverdue: false,
-      upcomingService: true
-    },
-    {
-      id: "4",
-      make: "Craftsman",
-      model: "T110",
-      year: 2020,
-      serialNumber: "CR987654",
-      condition: "good" as const,
-      status: "retired" as const,
-      lastService: "Sep 10, 2024",
-      nextService: "N/A",
-      attachmentCount: 2,
-      serviceOverdue: true,
-      upcomingService: false
-    }
-  ];
+  const { data: mowers, isLoading, error } = useQuery<Mower[]>({
+    queryKey: ['/api/mowers'],
+  });
 
-  const filteredMowers = mockMowers.filter(mower =>
+  const filteredMowers = (mowers || []).filter(mower =>
     `${mower.make} ${mower.model}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
     mower.serialNumber?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -108,11 +54,11 @@ export default function Dashboard() {
       </div>
 
       <DashboardStats
-        totalMowers={mockMowers.length}
-        activeMowers={mockMowers.filter(m => m.status === 'active').length}
-        maintenanceMowers={mockMowers.filter(m => m.status === 'maintenance').length}
-        upcomingServices={mockMowers.filter(m => m.upcomingService).length}
-        overdueServices={mockMowers.filter(m => m.serviceOverdue).length}
+        totalMowers={mowers?.length || 0}
+        activeMowers={mowers?.filter(m => m.status === 'active').length || 0}
+        maintenanceMowers={mowers?.filter(m => m.status === 'maintenance').length || 0}
+        upcomingServices={0}
+        overdueServices={0}
       />
 
       <div className="space-y-4">
@@ -134,6 +80,9 @@ export default function Dashboard() {
             <AssetCard
               key={mower.id}
               {...mower}
+              attachmentCount={0}
+              lastService="N/A"
+              nextService="N/A"
               onViewDetails={handleViewDetails}
               onEdit={handleEdit}
               onAddService={handleAddService}
