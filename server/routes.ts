@@ -34,11 +34,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/mowers', async (req: Request, res: Response) => {
     try {
-      const validatedData = insertMowerSchema.parse(req.body);
+      console.log('Creating mower with data:', req.body);
+      
+      // Transform data to match schema expectations
+      const transformedData = {
+        ...req.body,
+        purchaseDate: req.body.purchaseDate ? req.body.purchaseDate.split('T')[0] : null, // Convert to date string
+        lastServiceDate: req.body.lastServiceDate ? req.body.lastServiceDate.split('T')[0] : null, // Convert to date string  
+        nextServiceDate: req.body.nextServiceDate ? req.body.nextServiceDate.split('T')[0] : null, // Convert to date string
+        purchasePrice: req.body.purchasePrice || null, // Convert empty string to null
+        serialNumber: req.body.serialNumber || null, // Convert empty string to null
+        notes: req.body.notes || null, // Convert empty string to null
+      };
+      
+      console.log('Transformed data:', transformedData);
+      const validatedData = insertMowerSchema.parse(transformedData);
+      console.log('Validated data:', validatedData);
       const mower = await storage.createMower(validatedData);
       res.status(201).json(mower);
     } catch (error) {
-      res.status(400).json({ error: 'Invalid mower data' });
+      console.error('Mower creation error:', error);
+      res.status(400).json({ error: 'Invalid mower data', details: error.message });
     }
   });
 
