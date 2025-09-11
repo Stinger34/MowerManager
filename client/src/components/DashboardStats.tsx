@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tractor, Wrench, AlertTriangle, Calendar } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface DashboardStatsProps {
   totalMowers: number;
@@ -8,6 +9,7 @@ interface DashboardStatsProps {
   maintenanceMowers: number;
   upcomingServices: number;
   overdueServices: number;
+  onScrollToMowers?: () => void;
 }
 
 export default function DashboardStats({
@@ -15,43 +17,63 @@ export default function DashboardStats({
   activeMowers,
   maintenanceMowers,
   upcomingServices,
-  overdueServices
+  overdueServices,
+  onScrollToMowers
 }: DashboardStatsProps) {
+  const [, setLocation] = useLocation();
+  const handleStatClick = (title: string) => {
+    if (title === "Total Mowers" || title === "Active" || title === "In Maintenance") {
+      onScrollToMowers?.();
+    } else if (title === "Upcoming Services") {
+      // Navigate to service history or first mower with service due
+      console.log("Navigate to services");
+    }
+  };
+
   const stats = [
     {
       title: "Total Mowers",
       value: totalMowers,
       icon: Tractor,
       color: "text-blue-600",
-      bgColor: "bg-blue-100 dark:bg-blue-900/20"
+      bgColor: "bg-blue-100 dark:bg-blue-900/20",
+      clickable: true
     },
     {
       title: "Active",
       value: activeMowers,
       icon: Tractor,
       color: "text-green-600",
-      bgColor: "bg-green-100 dark:bg-green-900/20"
+      bgColor: "bg-green-100 dark:bg-green-900/20",
+      clickable: true
     },
     {
       title: "In Maintenance",
       value: maintenanceMowers,
       icon: Wrench,
       color: "text-orange-600",
-      bgColor: "bg-orange-100 dark:bg-orange-900/20"
+      bgColor: "bg-orange-100 dark:bg-orange-900/20",
+      clickable: true
     },
     {
       title: "Upcoming Services",
       value: upcomingServices,
       icon: Calendar,
       color: "text-purple-600",
-      bgColor: "bg-purple-100 dark:bg-purple-900/20"
+      bgColor: "bg-purple-100 dark:bg-purple-900/20",
+      clickable: upcomingServices > 0
     }
   ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {stats.map((stat, index) => (
-        <Card key={index} data-testid={`card-stat-${stat.title.toLowerCase().replace(/\s+/g, '-')}`}>
+        <Card 
+          key={index} 
+          data-testid={`card-stat-${stat.title.toLowerCase().replace(/\s+/g, '-')}`}
+          className={stat.clickable ? "hover-elevate cursor-pointer" : ""}
+          onClick={stat.clickable ? () => handleStatClick(stat.title) : undefined}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               {stat.title}
@@ -69,7 +91,11 @@ export default function DashboardStats({
       ))}
       
       {overdueServices > 0 && (
-        <Card className="border-destructive" data-testid="card-overdue-services">
+        <Card 
+          className="border-destructive hover-elevate cursor-pointer" 
+          data-testid="card-overdue-services"
+          onClick={() => console.log("Navigate to overdue services")}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-destructive">
               Overdue Services
