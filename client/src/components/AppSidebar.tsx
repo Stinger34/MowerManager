@@ -35,11 +35,11 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <div className="flex justify-center px-2 py-4 mb-4">
+          <div className="flex justify-center px-2 py-6 mb-6">
             <img 
               src="/logo.png" 
               alt="Mower Manager" 
-              className="h-12 w-12 object-contain"
+              className="h-36 w-36 object-contain"
             />
           </div>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
