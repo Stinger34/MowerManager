@@ -12,7 +12,7 @@ import TaskList from "@/components/TaskList";
 import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Mower, Task, InsertTask, ServiceRecord } from "@shared/schema";
+import type { Mower, Task, InsertTask, ServiceRecord, Attachment } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 export default function MowerDetails() {
@@ -39,6 +39,12 @@ export default function MowerDetails() {
   // Fetch service records data
   const { data: serviceRecords = [], isLoading: isServiceRecordsLoading, error: serviceRecordsError } = useQuery<ServiceRecord[]>({
     queryKey: ['/api/mowers', mowerId, 'service'],
+    enabled: !!mowerId,
+  });
+
+  // Fetch attachments data
+  const { data: attachments = [], isLoading: isAttachmentsLoading, error: attachmentsError } = useQuery<Omit<Attachment, 'fileData'>[]>({
+    queryKey: ['/api/mowers', mowerId, 'attachments'],
     enabled: !!mowerId,
   });
 
@@ -125,6 +131,122 @@ export default function MowerDetails() {
       toast({ title: "Error", description: "Failed to complete task", variant: "destructive" });
     },
   });
+
+  // Attachment mutations
+  const uploadAttachmentMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      // Optional description can be added later
+      const response = await fetch(`/api/mowers/${mowerId}/attachments`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Upload failed');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'attachments'] });
+      toast({ title: "Success", description: "File uploaded successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Upload Failed", 
+        description: error.message.includes('Invalid file type') ? 'Invalid file type. Only PDF, images, and documents are allowed.' : 'Upload failed. Please try again.',
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: async (attachmentId: string) => {
+      await apiRequest('DELETE', `/api/attachments/${attachmentId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'attachments'] });
+      toast({ title: "Success", description: "Attachment deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete attachment", variant: "destructive" });
+    },
+  });
+
+  // File upload handler
+  const handleFileUpload = () => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '*/*';
+    fileInput.multiple = true;
+    
+    fileInput.onchange = (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (files) {
+        Array.from(files).forEach(file => {
+          // Check file size (10MB limit)
+          if (file.size > 10 * 1024 * 1024) {
+            toast({
+              title: "File Too Large",
+              description: `${file.name} is larger than 10MB limit`,
+              variant: "destructive"
+            });
+            return;
+          }
+          uploadAttachmentMutation.mutate(file);
+        });
+      }
+    };
+    
+    fileInput.click();
+  };
+
+  // Download attachment handler
+  const handleDownloadAttachment = async (attachmentId: string, fileName: string) => {
+    try {
+      const response = await fetch(`/api/attachments/${attachmentId}/download`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({ title: "Success", description: "File downloaded successfully" });
+    } catch (error) {
+      toast({ 
+        title: "Download Failed", 
+        description: "Unable to download file",
+        variant: "destructive" 
+      });
+    }
+  };
+
+  // View attachment handler (same as download for now)
+  const handleViewAttachment = (attachmentId: string, fileName: string) => {
+    handleDownloadAttachment(attachmentId, fileName);
+  };
+
+  // Delete attachment with confirmation
+  const handleDeleteAttachment = (attachmentId: string) => {
+    if (window.confirm('Are you sure you want to delete this attachment?')) {
+      deleteAttachmentMutation.mutate(attachmentId);
+    }
+  };
 
   // Initialize notes when mower data loads
   useEffect(() => {
@@ -271,10 +393,15 @@ export default function MowerDetails() {
             <Button 
               className="w-full justify-start" 
               variant="outline"
-              onClick={() => console.log('Upload attachment')}
+              onClick={handleFileUpload}
+              disabled={uploadAttachmentMutation.isPending}
               data-testid="button-upload-attachment"
             >
-              <Plus className="h-4 w-4 mr-2" />
+              {uploadAttachmentMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
               Upload Attachment
             </Button>
           </CardContent>
@@ -294,7 +421,7 @@ export default function MowerDetails() {
             Service History
           </TabsTrigger>
           <TabsTrigger value="attachments" data-testid="tab-attachments">
-            Attachments (0)
+            Attachments ({attachments.length})
           </TabsTrigger>
         </TabsList>
         
@@ -410,13 +537,36 @@ export default function MowerDetails() {
         </TabsContent>
         
         <TabsContent value="attachments">
-          <AttachmentGallery
-            attachments={[]} // TODO: Fetch real attachments from API
-            onUpload={() => console.log('Upload files')}
-            onView={(id) => console.log('View attachment:', id)}
-            onDownload={(id) => console.log('Download attachment:', id)}
-            onDelete={(id) => console.log('Delete attachment:', id)}
-          />
+          {isAttachmentsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading attachments...</span>
+            </div>
+          ) : (
+            <AttachmentGallery
+              attachments={attachments.map(attachment => ({
+                ...attachment,
+                fileType: attachment.fileType as "pdf" | "image" | "document",
+                uploadedAt: new Date(attachment.uploadedAt).toLocaleDateString(),
+              }))}
+              onUpload={handleFileUpload}
+              onView={(id) => {
+                const attachment = attachments.find(a => a.id === id);
+                if (attachment) {
+                  handleViewAttachment(id, attachment.fileName);
+                }
+              }}
+              onDownload={(id) => {
+                const attachment = attachments.find(a => a.id === id);
+                if (attachment) {
+                  handleDownloadAttachment(id, attachment.fileName);
+                }
+              }}
+              onDelete={handleDeleteAttachment}
+              isUploading={uploadAttachmentMutation.isPending}
+              isDeleting={deleteAttachmentMutation.isPending}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>

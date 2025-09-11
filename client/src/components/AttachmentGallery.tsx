@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, Image, Download, Eye, Trash2 } from "lucide-react";
+import { Upload, FileText, Image, Download, Eye, Trash2, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Attachment {
@@ -20,6 +20,8 @@ interface AttachmentGalleryProps {
   onView: (id: string) => void;
   onDownload: (id: string) => void;
   onDelete: (id: string) => void;
+  isUploading?: boolean;
+  isDeleting?: boolean;
 }
 
 const getFileIcon = (fileType: string) => {
@@ -46,7 +48,9 @@ export default function AttachmentGallery({
   onUpload,
   onView,
   onDownload,
-  onDelete
+  onDelete,
+  isUploading = false,
+  isDeleting = false
 }: AttachmentGalleryProps) {
   return (
     <Card>
@@ -56,9 +60,17 @@ export default function AttachmentGallery({
             <Upload className="h-5 w-5" />
             Attachments ({attachments.length})
           </CardTitle>
-          <Button onClick={onUpload} data-testid="button-upload-attachment">
-            <Upload className="h-4 w-4 mr-2" />
-            Upload Files
+          <Button 
+            onClick={onUpload} 
+            disabled={isUploading}
+            data-testid="button-upload-attachment"
+          >
+            {isUploading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4 mr-2" />
+            )}
+            {isUploading ? 'Uploading...' : 'Upload Files'}
           </Button>
         </div>
       </CardHeader>
@@ -106,9 +118,14 @@ export default function AttachmentGallery({
                         <DropdownMenuItem 
                           onClick={() => onDelete(attachment.id)}
                           className="text-destructive"
+                          disabled={isDeleting}
                           data-testid={`button-delete-attachment-${attachment.id}`}
                         >
-                          <Trash2 className="h-4 w-4 mr-2" />
+                          {isDeleting ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 mr-2" />
+                          )}
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
