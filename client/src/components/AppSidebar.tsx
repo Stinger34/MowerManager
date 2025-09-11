@@ -35,6 +35,14 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
+          <div className="flex items-center gap-2 px-2 py-3 mb-2">
+            <img 
+              src="/logo.png" 
+              alt="Mower Manager" 
+              className="h-6 w-6 object-contain"
+            />
+            <span className="font-semibold text-sm">Mower Manager</span>
+          </div>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
