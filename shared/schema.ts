@@ -15,6 +15,8 @@ export const mowers = pgTable("mowers", {
   location: text("location"),
   condition: text("condition").notNull().default("good"), // excellent, good, fair, poor
   status: text("status").notNull().default("active"), // active, maintenance, retired
+  lastServiceDate: date("last_service_date"),
+  nextServiceDate: date("next_service_date"),
   notes: text("notes"),
 });
 
