@@ -23,6 +23,7 @@ export interface IStorage {
   markTaskComplete(id: string): Promise<Task | undefined>;
   
   // Service Record methods
+  getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]>;
   createServiceRecordWithMowerUpdate(serviceRecord: InsertServiceRecord): Promise<ServiceRecord>;
 }
 
@@ -44,8 +45,7 @@ export class MemStorage implements IStorage {
   }
 
   async createMower(insertMower: InsertMower): Promise<Mower> {
-    const id = randomUUID();
-    const now = new Date();
+    const id = Math.floor(Math.random() * 1000000); // Mock serial ID for MemStorage
     const mower: Mower = { 
       ...insertMower,
       id,
@@ -56,10 +56,10 @@ export class MemStorage implements IStorage {
       condition: insertMower.condition || "good",
       status: insertMower.status || "active",
       notes: insertMower.notes || null,
-      createdAt: now,
-      updatedAt: now
+      lastServiceDate: insertMower.lastServiceDate || null,
+      nextServiceDate: insertMower.nextServiceDate || null
     };
-    this.mowers.set(id, mower);
+    this.mowers.set(id.toString(), mower);
     return mower;
   }
 
@@ -69,8 +69,7 @@ export class MemStorage implements IStorage {
     
     const updatedMower: Mower = {
       ...existingMower,
-      ...updateData,
-      updatedAt: new Date()
+      ...updateData
     };
     this.mowers.set(id, updatedMower);
     return updatedMower;
@@ -86,7 +85,7 @@ export class MemStorage implements IStorage {
   }
 
   async getTasksByMowerId(mowerId: string): Promise<Task[]> {
-    return Array.from(this.tasks.values()).filter(task => task.mowerId === mowerId);
+    return Array.from(this.tasks.values()).filter(task => task.mowerId === parseInt(mowerId));
   }
 
   async createTask(insertTask: InsertTask): Promise<Task> {
@@ -143,6 +142,11 @@ export class MemStorage implements IStorage {
   }
 
   // Service Record methods
+  async getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]> {
+    // Mock implementation for MemStorage - return empty array
+    return [];
+  }
+
   async createServiceRecordWithMowerUpdate(insertServiceRecord: InsertServiceRecord): Promise<ServiceRecord> {
     // Create service record (mock implementation for MemStorage)
     const id = randomUUID();
@@ -150,6 +154,10 @@ export class MemStorage implements IStorage {
     const serviceRecord: ServiceRecord = {
       ...insertServiceRecord,
       id,
+      cost: insertServiceRecord.cost || null,
+      performedBy: insertServiceRecord.performedBy || null,
+      nextServiceDue: insertServiceRecord.nextServiceDue || null,
+      mileage: insertServiceRecord.mileage || null,
       createdAt: now,
     };
 
@@ -159,7 +167,7 @@ export class MemStorage implements IStorage {
     if (mower) {
       const serviceDate = insertServiceRecord.serviceDate;
       const nextServiceDate = new Date(serviceDate);
-      nextServiceDate.setMonth(nextServiceDate.getMonth() + 12); // Add 12 months
+      nextServiceDate.setFullYear(nextServiceDate.getFullYear() + 1); // Add 12 months
 
       const updatedMower: Mower = {
         ...mower,
@@ -200,7 +208,7 @@ export class DbStorage implements IStorage {
 
   async deleteMower(id: string): Promise<boolean> {
     const result = await db.delete(mowers).where(eq(mowers.id, parseInt(id)));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Task methods
@@ -210,7 +218,7 @@ export class DbStorage implements IStorage {
   }
 
   async getTasksByMowerId(mowerId: string): Promise<Task[]> {
-    return await db.select().from(tasks).where(eq(tasks.mowerId, mowerId));
+    return await db.select().from(tasks).where(eq(tasks.mowerId, parseInt(mowerId)));
   }
 
   async createTask(insertTask: InsertTask): Promise<Task> {
@@ -237,7 +245,7 @@ export class DbStorage implements IStorage {
 
   async deleteTask(id: string): Promise<boolean> {
     const result = await db.delete(tasks).where(eq(tasks.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   async markTaskComplete(id: string): Promise<Task | undefined> {
@@ -253,6 +261,10 @@ export class DbStorage implements IStorage {
   }
 
   // Service Record methods
+  async getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]> {
+    return await db.select().from(serviceRecords).where(eq(serviceRecords.mowerId, parseInt(mowerId)));
+  }
+
   async createServiceRecordWithMowerUpdate(insertServiceRecord: InsertServiceRecord): Promise<ServiceRecord> {
     // Create service record
     const serviceRecordData: typeof serviceRecords.$inferInsert = {

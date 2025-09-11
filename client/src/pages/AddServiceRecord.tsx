@@ -70,6 +70,7 @@ export default function AddServiceRecord() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/mowers'] });
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'service'] });
       setLocation(`/mowers/${mowerId}`);
     },
     onError: (error) => {

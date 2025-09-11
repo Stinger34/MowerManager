@@ -145,11 +145,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Service Record routes
+  app.get('/api/mowers/:id/service', async (req: Request, res: Response) => {
+    try {
+      const serviceRecords = await storage.getServiceRecordsByMowerId(req.params.id);
+      res.json(serviceRecords);
+    } catch (error) {
+      console.error('Error fetching service records:', error);
+      res.status(500).json({ error: 'Failed to fetch service records' });
+    }
+  });
+
   app.post('/api/mowers/:id/service', async (req: Request, res: Response) => {
     try {
       console.log('Service record creation request:', { params: req.params, body: req.body });
-      const serviceData = { ...req.body, mowerId: parseInt(req.params.id) };
-      console.log('Service data with parsed mowerId:', serviceData);
+      
+      // Transform data to match schema expectations
+      const serviceData = {
+        ...req.body,
+        mowerId: parseInt(req.params.id),
+        serviceDate: new Date(req.body.serviceDate), // Convert string to Date
+        cost: req.body.cost ? String(req.body.cost) : null, // Convert number to string
+        performedBy: req.body.performedBy || null,
+        mileage: req.body.mileage ? parseInt(req.body.mileage) : null,
+        nextServiceDue: req.body.nextServiceDue ? new Date(req.body.nextServiceDue) : null,
+      };
+      
+      console.log('Transformed service data:', serviceData);
       const validatedData = insertServiceRecordSchema.parse(serviceData);
       console.log('Validated service record data:', validatedData);
       

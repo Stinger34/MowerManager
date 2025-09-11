@@ -12,7 +12,7 @@ import TaskList from "@/components/TaskList";
 import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Mower, Task, InsertTask } from "@shared/schema";
+import type { Mower, Task, InsertTask, ServiceRecord } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 export default function MowerDetails() {
@@ -33,6 +33,12 @@ export default function MowerDetails() {
   // Fetch tasks data  
   const { data: tasks = [], isLoading: isTasksLoading, error: tasksError } = useQuery<Task[]>({
     queryKey: ['/api/mowers', mowerId, 'tasks'],
+    enabled: !!mowerId,
+  });
+
+  // Fetch service records data
+  const { data: serviceRecords = [], isLoading: isServiceRecordsLoading, error: serviceRecordsError } = useQuery<ServiceRecord[]>({
+    queryKey: ['/api/mowers', mowerId, 'service'],
     enabled: !!mowerId,
   });
 
@@ -386,7 +392,7 @@ export default function MowerDetails() {
         
         <TabsContent value="service-history">
           <ServiceHistoryTable
-            serviceRecords={mockServiceRecords}
+            serviceRecords={serviceRecords}
             onAddService={() => setLocation(`/mowers/${mowerId}/service/new`)}
             onEditService={(id) => setLocation(`/mowers/${mowerId}/service/${id}/edit`)}
           />
