@@ -55,6 +55,23 @@ export default function Dashboard() {
     mower.serialNumber?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Calculate service status based on dates
+  const calculateServiceStatus = (mower: typeof mockMowers[0]) => {
+    const today = new Date();
+    const nextServiceDate = new Date(mower.nextService);
+    const lastServiceDate = new Date(mower.lastService);
+    
+    // Service is upcoming if it's within the next 30 days
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(today.getDate() + 30);
+    const isUpcoming = nextServiceDate <= thirtyDaysFromNow && nextServiceDate > today;
+    
+    // Service is overdue if next service date has passed
+    const isOverdue = nextServiceDate < today;
+    
+    return { isUpcoming, isOverdue };
+  };
+
   const handleViewDetails = (id: string) => {
     console.log('Navigate to mower details:', id);
     setLocation(`/mowers/${id}`);
@@ -90,8 +107,8 @@ export default function Dashboard() {
         totalMowers={mockMowers.length}
         activeMowers={mockMowers.filter(m => m.status === 'active').length}
         maintenanceMowers={mockMowers.filter(m => m.status === 'maintenance').length}
-        upcomingServices={mockMowers.filter(m => m.upcomingService).length}
-        overdueServices={mockMowers.filter(m => m.serviceOverdue).length}
+        upcomingServices={mockMowers.filter(m => calculateServiceStatus(m).isUpcoming).length}
+        overdueServices={mockMowers.filter(m => calculateServiceStatus(m).isOverdue).length}
       />
 
       <div className="space-y-4">
