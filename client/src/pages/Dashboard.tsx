@@ -22,7 +22,9 @@ export default function Dashboard() {
       status: "active" as const,
       lastService: "Dec 15, 2024",
       nextService: "Mar 15, 2025",
-      attachmentCount: 3
+      attachmentCount: 3,
+      serviceOverdue: false,
+      upcomingService: true
     },
     {
       id: "2",
@@ -34,7 +36,9 @@ export default function Dashboard() {
       status: "maintenance" as const,
       lastService: "Nov 20, 2024",
       nextService: "Jan 20, 2025",
-      attachmentCount: 1
+      attachmentCount: 1,
+      serviceOverdue: true,
+      upcomingService: false
     },
     {
       id: "3",
@@ -46,7 +50,23 @@ export default function Dashboard() {
       status: "active" as const,
       lastService: "Oct 5, 2024",
       nextService: "Apr 5, 2025",
-      attachmentCount: 0
+      attachmentCount: 0,
+      serviceOverdue: false,
+      upcomingService: true
+    },
+    {
+      id: "4",
+      make: "Craftsman",
+      model: "T110",
+      year: 2020,
+      serialNumber: "CR987654",
+      condition: "good" as const,
+      status: "retired" as const,
+      lastService: "Sep 10, 2024",
+      nextService: "N/A",
+      attachmentCount: 2,
+      serviceOverdue: true,
+      upcomingService: false
     }
   ];
 
@@ -55,22 +75,6 @@ export default function Dashboard() {
     mower.serialNumber?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Calculate service status based on dates
-  const calculateServiceStatus = (mower: typeof mockMowers[0]) => {
-    const today = new Date();
-    const nextServiceDate = new Date(mower.nextService);
-    const lastServiceDate = new Date(mower.lastService);
-    
-    // Service is upcoming if it's within the next 30 days
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(today.getDate() + 30);
-    const isUpcoming = nextServiceDate <= thirtyDaysFromNow && nextServiceDate > today;
-    
-    // Service is overdue if next service date has passed
-    const isOverdue = nextServiceDate < today;
-    
-    return { isUpcoming, isOverdue };
-  };
 
   const handleViewDetails = (id: string) => {
     console.log('Navigate to mower details:', id);
@@ -107,8 +111,8 @@ export default function Dashboard() {
         totalMowers={mockMowers.length}
         activeMowers={mockMowers.filter(m => m.status === 'active').length}
         maintenanceMowers={mockMowers.filter(m => m.status === 'maintenance').length}
-        upcomingServices={mockMowers.filter(m => calculateServiceStatus(m).isUpcoming).length}
-        overdueServices={mockMowers.filter(m => calculateServiceStatus(m).isOverdue).length}
+        upcomingServices={mockMowers.filter(m => m.upcomingService).length}
+        overdueServices={mockMowers.filter(m => m.serviceOverdue).length}
       />
 
       <div className="space-y-4">
