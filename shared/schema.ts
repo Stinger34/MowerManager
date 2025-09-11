@@ -43,10 +43,26 @@ export const attachments = pgTable("attachments", {
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
 
+export const tasks = pgTable("tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  mowerId: varchar("mower_id").notNull().references(() => mowers.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  priority: text("priority").notNull().default("medium"), // low, medium, high, urgent
+  status: text("status").notNull().default("pending"), // pending, in_progress, completed, cancelled
+  dueDate: timestamp("due_date"),
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  partNumber: text("part_number"),
+  category: text("category").notNull().default("maintenance"), // maintenance, repair, parts, inspection, other
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
 // Relations
 export const mowersRelations = relations(mowers, ({ many }) => ({
   serviceRecords: many(serviceRecords),
   attachments: many(attachments),
+  tasks: many(tasks),
 }));
 
 export const serviceRecordsRelations = relations(serviceRecords, ({ one }) => ({
@@ -59,6 +75,13 @@ export const serviceRecordsRelations = relations(serviceRecords, ({ one }) => ({
 export const attachmentsRelations = relations(attachments, ({ one }) => ({
   mower: one(mowers, {
     fields: [attachments.mowerId],
+    references: [mowers.id],
+  }),
+}));
+
+export const tasksRelations = relations(tasks, ({ one }) => ({
+  mower: one(mowers, {
+    fields: [tasks.mowerId],
     references: [mowers.id],
   }),
 }));
@@ -80,6 +103,12 @@ export const insertAttachmentSchema = createInsertSchema(attachments).omit({
   uploadedAt: true,
 });
 
+export const insertTaskSchema = createInsertSchema(tasks).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
 // Types
 export type InsertMower = z.infer<typeof insertMowerSchema>;
 export type Mower = typeof mowers.$inferSelect;
@@ -90,8 +119,12 @@ export type ServiceRecord = typeof serviceRecords.$inferSelect;
 export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
 export type Attachment = typeof attachments.$inferSelect;
 
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+export type Task = typeof tasks.$inferSelect;
+
 // Combined types for API responses
 export type MowerWithDetails = Mower & {
   serviceRecords: ServiceRecord[];
   attachments: Attachment[];
+  tasks: Task[];
 };

@@ -1,37 +1,135 @@
-import { type User, type InsertUser } from "@shared/schema";
+import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
 // you might need
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // Mower methods
+  getMower(id: string): Promise<Mower | undefined>;
+  getAllMowers(): Promise<Mower[]>;
+  createMower(mower: InsertMower): Promise<Mower>;
+  updateMower(id: string, mower: Partial<InsertMower>): Promise<Mower | undefined>;
+  deleteMower(id: string): Promise<boolean>;
+  
+  // Task methods
+  getTask(id: string): Promise<Task | undefined>;
+  getTasksByMowerId(mowerId: string): Promise<Task[]>;
+  createTask(task: InsertTask): Promise<Task>;
+  updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
+  deleteTask(id: string): Promise<boolean>;
+  markTaskComplete(id: string): Promise<Task | undefined>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private mowers: Map<string, Mower>;
+  private tasks: Map<string, Task>;
 
   constructor() {
-    this.users = new Map();
+    this.mowers = new Map();
+    this.tasks = new Map();
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getMower(id: string): Promise<Mower | undefined> {
+    return this.mowers.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async getAllMowers(): Promise<Mower[]> {
+    return Array.from(this.mowers.values());
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createMower(insertMower: InsertMower): Promise<Mower> {
     const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const now = new Date();
+    const mower: Mower = { 
+      ...insertMower,
+      id,
+      year: insertMower.year || null,
+      serialNumber: insertMower.serialNumber || null,
+      purchaseDate: insertMower.purchaseDate || null,
+      purchasePrice: insertMower.purchasePrice || null,
+      notes: insertMower.notes || null,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.mowers.set(id, mower);
+    return mower;
+  }
+
+  async updateMower(id: string, updateData: Partial<InsertMower>): Promise<Mower | undefined> {
+    const existingMower = this.mowers.get(id);
+    if (!existingMower) return undefined;
+    
+    const updatedMower: Mower = {
+      ...existingMower,
+      ...updateData,
+      updatedAt: new Date()
+    };
+    this.mowers.set(id, updatedMower);
+    return updatedMower;
+  }
+
+  async deleteMower(id: string): Promise<boolean> {
+    return this.mowers.delete(id);
+  }
+
+  // Task methods
+  async getTask(id: string): Promise<Task | undefined> {
+    return this.tasks.get(id);
+  }
+
+  async getTasksByMowerId(mowerId: string): Promise<Task[]> {
+    return Array.from(this.tasks.values()).filter(task => task.mowerId === mowerId);
+  }
+
+  async createTask(insertTask: InsertTask): Promise<Task> {
+    const id = randomUUID();
+    const now = new Date();
+    const task: Task = {
+      ...insertTask,
+      id,
+      dueDate: insertTask.dueDate || null,
+      estimatedCost: insertTask.estimatedCost || null,
+      partNumber: insertTask.partNumber || null,
+      description: insertTask.description || null,
+      createdAt: now,
+      completedAt: null
+    };
+    this.tasks.set(id, task);
+    return task;
+  }
+
+  async updateTask(id: string, updateData: Partial<InsertTask>): Promise<Task | undefined> {
+    const existingTask = this.tasks.get(id);
+    if (!existingTask) return undefined;
+    
+    const updatedTask: Task = {
+      ...existingTask,
+      ...updateData,
+      dueDate: updateData.dueDate !== undefined ? updateData.dueDate || null : existingTask.dueDate,
+      estimatedCost: updateData.estimatedCost !== undefined ? updateData.estimatedCost || null : existingTask.estimatedCost,
+      partNumber: updateData.partNumber !== undefined ? updateData.partNumber || null : existingTask.partNumber,
+      description: updateData.description !== undefined ? updateData.description || null : existingTask.description,
+    };
+    this.tasks.set(id, updatedTask);
+    return updatedTask;
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    return this.tasks.delete(id);
+  }
+
+  async markTaskComplete(id: string): Promise<Task | undefined> {
+    const task = this.tasks.get(id);
+    if (!task) return undefined;
+    
+    const completedTask: Task = {
+      ...task,
+      status: "completed",
+      completedAt: new Date()
+    };
+    this.tasks.set(id, completedTask);
+    return completedTask;
   }
 }
 
