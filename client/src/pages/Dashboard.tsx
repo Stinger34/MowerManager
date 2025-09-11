@@ -90,8 +90,8 @@ export default function Dashboard() {
         totalMowers={mockMowers.length}
         activeMowers={mockMowers.filter(m => m.status === 'active').length}
         maintenanceMowers={mockMowers.filter(m => m.status === 'maintenance').length}
-        upcomingServices={5}
-        overdueServices={1}
+        upcomingServices={mockMowers.filter(m => m.upcomingService).length}
+        overdueServices={mockMowers.filter(m => m.serviceOverdue).length}
       />
 
       <div className="space-y-4">
