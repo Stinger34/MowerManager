@@ -38,12 +38,23 @@ export default function MowerList() {
         filtered = (mowers || []).filter(m => m.status === 'retired');
         break;
       case 'upcoming-services':
-        // TODO: Implement service tracking
-        filtered = [];
+        // Filter mowers with next service date within 30 days
+        filtered = (mowers || []).filter(m => {
+          if (!m.nextServiceDate) return false;
+          const nextServiceDate = new Date(m.nextServiceDate);
+          const today = new Date();
+          const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+          return nextServiceDate >= today && nextServiceDate <= thirtyDaysFromNow;
+        });
         break;
       case 'overdue-services':
-        // TODO: Implement service tracking
-        filtered = [];
+        // Filter mowers with next service date in the past
+        filtered = (mowers || []).filter(m => {
+          if (!m.nextServiceDate) return false;
+          const nextServiceDate = new Date(m.nextServiceDate);
+          const today = new Date();
+          return nextServiceDate < today;
+        });
         break;
       case 'all':
       default:
@@ -82,9 +93,22 @@ export default function MowerList() {
       case 'retired':
         return { title: "Retired Mowers", description: "Mowers that are no longer in service", count: (mowers || []).filter(m => m.status === 'retired').length };
       case 'upcoming-services':
-        return { title: "Upcoming Services", description: "Mowers with services scheduled soon", count: 0 };
+        const upcomingCount = (mowers || []).filter(m => {
+          if (!m.nextServiceDate) return false;
+          const nextServiceDate = new Date(m.nextServiceDate);
+          const today = new Date();
+          const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+          return nextServiceDate >= today && nextServiceDate <= thirtyDaysFromNow;
+        }).length;
+        return { title: "Upcoming Services", description: "Mowers with services scheduled within 30 days", count: upcomingCount };
       case 'overdue-services':
-        return { title: "Overdue Services", description: "Mowers with overdue maintenance", count: 0 };
+        const overdueCount = (mowers || []).filter(m => {
+          if (!m.nextServiceDate) return false;
+          const nextServiceDate = new Date(m.nextServiceDate);
+          const today = new Date();
+          return nextServiceDate < today;
+        }).length;
+        return { title: "Overdue Services", description: "Mowers with overdue maintenance", count: overdueCount };
       case 'all':
       default:
         return { title: "All Mowers", description: "Complete list of your mower fleet", count: mowers?.length || 0 };
@@ -148,8 +172,8 @@ export default function MowerList() {
               {...mower}
               id={String(mower.id)}
               attachmentCount={0}
-              lastService="N/A"
-              nextService="N/A"
+              lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
+              nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
               onViewDetails={handleViewDetails}
               onEdit={handleEdit}
               onAddService={handleAddService}

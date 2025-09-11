@@ -21,6 +21,21 @@ export default function Dashboard() {
     mower.serialNumber?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const upcomingServices = (mowers || []).filter(m => {
+    if (!m.nextServiceDate) return false;
+    const nextServiceDate = new Date(m.nextServiceDate);
+    const today = new Date();
+    const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+    return nextServiceDate >= today && nextServiceDate <= thirtyDaysFromNow;
+  }).length;
+  
+  const overdueServices = (mowers || []).filter(m => {
+    if (!m.nextServiceDate) return false;
+    const nextServiceDate = new Date(m.nextServiceDate);
+    const today = new Date();
+    return nextServiceDate < today;
+  }).length;
+
 
   const handleViewDetails = (id: string) => {
     console.log('Navigate to mower details:', id);
@@ -57,8 +72,8 @@ export default function Dashboard() {
         totalMowers={mowers?.length || 0}
         activeMowers={mowers?.filter(m => m.status === 'active').length || 0}
         maintenanceMowers={mowers?.filter(m => m.status === 'maintenance').length || 0}
-        upcomingServices={0}
-        overdueServices={0}
+        upcomingServices={upcomingServices}
+        overdueServices={overdueServices}
       />
 
       <div className="space-y-4">
@@ -82,8 +97,8 @@ export default function Dashboard() {
               {...mower}
               id={String(mower.id)}
               attachmentCount={0}
-              lastService="N/A"
-              nextService="N/A"
+              lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
+              nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
               onViewDetails={handleViewDetails}
               onEdit={handleEdit}
               onAddService={handleAddService}

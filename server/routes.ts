@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertMowerSchema, insertTaskSchema } from "@shared/schema";
+import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // put application routes here
@@ -141,6 +141,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(task);
     } catch (error) {
       res.status(500).json({ error: 'Failed to complete task' });
+    }
+  });
+
+  // Service Record routes
+  app.post('/api/mowers/:id/service', async (req: Request, res: Response) => {
+    try {
+      console.log('Service record creation request:', { params: req.params, body: req.body });
+      const serviceData = { ...req.body, mowerId: parseInt(req.params.id) };
+      console.log('Service data with parsed mowerId:', serviceData);
+      const validatedData = insertServiceRecordSchema.parse(serviceData);
+      console.log('Validated service record data:', validatedData);
+      
+      // Create service record and update mower service dates
+      const serviceRecord = await storage.createServiceRecordWithMowerUpdate(validatedData);
+      res.status(201).json(serviceRecord);
+    } catch (error) {
+      console.error('Service record creation error:', error);
+      res.status(400).json({ error: 'Invalid service record data' });
     }
   });
 

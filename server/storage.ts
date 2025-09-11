@@ -1,4 +1,4 @@
-import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, mowers, tasks } from "@shared/schema";
+import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, mowers, tasks, serviceRecords } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -21,6 +21,9 @@ export interface IStorage {
   updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
   deleteTask(id: string): Promise<boolean>;
   markTaskComplete(id: string): Promise<Task | undefined>;
+  
+  // Service Record methods
+  createServiceRecordWithMowerUpdate(serviceRecord: InsertServiceRecord): Promise<ServiceRecord>;
 }
 
 export class MemStorage implements IStorage {
@@ -138,6 +141,36 @@ export class MemStorage implements IStorage {
     this.tasks.set(id, completedTask);
     return completedTask;
   }
+
+  // Service Record methods
+  async createServiceRecordWithMowerUpdate(insertServiceRecord: InsertServiceRecord): Promise<ServiceRecord> {
+    // Create service record (mock implementation for MemStorage)
+    const id = randomUUID();
+    const now = new Date();
+    const serviceRecord: ServiceRecord = {
+      ...insertServiceRecord,
+      id,
+      createdAt: now,
+    };
+
+    // Update mower's service dates
+    const mowerId = insertServiceRecord.mowerId.toString();
+    const mower = this.mowers.get(mowerId);
+    if (mower) {
+      const serviceDate = insertServiceRecord.serviceDate;
+      const nextServiceDate = new Date(serviceDate);
+      nextServiceDate.setMonth(nextServiceDate.getMonth() + 12); // Add 12 months
+
+      const updatedMower: Mower = {
+        ...mower,
+        lastServiceDate: serviceDate.toISOString().split('T')[0], // Convert to date string
+        nextServiceDate: nextServiceDate.toISOString().split('T')[0], // Convert to date string
+      };
+      this.mowers.set(mowerId, updatedMower);
+    }
+
+    return serviceRecord;
+  }
 }
 
 export class DbStorage implements IStorage {
@@ -217,6 +250,33 @@ export class DbStorage implements IStorage {
       .where(eq(tasks.id, id))
       .returning();
     return result[0];
+  }
+
+  // Service Record methods
+  async createServiceRecordWithMowerUpdate(insertServiceRecord: InsertServiceRecord): Promise<ServiceRecord> {
+    // Create service record
+    const serviceRecordData: typeof serviceRecords.$inferInsert = {
+      ...insertServiceRecord,
+      id: randomUUID(),
+      createdAt: new Date(),
+    };
+
+    const [createdServiceRecord] = await db.insert(serviceRecords).values(serviceRecordData).returning();
+
+    // Update mower's service dates
+    const serviceDate = insertServiceRecord.serviceDate;
+    const nextServiceDate = new Date(serviceDate);
+    nextServiceDate.setFullYear(nextServiceDate.getFullYear() + 1); // Add 12 months
+
+    await db
+      .update(mowers)
+      .set({
+        lastServiceDate: serviceDate.toISOString().split('T')[0], // Convert to date string
+        nextServiceDate: nextServiceDate.toISOString().split('T')[0], // Convert to date string
+      })
+      .where(eq(mowers.id, insertServiceRecord.mowerId));
+
+    return createdServiceRecord;
   }
 }
 

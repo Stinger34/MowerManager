@@ -90,8 +90,6 @@ export const tasksRelations = relations(tasks, ({ one }) => ({
 // Insert schemas
 export const insertMowerSchema = createInsertSchema(mowers).omit({
   id: true,
-  createdAt: true,
-  updatedAt: true,
 });
 
 export const insertServiceRecordSchema = createInsertSchema(serviceRecords).omit({

@@ -61,10 +61,7 @@ export default function AddServiceRecord() {
         mileage: data.mileage ? parseInt(data.mileage) : null,
       };
       
-      return apiRequest(`/api/mowers/${mowerId}/service`, {
-        method: 'POST',
-        body: JSON.stringify(serviceData),
-      });
+      return apiRequest('POST', `/api/mowers/${mowerId}/service`, serviceData);
     },
     onSuccess: () => {
       toast({

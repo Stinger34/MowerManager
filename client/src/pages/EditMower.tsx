@@ -106,6 +106,8 @@ export default function EditMower() {
             purchasePrice: mower?.purchasePrice || '',
             condition: (mower?.condition as "excellent" | "good" | "fair" | "poor") || 'good',
             status: (mower?.status as "active" | "maintenance" | "retired") || 'active',
+            lastServiceDate: mower?.lastServiceDate ? new Date(mower.lastServiceDate) : undefined,
+            nextServiceDate: mower?.nextServiceDate ? new Date(mower.nextServiceDate) : undefined,
             notes: mower?.notes || ''
           }}
           onSubmit={handleSubmit}
