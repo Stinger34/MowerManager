@@ -48,6 +48,8 @@ export class MemStorage implements IStorage {
       serialNumber: insertMower.serialNumber || null,
       purchaseDate: insertMower.purchaseDate || null,
       purchasePrice: insertMower.purchasePrice || null,
+      condition: insertMower.condition || "good",
+      status: insertMower.status || "active",
       notes: insertMower.notes || null,
       createdAt: now,
       updatedAt: now
@@ -88,6 +90,9 @@ export class MemStorage implements IStorage {
     const task: Task = {
       ...insertTask,
       id,
+      priority: insertTask.priority || "medium",
+      status: insertTask.status || "pending",
+      category: insertTask.category || "maintenance",
       dueDate: insertTask.dueDate || null,
       estimatedCost: insertTask.estimatedCost || null,
       partNumber: insertTask.partNumber || null,
