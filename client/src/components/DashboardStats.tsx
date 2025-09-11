@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tractor, Wrench, AlertTriangle, Calendar } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface DashboardStatsProps {
   totalMowers: number;
@@ -8,7 +9,6 @@ interface DashboardStatsProps {
   maintenanceMowers: number;
   upcomingServices: number;
   overdueServices: number;
-  onScrollToMowers?: () => void;
 }
 
 export default function DashboardStats({
@@ -16,15 +16,24 @@ export default function DashboardStats({
   activeMowers,
   maintenanceMowers,
   upcomingServices,
-  overdueServices,
-  onScrollToMowers
+  overdueServices
 }: DashboardStatsProps) {
+  const [, setLocation] = useLocation();
+
   const handleStatClick = (title: string) => {
-    if (title === "Total Mowers" || title === "Active" || title === "In Maintenance") {
-      onScrollToMowers?.();
-    } else if (title === "Upcoming Services") {
-      // Navigate to service history or first mower with service due
-      console.log("Navigate to services");
+    switch (title) {
+      case "Total Mowers":
+        setLocation("/mowers?filter=all");
+        break;
+      case "Active":
+        setLocation("/mowers?filter=active");
+        break;
+      case "In Maintenance":
+        setLocation("/mowers?filter=maintenance");
+        break;
+      case "Upcoming Services":
+        setLocation("/mowers?filter=upcoming-services");
+        break;
     }
   };
 
@@ -92,7 +101,7 @@ export default function DashboardStats({
         <Card 
           className="border-destructive hover-elevate cursor-pointer" 
           data-testid="card-overdue-services"
-          onClick={() => console.log("Navigate to overdue services")}
+          onClick={() => setLocation("/mowers?filter=overdue-services")}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-destructive">

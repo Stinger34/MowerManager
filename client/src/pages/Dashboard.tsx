@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import DashboardStats from "@/components/DashboardStats";
 import AssetCard from "@/components/AssetCard";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import { useLocation } from "wouter";
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
-  const mowersRef = useRef<HTMLDivElement>(null);
 
   // todo: remove mock functionality
   const mockMowers = [
@@ -71,9 +70,6 @@ export default function Dashboard() {
     setLocation(`/mowers/${id}/service/new`);
   };
 
-  const handleScrollToMowers = () => {
-    mowersRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   return (
     <div className="space-y-6">
@@ -96,10 +92,9 @@ export default function Dashboard() {
         maintenanceMowers={mockMowers.filter(m => m.status === 'maintenance').length}
         upcomingServices={5}
         overdueServices={1}
-        onScrollToMowers={handleScrollToMowers}
       />
 
-      <div ref={mowersRef} className="space-y-4">
+      <div className="space-y-4">
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
