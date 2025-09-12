@@ -25,6 +25,7 @@ export interface IStorage {
   // Service Record methods
   getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]>;
   createServiceRecordWithMowerUpdate(serviceRecord: InsertServiceRecord): Promise<ServiceRecord>;
+  updateServiceRecord(id: string, serviceRecord: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined>;
   
   // Attachment methods
   getAttachment(id: string): Promise<Attachment | undefined>;
@@ -324,6 +325,15 @@ export class DbStorage implements IStorage {
       .where(eq(mowers.id, insertServiceRecord.mowerId));
 
     return createdServiceRecord;
+  }
+
+  async updateServiceRecord(id: string, updateData: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined> {
+    const result = await db
+      .update(serviceRecords)
+      .set(updateData)
+      .where(eq(serviceRecords.id, id))
+      .returning();
+    return result[0];
   }
 
   // Attachment methods
