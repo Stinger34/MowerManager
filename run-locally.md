@@ -38,6 +38,8 @@ The following environment variables must be configured:
 DATABASE_URL=postgresql://username:password@localhost:5432/mower_db
 ```
 
+**Note**: The application is optimized for Neon PostgreSQL and other serverless database providers with enhanced connection stability and error handling.
+
 ## Build Process
 
 The application requires the following build steps:
@@ -143,12 +145,21 @@ npm run db:push
 npm run db:push --force
 ```
 
+### Database Connection Configuration
+
+The application includes robust database connection handling:
+- **Connection pooling**: Single connection optimized for serverless
+- **Error handling**: Automatic reconnection and graceful error recovery
+- **Health checks**: Database connectivity verification on startup
+- **Timeout management**: Proper idle and connection timeouts for stability
+
 ## Runtime Configuration
 
 - **Port Binding**: Application binds to `0.0.0.0:5000`
-- **Database**: Requires PostgreSQL accessible via DATABASE_URL
+- **Database**: Requires PostgreSQL accessible via DATABASE_URL with improved connection stability
 - **Memory**: Consider file upload limits (10MB per file stored in memory)
-- **Connections**: Uses single database connection for serverless compatibility
+- **Connections**: Single pooled connection with automatic error recovery and health monitoring
+- **Error Handling**: Graceful database disconnection handling and automatic reconnection
 
 ## Key Production Dependencies
 
@@ -199,10 +210,15 @@ docker-compose up --build
 ## Troubleshooting
 
 ### Common Issues
-1. **Database Connection**: Ensure DATABASE_URL is correct and database is accessible
+1. **Database Connection**: 
+   - Ensure DATABASE_URL is correct and database is accessible
+   - Application will test connection on startup and exit if it fails
+   - Look for "Database connection successful" in startup logs
 2. **Port Conflicts**: Change the host port if 5000 is already in use
 3. **Build Failures**: Make sure all system dependencies are installed
 4. **Schema Errors**: Run `npm run db:push` after database is available
+5. **Connection Timeouts**: The app now handles database timeouts gracefully with retry logic
+6. **Memory Issues**: Monitor memory usage due to file uploads stored in memory
 
 ### Logs
 ```bash
@@ -211,7 +227,21 @@ docker logs <container-id>
 
 # Follow logs
 docker logs -f <container-id>
+
+# Look for these key startup messages:
+# "Testing database connection..."
+# "Database connection successful"
+# "serving on port 5000"
 ```
+
+### Database Stability Improvements
+
+The application now includes several stability improvements:
+- **Connection Health Checks**: Verifies database connectivity before starting
+- **Error Recovery**: Handles connection drops and administrator terminations
+- **Proper Timeouts**: 30s idle timeout, 5s connection timeout
+- **Graceful Shutdown**: Properly closes database connections on exit
+- **Connection Monitoring**: Logs database errors for debugging
 
 ## Development vs Production
 
