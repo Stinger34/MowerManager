@@ -45,7 +45,7 @@ DATABASE_URL=postgresql://username:password@localhost:5432/mower_db
 The application requires the following build steps:
 
 ```bash
-# Install dependencies
+# Install dependencies (including dev dependencies for drizzle-kit)
 npm ci
 
 # Build the application
@@ -54,6 +54,7 @@ npm run build
 
 # Push database schema (after database is available)
 npm run db:push
+# This requires drizzle-kit which is installed as a dev dependency
 ```
 
 ## Application Structure
@@ -76,8 +77,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including drizzle-kit for schema management)
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -161,8 +162,9 @@ The application includes robust database connection handling:
 - **Connections**: Single pooled connection with automatic error recovery and health monitoring
 - **Error Handling**: Graceful database disconnection handling and automatic reconnection
 
-## Key Production Dependencies
+## Key Dependencies
 
+### Production Dependencies
 ```json
 {
   "express": "^4.21.2",
@@ -173,6 +175,17 @@ The application includes robust database connection handling:
   "ws": "^8.18.0"
 }
 ```
+
+### Development Dependencies (Required for Container)
+```json
+{
+  "drizzle-kit": "^0.30.4",
+  "typescript": "5.6.3",
+  "esbuild": "^0.25.0"
+}
+```
+
+**Note**: Dev dependencies are included in the Docker build to enable schema management with `drizzle-kit`.
 
 ## Running the Container
 
