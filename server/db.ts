@@ -11,5 +11,11 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  max: 1, // Limit to single connection for serverless
+  idleTimeoutMillis: 0, // Disable idle timeout
+  connectionTimeoutMillis: 0, // Disable connection timeout
+});
+
 export const db = drizzle({ client: pool, schema });
