@@ -54,7 +54,13 @@ export default function MowerDetails() {
   const deleteMowerMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest('DELETE', `/api/mowers/${mowerId}`);
-      return response.json();
+      // Handle 204 No Content responses (empty body)
+      if (response.status === 204) {
+        return { success: true };
+      }
+      // Only parse JSON if there's content
+      const text = await response.text();
+      return text ? JSON.parse(text) : { success: true };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/mowers'] });
