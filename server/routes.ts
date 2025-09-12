@@ -244,6 +244,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/service/:id', async (req: Request, res: Response) => {
+    try {
+      console.log('Service record update request:', { params: req.params, body: req.body });
+      
+      // Transform data to match schema expectations
+      const updateData = {
+        ...req.body,
+        serviceDate: req.body.serviceDate ? new Date(req.body.serviceDate) : undefined,
+        cost: req.body.cost ? String(req.body.cost) : undefined,
+        performedBy: req.body.performedBy || undefined,
+        mileage: req.body.mileage ? parseInt(req.body.mileage) : undefined,
+        nextServiceDue: req.body.nextServiceDue ? new Date(req.body.nextServiceDue) : undefined,
+      };
+      
+      // Remove undefined values to avoid overwriting with undefined
+      const cleanedUpdateData = Object.fromEntries(
+        Object.entries(updateData).filter(([_, value]) => value !== undefined)
+      );
+      
+      console.log('Cleaned update data:', cleanedUpdateData);
+      
+      // Validate partial data (allowing partial updates)
+      const partialSchema = insertServiceRecordSchema.partial();
+      const validatedData = partialSchema.parse(cleanedUpdateData);
+      console.log('Validated update data:', validatedData);
+      
+      const updatedServiceRecord = await storage.updateServiceRecord(req.params.id, validatedData);
+      
+      if (!updatedServiceRecord) {
+        return res.status(404).json({ error: 'Service record not found' });
+      }
+      
+      res.json(updatedServiceRecord);
+    } catch (error) {
+      console.error('Service record update error:', error);
+      res.status(400).json({ error: 'Invalid service record data' });
+    }
+  });
+
   // Attachment routes
   app.post('/api/mowers/:id/attachments', upload.single('file'), async (req: Request, res: Response) => {
     try {

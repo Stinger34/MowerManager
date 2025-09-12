@@ -190,6 +190,11 @@ export class MemStorage implements IStorage {
     return serviceRecord;
   }
 
+  async updateServiceRecord(id: string, updateData: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined> {
+    // Mock implementation for MemStorage - return undefined since no actual storage
+    return undefined;
+  }
+
   // Attachment methods
   async getAttachment(id: string): Promise<Attachment | undefined> {
     return this.attachments.get(id);
