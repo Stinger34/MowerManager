@@ -251,11 +251,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Transform data to match schema expectations
       const updateData = {
         ...req.body,
-        serviceDate: req.body.serviceDate ? new Date(req.body.serviceDate) : undefined,
-        cost: req.body.cost ? String(req.body.cost) : undefined,
-        performedBy: req.body.performedBy || undefined,
-        mileage: req.body.mileage ? parseInt(req.body.mileage) : undefined,
-        nextServiceDue: req.body.nextServiceDue ? new Date(req.body.nextServiceDue) : undefined,
+        serviceDate: 'serviceDate' in req.body && req.body.serviceDate ? new Date(req.body.serviceDate) : undefined,
+        cost: 'cost' in req.body ? (req.body.cost !== null && req.body.cost !== '' ? String(req.body.cost) : null) : undefined,
+        performedBy: 'performedBy' in req.body ? (req.body.performedBy || null) : undefined,
+        mileage: 'mileage' in req.body ? (req.body.mileage !== null && req.body.mileage !== '' ? parseInt(req.body.mileage) : null) : undefined,
+        nextServiceDue: 'nextServiceDue' in req.body && req.body.nextServiceDue ? new Date(req.body.nextServiceDue) : undefined,
       };
       
       // Remove undefined values to avoid overwriting with undefined

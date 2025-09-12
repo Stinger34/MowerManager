@@ -13,6 +13,7 @@ import MowerList from "@/pages/MowerList";
 import AddMower from "@/pages/AddMower";
 import EditMower from "@/pages/EditMower";
 import AddServiceRecord from "@/pages/AddServiceRecord";
+import EditServiceRecord from "@/pages/EditServiceRecord";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/mowers/new" component={AddMower} />
       <Route path="/mowers/:id/edit" component={EditMower} />
       <Route path="/mowers/:id/service/new" component={AddServiceRecord} />
+      <Route path="/mowers/:id/service/:serviceId/edit" component={EditServiceRecord} />
       <Route path="/mowers/:id" component={MowerDetails} />
       <Route component={NotFound} />
     </Switch>
