@@ -173,8 +173,13 @@ export default function MowerList() {
           {filteredMowers.map((mower) => (
             <AssetCard
               key={mower.id}
-              {...mower}
               id={String(mower.id)}
+              make={mower.make}
+              model={mower.model}
+              year={mower.year ?? undefined}
+              serialNumber={mower.serialNumber ?? undefined}
+              condition={mower.condition as "excellent" | "good" | "fair" | "poor"}
+              status={mower.status as "active" | "maintenance" | "retired"}
               attachmentCount={0} // TODO: Fetch real attachment count from API
               thumbnailUrl={thumbnails?.[mower.id.toString()]}
               lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
