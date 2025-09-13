@@ -88,6 +88,7 @@ export default function AttachmentGallery({
                 key={attachment.id} 
                 className="hover-elevate cursor-pointer"
                 data-testid={`card-attachment-${attachment.id}`}
+                onClick={() => onView(attachment.id)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
@@ -96,7 +97,12 @@ export default function AttachmentGallery({
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>

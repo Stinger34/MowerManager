@@ -351,7 +351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/attachments/:id/download', async (req: Request, res: Response) => {
     try {
-      console.log('Downloading attachment with ID:', req.params.id);
+      console.log('Downloading attachment with ID:', req.params.id, 'inline:', req.query.inline);
       const attachment = await storage.getAttachment(req.params.id);
       
       if (!attachment) {
@@ -390,7 +390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Content-Disposition', `${disposition}; filename="${attachment.fileName}"`);
       res.setHeader('Content-Length', fileBuffer.length);
       
-      console.log('Sending file:', attachment.fileName, 'Size:', fileBuffer.length, 'Type:', contentType);
+      console.log('Sending file:', attachment.fileName, 'Size:', fileBuffer.length, 'Type:', contentType, 'Disposition:', disposition);
       res.send(fileBuffer);
     } catch (error) {
       console.error('Error downloading attachment:', error);
