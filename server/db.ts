@@ -1,9 +1,7 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import pkg from 'pg';
+const { Pool } = pkg;
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
-
-neonConfig.webSocketConstructor = ws;
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -11,14 +9,12 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Improved configuration for Neon with proper error handling
+// Configuration for local PostgreSQL
 export const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
-  max: 1, // Single connection for serverless
+  max: 20, // Multiple connections for local PostgreSQL
   idleTimeoutMillis: 30000, // 30 seconds idle timeout
   connectionTimeoutMillis: 5000, // 5 seconds connection timeout
-  maxUses: 1000, // Limit connection reuse
-  allowExitOnIdle: false, // Keep pool alive
 });
 
 // Add error handler for pool
@@ -26,8 +22,8 @@ pool.on('error', (err) => {
   console.error('Unexpected database pool error:', err);
 });
 
-// Enhanced database instance with retry logic
-export const db = drizzle({ client: pool, schema });
+// Database instance for PostgreSQL
+export const db = drizzle(pool, { schema });
 
 // Database health check function
 export async function testDatabaseConnection() {
