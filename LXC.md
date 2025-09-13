@@ -111,6 +111,9 @@ ALTER USER mower_user CREATEDB;
 \q
 EOF
 
+# Grant schema permissions (required for PostgreSQL 15+)
+sudo -u postgres psql -d mower_db -c "GRANT ALL ON SCHEMA public TO mower_user;"
+
 # Configure PostgreSQL to accept connections (detect version dynamically)
 PG_VERSION=$(psql --version | grep -oE '[0-9]+\.[0-9]+' | head -1 | cut -d. -f1)
 echo "host all all 127.0.0.1/32 md5" >> /etc/postgresql/${PG_VERSION}/main/pg_hba.conf
