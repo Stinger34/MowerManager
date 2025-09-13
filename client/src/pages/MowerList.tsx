@@ -182,6 +182,7 @@ export default function MowerList() {
               onViewDetails={handleViewDetails}
               onEdit={handleEdit}
               onAddService={handleAddService}
+              onDelete={() => {}} // No delete functionality on MowerList page
             />
           ))}
         </div>

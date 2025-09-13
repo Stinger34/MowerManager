@@ -404,9 +404,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mowerId = req.params.id;
       const attachments = await storage.getAttachmentsByMowerId(mowerId);
       
-      // Find first image attachment
+      // Find first image attachment (fileType could be 'image' or 'image/png', etc.)
       const firstImage = attachments.find(attachment => 
-        attachment.fileType.startsWith('image/')
+        attachment.fileType.startsWith('image')
       );
       
       if (!firstImage) {
