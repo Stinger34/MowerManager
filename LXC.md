@@ -39,8 +39,20 @@ Once inside the LXC container:
 apt update && apt upgrade -y
 
 # Install Node.js 20 (required for this application)
+# Remove any existing Node.js from Ubuntu repos
+apt remove -y nodejs npm 2>/dev/null || true
+apt autoremove -y
+
+# Install Node.js 20 via NodeSource
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt install -y nodejs
+
+# Alternative method if above fails:
+# apt install -y ca-certificates curl gnupg
+# mkdir -p /etc/apt/keyrings
+# curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+# echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
+# apt update && apt install -y nodejs
 
 # Install PostgreSQL 16
 apt install -y wget ca-certificates
