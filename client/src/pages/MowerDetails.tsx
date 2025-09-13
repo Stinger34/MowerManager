@@ -260,9 +260,9 @@ export default function MowerDetails() {
     }
   };
 
-  // View attachment handler - opens file in new browser tab
+  // View attachment handler - opens file in new browser tab with inline viewing
   const handleViewAttachment = (attachmentId: string, fileName: string) => {
-    window.open(`/api/attachments/${attachmentId}/download`, '_blank');
+    window.open(`/api/attachments/${attachmentId}/download?inline=1`, '_blank');
   };
 
   // Delete attachment with confirmation

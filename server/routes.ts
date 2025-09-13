@@ -380,8 +380,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
       }
 
+      // Check if inline viewing is requested for viewable file types
+      const inline = req.query.inline === '1';
+      const viewableTypes = ['image', 'pdf'];
+      const isViewable = viewableTypes.includes(attachment.fileType) || attachment.fileName.endsWith('.txt');
+      const disposition = inline && isViewable ? 'inline' : 'attachment';
+
       res.setHeader('Content-Type', contentType);
-      res.setHeader('Content-Disposition', `attachment; filename="${attachment.fileName}"`);
+      res.setHeader('Content-Disposition', `${disposition}; filename="${attachment.fileName}"`);
       res.setHeader('Content-Length', fileBuffer.length);
       
       console.log('Sending file:', attachment.fileName, 'Size:', fileBuffer.length, 'Type:', contentType);
