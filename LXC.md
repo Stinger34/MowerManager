@@ -143,8 +143,11 @@ cd /opt/mower-app
 # If copying from host:
 # sudo lxc file push /path/to/your/app/ mower-app/opt/mower-app/ -r
 
-# If cloning from repository:
+# If cloning from repository (NOTE: the "." is important - clones into current directory):
 # git clone <your-repo-url> .
+# 
+# IMPORTANT: Do NOT run "git clone <repo-url>" without the "." 
+# That would create a subdirectory and break the paths!
 
 # Install dependencies
 npm ci
