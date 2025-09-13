@@ -1,6 +1,6 @@
 # Running in Linux LXC Container
 
-This guide provides instructions for running the Mower Management application in a Linux LXC container.
+This guide provides instructions for running the Mower Management application in a Linux LXC container using Ubuntu 24.04 LTS (Noble Numbat).
 
 ## Application Overview
 
@@ -15,13 +15,21 @@ This guide provides instructions for running the Mower Management application in
 - Root access to create and configure containers
 - Basic knowledge of LXC container management
 
+## Ubuntu 24.04 Benefits
+
+This guide is optimized for Ubuntu 24.04 LTS (Noble Numbat) which provides:
+- **PostgreSQL 16** as the default version (no complex repository setup needed)
+- **Long-term support** until April 2029
+- **Modern package versions** with improved security and performance
+- **Simplified installation** compared to older Ubuntu versions
+
 ## 📦 LXC Container Setup
 
 ### 1. Create and Configure LXC Container
 
 ```bash
-# Create Ubuntu 22.04 LXC container
-sudo lxc-create -n mower-app -t ubuntu -- --release jammy
+# Create Ubuntu 24.04 LXC container
+sudo lxc-create -n mower-app -t ubuntu -- --release noble
 
 # Start the container
 sudo lxc-start -n mower-app
@@ -39,6 +47,7 @@ Once inside the LXC container:
 apt update && apt upgrade -y
 
 # Install Node.js 20 (required for this application)
+# Ubuntu 24.04 comes with Node.js 18 by default, but we need Node.js 20 LTS
 # Remove any existing Node.js from Ubuntu repos
 apt remove -y nodejs npm 2>/dev/null || true
 apt autoremove -y
@@ -46,58 +55,39 @@ apt autoremove -y
 # Install wget/curl if not present
 apt install -y wget curl
 
-# Method 1: Direct binary download (most reliable for LXC containers)
-NODE_VERSION="20.19.2"
-wget https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz
-tar -xJf node-v${NODE_VERSION}-linux-x64.tar.xz -C /usr/local --strip-components=1
-rm node-v${NODE_VERSION}-linux-x64.tar.xz
+# Method 1: NodeSource repository (recommended for Ubuntu 24.04)
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt install -y nodejs
 
-# Create symlinks for compatibility
-ln -sf /usr/local/bin/node /usr/bin/node
-ln -sf /usr/local/bin/npm /usr/bin/npm
-ln -sf /usr/local/bin/npx /usr/bin/npx
+# Method 2: Direct binary download (fallback if NodeSource fails)
+if ! command -v node &> /dev/null || [[ $(node --version | cut -d'.' -f1 | cut -d'v' -f2) -lt 20 ]]; then
+    echo "NodeSource installation failed or version too low, trying binary download..."
+    NODE_VERSION="20.19.2"
+    wget https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz
+    tar -xJf node-v${NODE_VERSION}-linux-x64.tar.xz -C /usr/local --strip-components=1
+    rm node-v${NODE_VERSION}-linux-x64.tar.xz
+    
+    # Create symlinks for compatibility
+    ln -sf /usr/local/bin/node /usr/bin/node
+    ln -sf /usr/local/bin/npm /usr/bin/npm
+    ln -sf /usr/local/bin/npx /usr/bin/npx
+fi
 
-# Alternative: If binary download fails, try NodeSource
-# curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-# apt install -y nodejs
+# Install PostgreSQL 16 (Ubuntu 24.04 comes with PostgreSQL 16 as default)
+echo "Installing PostgreSQL 16 from Ubuntu 24.04 repositories..."
+apt install -y postgresql postgresql-contrib postgresql-client
 
-# Install PostgreSQL 16
-apt install -y wget ca-certificates lsb-release
-
-# Get Ubuntu codename and add correct PostgreSQL repository
-UBUNTU_CODENAME=$(lsb_release -cs)
-echo "deb http://apt.postgresql.org/pub/repos/apt/ ${UBUNTU_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list
-wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
-
-# Update package lists
-apt update
-
-# Install missing dependencies first (LXC containers often missing these)
-apt install -y --fix-missing libc6 libgcc-s1 libgssapi-krb5-2 libssl3 libstdc++6 zlib1g
-
-# Try to install required libraries for PostgreSQL 16
-apt install -y libicu70 libldap-2.5-0 2>/dev/null || {
-    echo "Note: Some libraries not available, trying PostgreSQL installation anyway..."
-    # For older Ubuntu versions, try alternative libraries
-    apt install -y libicu66 libldap-2.4-2 2>/dev/null || true
-}
-
-# Install PostgreSQL 16
-apt install -y postgresql-16 postgresql-client-16 || {
-    echo "PostgreSQL 16 installation failed, trying Ubuntu's default PostgreSQL..."
-    # Fallback: Remove PostgreSQL repo and use Ubuntu's version
-    rm -f /etc/apt/sources.list.d/pgdg.list
-    apt update
-    apt install -y postgresql postgresql-contrib postgresql-client
-}
+# Verify PostgreSQL version
+echo "Installed PostgreSQL version:"
+sudo -u postgres psql -c "SELECT version();" 2>/dev/null || echo "PostgreSQL installation verification will be done after service start"
 
 # Install build tools for native dependencies
 apt install -y python3 make g++ git
 
 # Verify installations
-node --version    # Should be v20.x
-npm --version     # Should be 10.x
-psql --version    # Should be 16.x
+node --version    # Should be v20.x (LTS)
+npm --version     # Should be 10.x (bundled with Node.js 20)
+psql --version    # Should be 16.x (Ubuntu 24.04 default)
 ```
 
 ### 3. Configure PostgreSQL
@@ -107,18 +97,39 @@ psql --version    # Should be 16.x
 systemctl start postgresql
 systemctl enable postgresql
 
+# Generate a secure random password for the database user
+DB_PASSWORD=$(openssl rand -base64 32)
+echo "Generated database password: $DB_PASSWORD"
+echo "IMPORTANT: Save this password - you'll need it for DATABASE_URL"
+
 # Create database and user
 sudo -u postgres psql << EOF
 CREATE DATABASE mower_db;
-CREATE USER mower_user WITH PASSWORD 'secure_password';
+CREATE USER mower_user WITH PASSWORD '$DB_PASSWORD';
 GRANT ALL PRIVILEGES ON DATABASE mower_db TO mower_user;
 ALTER USER mower_user CREATEDB;
 \q
 EOF
 
-# Configure PostgreSQL to accept connections
-echo "host all all 127.0.0.1/32 md5" >> /etc/postgresql/16/main/pg_hba.conf
+# Configure PostgreSQL to accept connections (detect version dynamically)
+PG_VERSION=$(psql --version | grep -oE '[0-9]+\.[0-9]+' | head -1 | cut -d. -f1)
+echo "host all all 127.0.0.1/32 md5" >> /etc/postgresql/${PG_VERSION}/main/pg_hba.conf
 systemctl restart postgresql
+
+# Verify PostgreSQL installation and database connectivity
+echo "Testing PostgreSQL installation..."
+sudo -u postgres psql -c "SELECT version();" || {
+    echo "ERROR: PostgreSQL is not responding correctly"
+    exit 1
+}
+
+# Test the new user connection
+PGPASSWORD="$DB_PASSWORD" psql -U mower_user -h localhost -d mower_db -c "SELECT current_user, current_database();" || {
+    echo "ERROR: Cannot connect with new user credentials"
+    exit 1
+}
+
+echo "PostgreSQL installation and configuration completed successfully!"
 ```
 
 ### 4. Set Up Application
@@ -147,12 +158,17 @@ npm run build
 Create environment file:
 
 ```bash
-# Create .env file
+# Create .env file (replace YOUR_DB_PASSWORD with the password generated above)
 cat > /opt/mower-app/.env << EOF
-DATABASE_URL=postgresql://mower_user:secure_password@localhost:5432/mower_db
+DATABASE_URL=postgresql://mower_user:YOUR_DB_PASSWORD@localhost:5432/mower_db
 NODE_ENV=production
 PORT=5000
 EOF
+
+# Alternative: Create .env with the generated password automatically
+# echo "DATABASE_URL=postgresql://mower_user:$DB_PASSWORD@localhost:5432/mower_db" > /opt/mower-app/.env
+# echo "NODE_ENV=production" >> /opt/mower-app/.env
+# echo "PORT=5000" >> /opt/mower-app/.env
 ```
 
 ### 6. Set Up Database Schema
