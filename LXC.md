@@ -62,11 +62,34 @@ ln -sf /usr/local/bin/npx /usr/bin/npx
 # apt install -y nodejs
 
 # Install PostgreSQL 16
-apt install -y wget ca-certificates
+apt install -y wget ca-certificates lsb-release
+
+# Get Ubuntu codename and add correct PostgreSQL repository
+UBUNTU_CODENAME=$(lsb_release -cs)
+echo "deb http://apt.postgresql.org/pub/repos/apt/ ${UBUNTU_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
-echo "deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+
+# Update package lists
 apt update
-apt install -y postgresql-16 postgresql-client-16
+
+# Install missing dependencies first (LXC containers often missing these)
+apt install -y --fix-missing libc6 libgcc-s1 libgssapi-krb5-2 libssl3 libstdc++6 zlib1g
+
+# Try to install required libraries for PostgreSQL 16
+apt install -y libicu70 libldap-2.5-0 2>/dev/null || {
+    echo "Note: Some libraries not available, trying PostgreSQL installation anyway..."
+    # For older Ubuntu versions, try alternative libraries
+    apt install -y libicu66 libldap-2.4-2 2>/dev/null || true
+}
+
+# Install PostgreSQL 16
+apt install -y postgresql-16 postgresql-client-16 || {
+    echo "PostgreSQL 16 installation failed, trying Ubuntu's default PostgreSQL..."
+    # Fallback: Remove PostgreSQL repo and use Ubuntu's version
+    rm -f /etc/apt/sources.list.d/pgdg.list
+    apt update
+    apt install -y postgresql postgresql-contrib postgresql-client
+}
 
 # Install build tools for native dependencies
 apt install -y python3 make g++ git
