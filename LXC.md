@@ -164,10 +164,12 @@ free -h
 
 # Install dependencies with increased Node.js memory limit
 echo "Installing dependencies (this may take several minutes)..."
-NODE_OPTIONS="--max-old-space-size=4096" npm ci
 
-# If npm ci still fails with "Killed", try npm install instead:
-# NODE_OPTIONS="--max-old-space-size=4096" npm install
+# Use npm install (not npm ci) since we may not have package-lock.json
+NODE_OPTIONS="--max-old-space-size=4096" npm install
+
+# Note: Use npm ci only if package-lock.json exists and you want exact versions
+# NODE_OPTIONS="--max-old-space-size=4096" npm ci
 
 # Build the application
 echo "Building application..."
