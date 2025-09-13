@@ -221,20 +221,28 @@ NODE_OPTIONS="--max-old-space-size=4096" npm run build
 
 ### 6. Configure Environment
 
-Create environment file:
+**Create environment file with automatically generated password:**
 
 ```bash
-# Create .env file (replace YOUR_DB_PASSWORD with the password generated above)
+# Use the database password generated in step 4
+echo "DATABASE_URL=postgresql://mower_user:$DB_PASSWORD@localhost:5432/mower_db" > /opt/mower-app/.env
+echo "NODE_ENV=production" >> /opt/mower-app/.env
+echo "PORT=5000" >> /opt/mower-app/.env
+
+# Verify the .env file was created correctly
+echo "Created .env file with the following content:"
+cat /opt/mower-app/.env
+```
+
+**Alternative (Manual method if running in separate shell session):**
+
+```bash
+# Create .env file (replace YOUR_DB_PASSWORD with the password generated in step 4)
 cat > /opt/mower-app/.env << EOF
 DATABASE_URL=postgresql://mower_user:YOUR_DB_PASSWORD@localhost:5432/mower_db
 NODE_ENV=production
 PORT=5000
 EOF
-
-# Alternative: Create .env with the generated password automatically
-# echo "DATABASE_URL=postgresql://mower_user:$DB_PASSWORD@localhost:5432/mower_db" > /opt/mower-app/.env
-# echo "NODE_ENV=production" >> /opt/mower-app/.env
-# echo "PORT=5000" >> /opt/mower-app/.env
 ```
 
 ### 7. Set Up Database Schema
