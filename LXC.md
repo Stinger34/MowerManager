@@ -1,6 +1,6 @@
-# Running in Linux LXC Container
+# Running in Proxmox LXC Container
 
-This guide provides instructions for running the Mower Management application in a Linux LXC container using Ubuntu 24.04 LTS (Noble Numbat).
+This guide provides instructions for running the Mower Management application in a Proxmox LXC container using Ubuntu 24.04 LTS (Noble Numbat).
 
 ## Application Overview
 
@@ -8,11 +8,12 @@ This guide provides instructions for running the Mower Management application in
 - **Database**: PostgreSQL with Drizzle ORM
 - **Main Technologies**: TypeScript, React, Express, Vite, TailwindCSS
 - **Runtime**: Node.js 20+ required
+- **Network**: Local LAN access only (no internet exposure required)
 
 ## Prerequisites
 
-- Linux host system with LXC installed
-- Root access to create and configure containers
+- Proxmox Virtual Environment (PVE) host
+- Access to Proxmox web interface
 - Basic knowledge of LXC container management
 
 ## Ubuntu 24.04 Benefits
@@ -23,22 +24,61 @@ This guide is optimized for Ubuntu 24.04 LTS (Noble Numbat) which provides:
 - **Modern package versions** with improved security and performance
 - **Simplified installation** compared to older Ubuntu versions
 
-## 📦 LXC Container Setup
+## 📦 Proxmox LXC Container Setup
 
-### 1. Create and Configure LXC Container
+### 1. Create LXC Container via Proxmox Web Interface
+
+**Using the Proxmox LXC Creation Wizard:**
+
+1. **Navigate to Proxmox Web Interface** → Select your node → **Create CT**
+
+2. **General Tab:**
+   - **CT ID**: Choose available ID (e.g., 100)
+   - **Hostname**: `mower-app`
+   - **Password**: Set root password
+   - ✅ **Unprivileged container**: Recommended for security
+
+3. **Template Tab:**
+   - **Storage**: local
+   - **Template**: `ubuntu-24.04-standard`
+
+4. **Disks Tab:**
+   - **Storage**: local-lvm (or your preferred storage)
+   - **Disk size**: 20GB (minimum recommended)
+
+5. **CPU Tab:**
+   - **Cores**: 2 (minimum recommended)
+
+6. **Memory Tab:**
+   - **Memory**: 4096MB (4GB recommended for npm install/build)
+   - **Swap**: 2048MB (helps prevent memory issues)
+
+7. **Network Tab:** ⭐ **CRITICAL SETTING**
+   - **Bridge**: `vmbr0` (default bridge to your LAN)
+   - **IPv4**: DHCP (gets IP from your router automatically)
+   - **IPv6**: DHCP (optional)
+   - **Firewall**: ❌ **Disabled** (for initial setup)
+
+8. **DNS Tab:** (Use defaults or your preferred DNS)
+   - **DNS domain**: Your local domain or leave blank
+   - **DNS servers**: 8.8.8.8, 1.1.1.1
+
+9. **Confirm Tab:** Review settings and **Create**
+
+10. **Start the Container** and note the assigned IP address
+
+### 2. Access the Container
 
 ```bash
-# Create Ubuntu 24.04 LXC container
-sudo lxc-create -n mower-app -t ubuntu -- --release noble
+# From Proxmox web interface: Container → Console
+# Or via SSH (after container starts):
+ssh root@<container-ip>
 
-# Start the container
-sudo lxc-start -n mower-app
-
-# Attach to the container
-sudo lxc-attach -n mower-app
+# Or from Proxmox host command line:
+pct enter <CT-ID>
 ```
 
-### 2. Install System Dependencies
+### 3. Install System Dependencies
 
 Once inside the LXC container:
 
@@ -90,7 +130,7 @@ npm --version     # Should be 10.x (bundled with Node.js 20)
 psql --version    # Should be 16.x (Ubuntu 24.04 default)
 ```
 
-### 3. Configure PostgreSQL
+### 4. Configure PostgreSQL
 
 ```bash
 # Start PostgreSQL service
@@ -135,7 +175,7 @@ PGPASSWORD="$DB_PASSWORD" psql -U mower_user -h localhost -d mower_db -c "SELECT
 echo "PostgreSQL installation and configuration completed successfully!"
 ```
 
-### 4. Set Up Application
+### 5. Set Up Application
 
 ```bash
 # Create application directory
@@ -179,7 +219,7 @@ echo "Building application..."
 NODE_OPTIONS="--max-old-space-size=4096" npm run build
 ```
 
-### 5. Configure Environment
+### 6. Configure Environment
 
 Create environment file:
 
@@ -197,7 +237,7 @@ EOF
 # echo "PORT=5000" >> /opt/mower-app/.env
 ```
 
-### 6. Set Up Database Schema
+### 7. Set Up Database Schema
 
 ```bash
 cd /opt/mower-app
@@ -209,7 +249,7 @@ npm run db:push
 # npm run db:push --force
 ```
 
-### 7. Create Systemd Service (Optional)
+### 8. Create Systemd Service (Optional)
 
 For automatic startup and management:
 
@@ -239,29 +279,32 @@ systemctl enable mower-app
 systemctl start mower-app
 ```
 
-### 8. Configure LXC Networking
+### 9. Network Configuration & Access
 
-From the **host system** (outside the container):
+**✅ No Additional Network Configuration Required!**
+
+The Proxmox LXC wizard with bridge networking automatically handles all network setup:
+
+- ✅ **Container gets LAN IP automatically** (e.g., 192.168.1.150)
+- ✅ **Accessible from any device on your local network**
+- ✅ **No port forwarding needed**
+- ✅ **No iptables rules required**
+- ✅ **No complex network configuration**
+
+### Find Your Container's IP Address:
 
 ```bash
-# Configure port forwarding to access the app
-# Edit LXC container config
-sudo nano /var/lib/lxc/mower-app/config
+# Method 1: From inside the container
+ip addr show eth0
 
-# Add these lines for port forwarding:
-# lxc.net.0.type = veth
-# lxc.net.0.link = lxcbr0
-# lxc.net.0.flags = up
+# Method 2: From Proxmox web interface
+# Container → Summary → Network section
 
-# Forward host port 5000 to container port 5000
-sudo iptables -t nat -A PREROUTING -p tcp --dport 5000 -j DNAT --to-destination [CONTAINER_IP]:5000
-sudo iptables -A FORWARD -p tcp -d [CONTAINER_IP] --dport 5000 -j ACCEPT
-
-# Find container IP:
-sudo lxc-info -n mower-app -i
+# Method 3: From Proxmox host
+pct exec <CT-ID> -- ip addr show eth0
 ```
 
-### 9. Access the Application
+### 10. Start and Access the Application
 
 ```bash
 # From inside the container, start the app manually:
@@ -270,9 +313,22 @@ node dist/index.js
 
 # Or if using systemd service:
 systemctl status mower-app
+
+# The application will bind to 0.0.0.0:5000 and be accessible from your entire LAN
 ```
 
-Access the application at: `http://[HOST_IP]:5000`
+### 🌐 **Access from Any LAN Device:**
+
+**Your container IP will be something like: `192.168.1.150`**
+
+- **Web Interface**: `http://192.168.1.150:5000`
+- **API Endpoints**: `http://192.168.1.150:5000/api/mowers`
+
+**Access from any device on your local network:**
+- 💻 **Desktop/Laptop browsers**: Direct access via container IP
+- 📱 **Mobile devices**: Same URL works on phones/tablets  
+- 🖥️ **Workshop computers**: Local network access
+- 📟 **Other devices**: Any device on your LAN can access the application
 
 ## Environment Variables
 
@@ -302,13 +358,14 @@ The following environment variables must be configured:
 
 ## 🔧 Key Differences from Docker
 
-| Aspect | Docker | LXC Container |
+| Aspect | Docker | Proxmox LXC |
 |--------|---------|---------------|
 | **OS** | Shares host kernel | Full OS stack |
 | **Services** | Single process | Multiple services (systemd) |
-| **Networking** | Automatic port mapping | Manual iptables rules |
+| **Networking** | Port mapping required | Direct LAN access (bridge mode) |
 | **Persistence** | Volumes needed | Direct filesystem access |
 | **Resource Usage** | Lower overhead | Higher overhead |
+| **Management** | CLI/Compose files | Proxmox web interface |
 
 ## 📊 Memory and Performance
 
@@ -421,21 +478,40 @@ The application includes several stability improvements:
 
 ## Container Management
 
+### Via Proxmox Web Interface:
+- **Start/Stop**: Container → Start/Stop buttons
+- **Console**: Container → Console (web terminal)
+- **Monitor**: Container → Summary (resource usage)
+- **Backup**: Container → Backup (snapshots)
+
+### Via Command Line (from Proxmox host):
 ```bash
 # Start container
-sudo lxc-start -n mower-app
+pct start <CT-ID>
 
-# Stop container
-sudo lxc-stop -n mower-app
+# Stop container  
+pct stop <CT-ID>
 
-# Attach to running container
-sudo lxc-attach -n mower-app
+# Enter container
+pct enter <CT-ID>
 
 # Container info
-sudo lxc-info -n mower-app
+pct status <CT-ID>
+
+# Create snapshot
+pct snapshot <CT-ID> <snapshot-name>
 
 # Delete container (be careful!)
-sudo lxc-destroy -n mower-app
+pct destroy <CT-ID>
 ```
+
+## 🎯 **Why Proxmox LXC Bridge Mode is Perfect for Local Apps:**
+
+✅ **Plug-and-Play Networking**: Container acts like any other device on your network  
+✅ **No Port Conflicts**: Each container gets its own IP address  
+✅ **Easy Access**: Simple IP:port URLs work from any LAN device  
+✅ **No Firewall Complexity**: Standard LAN security practices apply  
+✅ **Scalable**: Add more containers without port management headaches  
+✅ **Future-Proof**: Easy to add reverse proxy or SSL if needed later
 
 The application will run with all features including mower management, service records, file attachments, and task management.
