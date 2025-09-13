@@ -149,11 +149,29 @@ cd /opt/mower-app
 # IMPORTANT: Do NOT run "git clone <repo-url>" without the "." 
 # That would create a subdirectory and break the paths!
 
-# Install dependencies
-npm ci
+# Create swap space to prevent memory issues during npm install
+echo "Creating swap space for npm install (prevents 'Killed' errors)..."
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+
+# Make swap permanent
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+# Verify swap is active
+free -h
+
+# Install dependencies with increased Node.js memory limit
+echo "Installing dependencies (this may take several minutes)..."
+NODE_OPTIONS="--max-old-space-size=4096" npm ci
+
+# If npm ci still fails with "Killed", try npm install instead:
+# NODE_OPTIONS="--max-old-space-size=4096" npm install
 
 # Build the application
-npm run build
+echo "Building application..."
+NODE_OPTIONS="--max-old-space-size=4096" npm run build
 ```
 
 ### 5. Configure Environment
@@ -313,24 +331,50 @@ The application uses the following database tables:
 
 ### Common Issues
 
-1. **Database Connection**: 
+1. **npm ci "Killed" Error (Memory Issue)**:
+   ```bash
+   # Check available memory
+   free -h
+   
+   # If no swap space exists, create it:
+   fallocate -l 2G /swapfile
+   chmod 600 /swapfile
+   mkswap /swapfile
+   swapon /swapfile
+   
+   # Install with memory limit
+   NODE_OPTIONS="--max-old-space-size=4096" npm ci
+   
+   # Alternative: Use npm install instead of ci
+   NODE_OPTIONS="--max-old-space-size=4096" npm install
+   ```
+
+2. **"vite: not found" Build Error**:
+   - This happens when `npm ci` failed due to memory issues
+   - Follow the memory fix above first, then retry:
+   ```bash
+   NODE_OPTIONS="--max-old-space-size=4096" npm ci
+   NODE_OPTIONS="--max-old-space-size=4096" npm run build
+   ```
+
+3. **Database Connection**: 
    - Ensure DATABASE_URL is correct and database is accessible
    - Application will test connection on startup and exit if it fails
    - Look for "Database connection successful" in startup logs
 
-2. **Port Conflicts**: Change the host port if 5000 is already in use
+4. **Port Conflicts**: Change the host port if 5000 is already in use
 
-3. **Build Failures**: Make sure all system dependencies are installed
+5. **Build Failures**: Make sure all system dependencies are installed
 
-4. **Schema Errors**: 
+6. **Schema Errors**: 
    - Run `npm run db:push` after database is available
    - If you encounter data-loss warnings, use `npm run db:push --force`
    - Ensure drizzle-kit is available (installed via `npm ci`)
    - Application uses schema push, not migration files
 
-5. **Connection Timeouts**: The app handles database timeouts gracefully with retry logic
+7. **Connection Timeouts**: The app handles database timeouts gracefully with retry logic
 
-6. **Memory Issues**: Monitor memory usage due to file uploads stored in memory as base64 in database
+8. **Memory Issues**: Monitor memory usage due to file uploads stored in memory as base64 in database
 
 ### Logs
 
