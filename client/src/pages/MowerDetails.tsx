@@ -13,6 +13,7 @@ import TaskList from "@/components/TaskList";
 import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useMowerThumbnail } from "@/hooks/useThumbnails";
 import type { Mower, Task, InsertTask, ServiceRecord, Attachment } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
@@ -49,6 +50,9 @@ export default function MowerDetails() {
     queryKey: ['/api/mowers', mowerId, 'attachments'],
     enabled: !!mowerId,
   });
+
+  // Fetch thumbnail for this mower
+  const { data: thumbnail } = useMowerThumbnail(mowerId || '');
 
   // Delete mower mutation
   const deleteMowerMutation = useMutation({
@@ -327,13 +331,24 @@ export default function MowerDetails() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">
-            {mower.make} {mower.model}
-          </h1>
-          <p className="text-muted-foreground">
-            {mower.year} • Serial: {mower.serialNumber}
-          </p>
+        <div className="flex items-center gap-4 flex-1">
+          {thumbnail && (
+            <div className="w-20 h-20 rounded-lg overflow-hidden shadow-sm border" data-testid="img-mower-thumbnail">
+              <img 
+                src={thumbnail.downloadUrl}
+                alt={`${mower.make} ${mower.model}`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold tracking-tight">
+              {mower.make} {mower.model}
+            </h1>
+            <p className="text-muted-foreground">
+              {mower.year} • Serial: {mower.serialNumber}
+            </p>
+          </div>
         </div>
 
         <div className="flex gap-2">
