@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useMowerThumbnails } from "@/hooks/useThumbnails";
 import type { Mower } from "@shared/schema";
 
 interface MowerListProps {}
@@ -22,6 +23,9 @@ export default function MowerList() {
   const { data: mowers, isLoading, error } = useQuery<Mower[]>({
     queryKey: ['/api/mowers'],
   });
+
+  // Fetch thumbnails for all mowers
+  const { data: thumbnails } = useMowerThumbnails(mowers || []);
 
   // Filter mowers based on the filter parameter
   const getFilteredMowers = () => {
@@ -172,6 +176,7 @@ export default function MowerList() {
               {...mower}
               id={String(mower.id)}
               attachmentCount={0} // TODO: Fetch real attachment count from API
+              thumbnailUrl={thumbnails?.[mower.id.toString()]}
               lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
               nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
               onViewDetails={handleViewDetails}

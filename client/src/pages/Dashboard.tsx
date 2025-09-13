@@ -9,6 +9,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useMowerThumbnails } from "@/hooks/useThumbnails";
 import type { Mower } from "@shared/schema";
 
 export default function Dashboard() {
@@ -21,6 +22,9 @@ export default function Dashboard() {
   const { data: mowers, isLoading, error } = useQuery<Mower[]>({
     queryKey: ['/api/mowers'],
   });
+
+  // Fetch thumbnails for all mowers
+  const { data: thumbnails } = useMowerThumbnails(mowers || []);
 
   // Delete mower mutation
   const deleteMowerMutation = useMutation({
@@ -145,6 +149,7 @@ export default function Dashboard() {
               condition={mower.condition as "excellent" | "good" | "fair" | "poor"}
               status={mower.status as "active" | "maintenance" | "retired"}
               attachmentCount={0} // TODO: Fetch real attachment count from API
+              thumbnailUrl={thumbnails?.[mower.id.toString()]}
               lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
               nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
               onViewDetails={handleViewDetails}

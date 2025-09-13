@@ -398,6 +398,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get first image attachment for a mower (for thumbnails)
+  app.get('/api/mowers/:id/thumbnail', async (req: Request, res: Response) => {
+    try {
+      const mowerId = req.params.id;
+      const attachments = await storage.getAttachmentsByMowerId(mowerId);
+      
+      // Find first image attachment
+      const firstImage = attachments.find(attachment => 
+        attachment.fileType.startsWith('image/')
+      );
+      
+      if (!firstImage) {
+        return res.status(404).json({ error: 'No image attachments found' });
+      }
+      
+      // Return just the attachment info (not the full base64 data)
+      res.json({
+        id: firstImage.id,
+        fileName: firstImage.fileName,
+        fileType: firstImage.fileType,
+        downloadUrl: `/api/attachments/${firstImage.id}/download?inline=1`
+      });
+    } catch (error) {
+      console.error('Error getting thumbnail:', error);
+      res.status(500).json({ error: 'Failed to get thumbnail' });
+    }
+  });
+
   app.delete('/api/attachments/:id', async (req: Request, res: Response) => {
     try {
       console.log('Deleting attachment with ID:', req.params.id);

@@ -15,6 +15,7 @@ interface AssetCardProps {
   lastService?: string;
   nextService?: string;
   attachmentCount: number;
+  thumbnailUrl?: string;
   onViewDetails: (id: string) => void;
   onEdit: (id: string) => void;
   onAddService: (id: string) => void;
@@ -45,6 +46,7 @@ export default function AssetCard({
   lastService,
   nextService,
   attachmentCount,
+  thumbnailUrl,
   onViewDetails,
   onEdit,
   onAddService,
@@ -52,6 +54,17 @@ export default function AssetCard({
 }: AssetCardProps) {
   return (
     <Card className="hover-elevate cursor-pointer" data-testid={`card-mower-${id}`}>
+      {thumbnailUrl && (
+        <div className="w-full h-48 overflow-hidden rounded-t-lg">
+          <img 
+            src={thumbnailUrl}
+            alt={`${make} ${model}`}
+            className="w-full h-full object-cover"
+            onClick={() => onViewDetails(id)}
+            data-testid={`img-thumbnail-${id}`}
+          />
+        </div>
+      )}
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
         <div className="space-y-1" onClick={() => onViewDetails(id)}>
           <h3 className="font-semibold text-lg" data-testid={`text-mower-name-${id}`}>
