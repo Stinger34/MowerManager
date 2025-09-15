@@ -3,13 +3,13 @@
 You can deploy MowerManager_LXC automatically on your Proxmox host with a single command:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Sting17/MowerManager_LXC/main/proxmox-lxc-mowermanager-deploy.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Stinger34/MowerManager/main/proxmox-lxc-mowermanager-deploy.sh)
 ```
 
 Or, using wget:
 
 ```bash
-wget -qO - https://raw.githubusercontent.com/Sting17/MowerManager_LXC/main/proxmox-lxc-mowermanager-deploy.sh | bash
+wget -qO - https://raw.githubusercontent.com/Stinger34/MowerManager/main/proxmox-lxc-mowermanager-deploy.sh | bash
 ```
 
 This will create and configure a Proxmox LXC container, install all dependencies, set up PostgreSQL, deploy the application, and enable autostart.
