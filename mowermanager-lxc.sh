@@ -19,6 +19,12 @@ variables
 color
 catch_errors
 
+# If CTID not set, use the next available one from pvesh
+if [ -z "$CTID" ]; then
+  CTID=$(pvesh get /cluster/nextid)
+fi
+export CTID
+
 ### --- LXC Creation ---
 build_container
 
