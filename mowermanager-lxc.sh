@@ -19,11 +19,17 @@ variables
 color
 catch_errors
 
-# If CTID not set, use the next available one from pvesh
+### --- Set All Required Vars for Container Creation ---
+# Use next available CTID if not set
 if [ -z "$CTID" ]; then
   CTID=$(pvesh get /cluster/nextid)
 fi
 export CTID
+
+DISK_SIZE="${var_disk:-20}"
+CORE_COUNT="${var_cpu:-2}"
+RAM_SIZE="${var_ram:-4096}"
+export DISK_SIZE CORE_COUNT RAM_SIZE var_os var_version
 
 ### --- LXC Creation ---
 build_container
@@ -31,16 +37,16 @@ build_container
 ### --- Container Setup ---
 msg_info "Starting LXC setup for $APP..."
 
-pct start $CT_ID
+pct start $CTID
 sleep 5
-IP=$(pct exec $CT_ID -- hostname -I | awk '{print $1}')
+IP=$(pct exec $CTID -- hostname -I | awk '{print $1}')
 
 msg_ok "LXC Container started with IP $IP"
 
 ### --- Dependency Install ---
 msg_info "Installing dependencies in container..."
 
-pct exec $CT_ID -- bash -c "
+pct exec $CTID -- bash -c "
   apt update && apt upgrade -y
   apt install -y wget curl git python3 make g++ sudo
   apt remove -y nodejs npm 2>/dev/null || true
@@ -57,7 +63,7 @@ msg_ok "Dependencies installed"
 msg_info "Configuring PostgreSQL..."
 
 DB_PASSWORD=$(openssl rand -base64 32)
-pct exec $CT_ID -- bash -c "
+pct exec $CTID -- bash -c "
   systemctl start postgresql
   systemctl enable postgresql
   sudo -u postgres psql << EOF
@@ -78,14 +84,14 @@ msg_ok "PostgreSQL configured"
 ### --- Application Setup ---
 msg_info "Setting up application..."
 
-pct exec $CT_ID -- bash -c "
+pct exec $CTID -- bash -c "
   mkdir -p /opt/mower-app
 "
 
 # If you want to use git clone, provide your repo below!
 GIT_REPO="https://github.com/Sting17/MowerManager_LXC.git"
 
-pct exec $CT_ID -- bash -c "
+pct exec $CTID -- bash -c "
   cd /opt/mower-app
   git clone $GIT_REPO .
   fallocate -l 2G /swapfile
@@ -102,7 +108,7 @@ msg_ok "Application dependencies installed and built"
 ### --- Environment Setup ---
 msg_info "Creating .env file..."
 
-pct exec $CT_ID -- bash -c "
+pct exec $CTID -- bash -c "
   cat > /opt/mower-app/.env << EOF
 DATABASE_URL=postgresql://mower_user:$DB_PASSWORD@localhost:5432/mower_db
 NODE_ENV=production
@@ -115,7 +121,7 @@ msg_ok ".env file created"
 ### --- Database Schema Setup ---
 msg_info "Pushing database schema..."
 
-pct exec $CT_ID -- bash -c "
+pct exec $CTID -- bash -c "
   cd /opt/mower-app
   npm run db:push
 "
@@ -125,7 +131,7 @@ msg_ok "Database schema pushed"
 ### --- Systemd Service Setup ---
 msg_info "Configuring systemd service..."
 
-pct exec $CT_ID -- bash -c "
+pct exec $CTID -- bash -c "
   cat > /etc/systemd/system/mower-app.service << EOF
 [Unit]
 Description=MowerManager Application
@@ -155,7 +161,7 @@ msg_ok "Systemd service configured and started"
 msg_ok "Installation complete!"
 echo "------------------------------------------------------"
 echo "MowerManager should now be accessible at: http://$IP:5000"
-echo "Check systemd logs for status: pct exec $CT_ID -- journalctl -u mower-app -f"
+echo "Check systemd logs for status: pct exec $CTID -- journalctl -u mower-app -f"
 echo "------------------------------------------------------"
 
 exit 0
