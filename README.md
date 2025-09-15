@@ -1,4 +1,4 @@
-# Automated Proxmox LXC Deployment
+# Automated Proxmox LXC Deployment - NOT WORKING CURRENTRLY
 
 You can deploy MowerManager_LXC automatically on your Proxmox host with a single command:
 
