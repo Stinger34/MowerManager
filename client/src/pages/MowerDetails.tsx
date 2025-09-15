@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ServiceHistoryTable from "@/components/ServiceHistoryTable";
+import ServiceActivity from "@/components/ServiceActivity";
 import AttachmentGallery from "@/components/AttachmentGallery";
 import TaskList from "@/components/TaskList";
 import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2 } from "lucide-react";
@@ -26,6 +27,7 @@ export default function MowerDetails() {
   const [notes, setNotes] = useState("");
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState("notes");
 
   // Fetch mower data
   const { data: mower, isLoading: isMowerLoading, error: mowerError } = useQuery<Mower>({
@@ -488,7 +490,15 @@ export default function MowerDetails() {
         </Card>
       </div>
 
-      <Tabs defaultValue="notes" className="space-y-4">
+      {/* Service Activity Timeline */}
+      {serviceRecords.length > 0 && (
+        <ServiceActivity 
+          serviceRecords={serviceRecords}
+          onViewAll={() => setActiveTab("service-history")}
+        />
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="notes" data-testid="tab-notes">
             <FileText className="h-4 w-4 mr-2" />
