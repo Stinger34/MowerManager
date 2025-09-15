@@ -29,9 +29,20 @@ DISK_SIZE="${var_disk:-20}"
 CORE_COUNT="${var_cpu:-2}"
 RAM_SIZE="${var_ram:-4096}"
 
+# Write config file for community scripts to source
+cat >/tmp/mowermanager-lxc.conf <<EOF
+CTID=$CTID
+DISK_SIZE=$DISK_SIZE
+CORE_COUNT=$CORE_COUNT
+RAM_SIZE=$RAM_SIZE
+var_os=$var_os
+var_version=$var_version
+var_unprivileged=$var_unprivileged
+EOF
+
+export var_file="/tmp/mowermanager-lxc.conf"
+
 ### --- LXC Creation ---
-CTID="$CTID" DISK_SIZE="$DISK_SIZE" CORE_COUNT="$CORE_COUNT" RAM_SIZE="$RAM_SIZE" \
-var_os="$var_os" var_version="$var_version" var_unprivileged="$var_unprivileged" \
 build_container
 
 ### --- Container Setup ---
