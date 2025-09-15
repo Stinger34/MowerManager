@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ServiceHistoryTable from "@/components/ServiceHistoryTable";
-import ServiceActivity from "@/components/ServiceActivity";
+import MaintenanceOverview from "@/components/MaintenanceOverview";
 import AttachmentGallery from "@/components/AttachmentGallery";
 import TaskList from "@/components/TaskList";
 import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2 } from "lucide-react";
@@ -490,13 +490,11 @@ export default function MowerDetails() {
         </Card>
       </div>
 
-      {/* Service Activity Timeline */}
-      {serviceRecords.length > 0 && (
-        <ServiceActivity 
-          serviceRecords={serviceRecords}
-          onViewAll={() => setActiveTab("service-history")}
-        />
-      )}
+      {/* Maintenance Overview */}
+      <MaintenanceOverview 
+        serviceRecords={serviceRecords}
+        onViewDetails={() => setActiveTab("service-history")}
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
