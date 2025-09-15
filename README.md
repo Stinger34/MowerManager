@@ -1,3 +1,21 @@
+# Automated Proxmox LXC Deployment
+
+You can deploy MowerManager_LXC automatically on your Proxmox host with a single command:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/Sting17/MowerManager_LXC/main/proxmox-lxc-mowermanager-deploy.sh)
+```
+
+Or, using wget:
+
+```bash
+wget -qO - https://raw.githubusercontent.com/Sting17/MowerManager_LXC/main/proxmox-lxc-mowermanager-deploy.sh | bash
+```
+
+This will create and configure a Proxmox LXC container, install all dependencies, set up PostgreSQL, deploy the application, and enable autostart.
+
+---
+
 # Running in Proxmox LXC Container
 
 This guide provides instructions for running the Mower Management application in a Proxmox LXC container using Ubuntu 24.04 LTS (Noble Numbat).
@@ -106,7 +124,7 @@ if ! command -v node &> /dev/null || [[ $(node --version | cut -d'.' -f1 | cut -
     wget https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz
     tar -xJf node-v${NODE_VERSION}-linux-x64.tar.xz -C /usr/local --strip-components=1
     rm node-v${NODE_VERSION}-linux-x64.tar.xz
-    
+
     # Create symlinks for compatibility
     ln -sf /usr/local/bin/node /usr/bin/node
     ln -sf /usr/local/bin/npm /usr/bin/npm
@@ -342,11 +360,11 @@ systemctl status mower-app
 
 The following environment variables must be configured:
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | **Yes** | None |
-| `PORT` | Application port | No | 5000 |
-| `NODE_ENV` | Environment mode | No | development |
+| Variable      | Description                  | Required | Default      |
+|---------------|-----------------------------|----------|-------------|
+| `DATABASE_URL`| PostgreSQL connection string| **Yes**  | None        |
+| `PORT`        | Application port            | No       | 5000        |
+| `NODE_ENV`    | Environment mode            | No       | development |
 
 ## Key Dependencies
 
@@ -366,14 +384,14 @@ The following environment variables must be configured:
 
 ## 🔧 Key Differences from Docker
 
-| Aspect | Docker | Proxmox LXC |
-|--------|---------|---------------|
-| **OS** | Shares host kernel | Full OS stack |
-| **Services** | Single process | Multiple services (systemd) |
+| Aspect         | Docker                | Proxmox LXC           |
+|----------------|----------------------|-----------------------|
+| **OS**         | Shares host kernel    | Full OS stack         |
+| **Services**   | Single process        | Multiple services (systemd) |
 | **Networking** | Port mapping required | Direct LAN access (bridge mode) |
-| **Persistence** | Volumes needed | Direct filesystem access |
-| **Resource Usage** | Lower overhead | Higher overhead |
-| **Management** | CLI/Compose files | Proxmox web interface |
+| **Persistence**| Volumes needed        | Direct filesystem access |
+| **Resource Usage** | Lower overhead    | Higher overhead       |
+| **Management** | CLI/Compose files     | Proxmox web interface |
 
 ## 📊 Memory and Performance
 
@@ -402,45 +420,45 @@ The application uses the following database tables:
 ### Common Issues
 
 1. **npm ci "Killed" Error (Memory Issue)**:
-   ```bash
-   # Check available memory
-   free -h
-   
-   # If no swap space exists, create it:
-   fallocate -l 2G /swapfile
-   chmod 600 /swapfile
-   mkswap /swapfile
-   swapon /swapfile
-   
-   # Install with memory limit
-   NODE_OPTIONS="--max-old-space-size=4096" npm ci
-   
-   # Alternative: Use npm install instead of ci
-   NODE_OPTIONS="--max-old-space-size=4096" npm install
-   ```
+    ```bash
+    # Check available memory
+    free -h
+
+    # If no swap space exists, create it:
+    fallocate -l 2G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+
+    # Install with memory limit
+    NODE_OPTIONS="--max-old-space-size=4096" npm ci
+
+    # Alternative: Use npm install instead of ci
+    NODE_OPTIONS="--max-old-space-size=4096" npm install
+    ```
 
 2. **"vite: not found" Build Error**:
-   - This happens when `npm ci` failed due to memory issues
-   - Follow the memory fix above first, then retry:
-   ```bash
-   NODE_OPTIONS="--max-old-space-size=4096" npm ci
-   NODE_OPTIONS="--max-old-space-size=4096" npm run build
-   ```
+    - This happens when `npm ci` failed due to memory issues
+    - Follow the memory fix above first, then retry:
+    ```bash
+    NODE_OPTIONS="--max-old-space-size=4096" npm ci
+    NODE_OPTIONS="--max-old-space-size=4096" npm run build
+    ```
 
 3. **Database Connection**: 
-   - Ensure DATABASE_URL is correct and database is accessible
-   - Application will test connection on startup and exit if it fails
-   - Look for "Database connection successful" in startup logs
+    - Ensure DATABASE_URL is correct and database is accessible
+    - Application will test connection on startup and exit if it fails
+    - Look for "Database connection successful" in startup logs
 
 4. **Port Conflicts**: Change the host port if 5000 is already in use
 
 5. **Build Failures**: Make sure all system dependencies are installed
 
 6. **Schema Errors**: 
-   - Run `npm run db:push` after database is available
-   - If you encounter data-loss warnings, use `npm run db:push --force`
-   - Ensure drizzle-kit is available (installed via `npm ci`)
-   - Application uses schema push, not migration files
+    - Run `npm run db:push` after database is available
+    - If you encounter data-loss warnings, use `npm run db:push --force`
+    - Ensure drizzle-kit is available (installed via `npm ci`)
+    - Application uses schema push, not migration files
 
 7. **Connection Timeouts**: The app handles database timeouts gracefully with retry logic
 
