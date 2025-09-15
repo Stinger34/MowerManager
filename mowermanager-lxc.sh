@@ -24,14 +24,14 @@ catch_errors
 if [ -z "$CTID" ]; then
   CTID=$(pvesh get /cluster/nextid)
 fi
-export CTID
 
 DISK_SIZE="${var_disk:-20}"
 CORE_COUNT="${var_cpu:-2}"
 RAM_SIZE="${var_ram:-4096}"
-export DISK_SIZE CORE_COUNT RAM_SIZE var_os var_version
 
 ### --- LXC Creation ---
+CTID="$CTID" DISK_SIZE="$DISK_SIZE" CORE_COUNT="$CORE_COUNT" RAM_SIZE="$RAM_SIZE" \
+var_os="$var_os" var_version="$var_version" var_unprivileged="$var_unprivileged" \
 build_container
 
 ### --- Container Setup ---
