@@ -7,14 +7,43 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Suspense, lazy } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Lazy load large/non-critical pages for better performance
+const MowerDetails = lazy(() => import("@/pages/MowerDetails"));
+const AddServiceRecord = lazy(() => import("@/pages/AddServiceRecord"));
+const EditServiceRecord = lazy(() => import("@/pages/EditServiceRecord"));
+
+// Keep critical pages as regular imports for fast initial load
 import Dashboard from "@/pages/Dashboard";
-import MowerDetails from "@/pages/MowerDetails";
 import MowerList from "@/pages/MowerList";
 import AddMower from "@/pages/AddMower";
 import EditMower from "@/pages/EditMower";
-import AddServiceRecord from "@/pages/AddServiceRecord";
-import EditServiceRecord from "@/pages/EditServiceRecord";
 import NotFound from "@/pages/not-found";
+
+// Loading fallback component
+function PageLoadingFallback() {
+  return (
+    <div className="space-y-6 p-6">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-96" />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Router() {
   return (
@@ -23,9 +52,30 @@ function Router() {
       <Route path="/mowers" component={MowerList} />
       <Route path="/mowers/new" component={AddMower} />
       <Route path="/mowers/:id/edit" component={EditMower} />
-      <Route path="/mowers/:id/service/new" component={AddServiceRecord} />
-      <Route path="/mowers/:id/service/:serviceId/edit" component={EditServiceRecord} />
-      <Route path="/mowers/:id" component={MowerDetails} />
+      <Route 
+        path="/mowers/:id/service/new" 
+        component={() => (
+          <Suspense fallback={<PageLoadingFallback />}>
+            <AddServiceRecord />
+          </Suspense>
+        )} 
+      />
+      <Route 
+        path="/mowers/:id/service/:serviceId/edit" 
+        component={() => (
+          <Suspense fallback={<PageLoadingFallback />}>
+            <EditServiceRecord />
+          </Suspense>
+        )} 
+      />
+      <Route 
+        path="/mowers/:id" 
+        component={() => (
+          <Suspense fallback={<PageLoadingFallback />}>
+            <MowerDetails />
+          </Suspense>
+        )} 
+      />
       <Route component={NotFound} />
     </Switch>
   );
