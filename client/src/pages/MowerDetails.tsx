@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import ServiceHistoryTable from "@/components/ServiceHistoryTable";
 import MaintenanceOverview from "@/components/MaintenanceOverview";
 import AttachmentGallery from "@/components/AttachmentGallery";
+import AttachmentMetadataDialog from "@/components/AttachmentMetadataDialog";
 import TaskList from "@/components/TaskList";
 import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -30,6 +31,11 @@ export default function MowerDetails() {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("notes");
+  
+  // File upload state
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [showMetadataDialog, setShowMetadataDialog] = useState(false);
 
   // Fetch mower data
   const { data: mower, isLoading: isMowerLoading, error: mowerError } = useQuery<Mower>({
@@ -166,10 +172,12 @@ export default function MowerDetails() {
 
   // Attachment mutations
   const uploadAttachmentMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, metadata }: { file: File; metadata: { title: string; description: string } }) => {
       const formData = new FormData();
       formData.append('file', file);
-      // Optional description can be added later
+      formData.append('title', metadata.title);
+      formData.append('description', metadata.description);
+      
       const response = await fetch(`/api/mowers/${mowerId}/attachments`, {
         method: 'POST',
         body: formData,
@@ -186,6 +194,17 @@ export default function MowerDetails() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'attachments'] });
       toast({ title: "Success", description: "File uploaded successfully" });
+      
+      // Process next file if there are more
+      const nextIndex = currentFileIndex + 1;
+      if (nextIndex < pendingFiles.length) {
+        setCurrentFileIndex(nextIndex);
+        setShowMetadataDialog(true);
+      } else {
+        // Clear pending files when done
+        setPendingFiles([]);
+        setCurrentFileIndex(0);
+      }
     },
     onError: (error: Error) => {
       toast({ 
@@ -193,6 +212,11 @@ export default function MowerDetails() {
         description: error.message.includes('Invalid file type') ? 'Invalid file type. Only PDF, images, and documents are allowed.' : 'Upload failed. Please try again.',
         variant: "destructive" 
       });
+      
+      // Clear pending files on error
+      setPendingFiles([]);
+      setCurrentFileIndex(0);
+      setShowMetadataDialog(false);
     },
   });
 
@@ -219,6 +243,8 @@ export default function MowerDetails() {
     fileInput.onchange = (e) => {
       const files = (e.target as HTMLInputElement).files;
       if (files) {
+        const validFiles: File[] = [];
+        
         Array.from(files).forEach(file => {
           // Check file size (10MB limit)
           if (file.size > 10 * 1024 * 1024) {
@@ -229,12 +255,34 @@ export default function MowerDetails() {
             });
             return;
           }
-          uploadAttachmentMutation.mutate(file);
+          validFiles.push(file);
         });
+        
+        if (validFiles.length > 0) {
+          setPendingFiles(validFiles);
+          setCurrentFileIndex(0);
+          setShowMetadataDialog(true);
+        }
       }
     };
     
     fileInput.click();
+  };
+  
+  // Handle metadata submission for file upload
+  const handleMetadataSubmit = (metadata: { title: string; description: string }) => {
+    const currentFile = pendingFiles[currentFileIndex];
+    if (currentFile) {
+      uploadAttachmentMutation.mutate({ file: currentFile, metadata });
+    }
+    setShowMetadataDialog(false);
+  };
+  
+  // Handle metadata dialog close
+  const handleMetadataCancel = () => {
+    setShowMetadataDialog(false);
+    setPendingFiles([]);
+    setCurrentFileIndex(0);
   };
 
   // Download attachment handler
@@ -659,6 +707,7 @@ export default function MowerDetails() {
                 ...attachment,
                 fileType: attachment.fileType as "pdf" | "image" | "document",
                 uploadedAt: new Date(attachment.uploadedAt).toLocaleDateString(),
+                title: attachment.title ?? undefined,
                 description: attachment.description ?? undefined,
               }))}
               onUpload={handleFileUpload}
@@ -681,6 +730,16 @@ export default function MowerDetails() {
           )}
         </TabsContent>
       </Tabs>
+      
+      {/* Attachment Metadata Dialog */}
+      {showMetadataDialog && pendingFiles[currentFileIndex] && (
+        <AttachmentMetadataDialog
+          isOpen={showMetadataDialog}
+          onClose={handleMetadataCancel}
+          onSubmit={handleMetadataSubmit}
+          fileName={pendingFiles[currentFileIndex].name}
+        />
+      )}
     </div>
   );
 }

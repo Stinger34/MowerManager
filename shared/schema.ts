@@ -37,6 +37,7 @@ export const attachments = pgTable("attachments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   mowerId: integer("mower_id").notNull().references(() => mowers.id, { onDelete: "cascade" }),
   fileName: text("file_name").notNull(),
+  title: text("title"), // User-provided title, defaults to fileName if not provided
   fileType: text("file_type").notNull(), // pdf, image, document
   fileData: text("file_path").notNull(), // Base64 encoded file content
   fileSize: integer("file_size").notNull(),
