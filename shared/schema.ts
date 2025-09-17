@@ -40,6 +40,7 @@ export const attachments = pgTable("attachments", {
   fileType: text("file_type").notNull(), // pdf, image, document
   fileData: text("file_path").notNull(), // Base64 encoded file content
   fileSize: integer("file_size").notNull(),
+  title: text("title").notNull(),
   description: text("description"),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
@@ -100,6 +101,8 @@ export const insertServiceRecordSchema = createInsertSchema(serviceRecords).omit
 export const insertAttachmentSchema = createInsertSchema(attachments).omit({
   id: true,
   uploadedAt: true,
+}).extend({
+  title: z.string().optional(),
 });
 
 export const insertTaskSchema = createInsertSchema(tasks).omit({
