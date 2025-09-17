@@ -210,6 +210,7 @@ export class MemStorage implements IStorage {
     const attachment: Attachment = {
       ...insertAttachment,
       id,
+      title: insertAttachment.title || insertAttachment.fileName,
       description: insertAttachment.description || null,
       uploadedAt: now,
     };
@@ -355,6 +356,7 @@ export class DbStorage implements IStorage {
     const attachmentData: typeof attachments.$inferInsert = {
       ...insertAttachment,
       id: randomUUID(),
+      title: insertAttachment.title || insertAttachment.fileName,
       uploadedAt: new Date(),
     };
     

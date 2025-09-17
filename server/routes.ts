@@ -306,6 +306,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const attachmentData = {
         mowerId: parseInt(req.params.id),
         fileName: req.file.originalname,
+        title: req.body.title || undefined, // Will default to fileName in storage layer
         fileType,
         fileData,
         fileSize: req.file.size,
