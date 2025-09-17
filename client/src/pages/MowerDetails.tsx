@@ -17,6 +17,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMowerThumbnail } from "@/hooks/useThumbnails";
 import type { Mower, Task, InsertTask, ServiceRecord, Attachment } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
+import { motion } from "framer-motion";
 
 export default function MowerDetails() {
   const [, params] = useRoute("/mowers/:id");
@@ -287,12 +289,7 @@ export default function MowerDetails() {
 
   // Loading and error states
   if (isMowerLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading mower details...</span>
-      </div>
-    );
+    return <CardLoadingSkeleton cards={4} className="grid-cols-1 lg:grid-cols-3" />;
   }
 
   if (mowerError || !mower) {
@@ -390,12 +387,13 @@ export default function MowerDetails() {
                   data-testid="button-confirm-delete"
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  {deleteMowerMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
+                  <ButtonLoading 
+                    isLoading={deleteMowerMutation.isPending} 
+                    loadingText="Deleting..."
+                  >
                     <Trash2 className="h-4 w-4 mr-2" />
-                  )}
-                  Delete Mower
+                    Delete Mower
+                  </ButtonLoading>
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -403,8 +401,18 @@ export default function MowerDetails() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card>
+      <motion.div 
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, staggerChildren: 0.1 }}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Card>
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
           </CardHeader>
@@ -435,10 +443,16 @@ export default function MowerDetails() {
             </div>
           </CardContent>
         </Card>
+        </motion.div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Purchase Details</CardTitle>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle>Purchase Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-2">
@@ -457,8 +471,14 @@ export default function MowerDetails() {
             </div>
           </CardContent>
         </Card>
+        </motion.div>
 
-        <Card>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+        >
+          <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
@@ -479,16 +499,18 @@ export default function MowerDetails() {
               disabled={uploadAttachmentMutation.isPending}
               data-testid="button-upload-attachment"
             >
-              {uploadAttachmentMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
+              <ButtonLoading 
+                isLoading={uploadAttachmentMutation.isPending} 
+                loadingText="Uploading..."
+              >
                 <Plus className="h-4 w-4 mr-2" />
-              )}
-              Upload Attachment
+                Upload Attachment
+              </ButtonLoading>
             </Button>
           </CardContent>
         </Card>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Maintenance Overview */}
       <MaintenanceOverview 
@@ -534,12 +556,13 @@ export default function MowerDetails() {
                   disabled={updateNotesMutation.isPending}
                   data-testid="button-edit-notes"
                 >
-                  {updateNotesMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
+                  <ButtonLoading 
+                    isLoading={updateNotesMutation.isPending} 
+                    loadingText="Saving..."
+                  >
                     <Edit className="h-4 w-4 mr-2" />
-                  )}
-                  {isEditingNotes ? "Save" : "Edit"}
+                    {isEditingNotes ? "Save" : "Edit"}
+                  </ButtonLoading>
                 </Button>
               </div>
             </CardHeader>
