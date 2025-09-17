@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Upload, FileText, Image, Download, Eye, Trash2, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useAttachmentThumbnail } from "@/hooks/useAttachmentThumbnails";
 
 interface Attachment {
   id: string;
   fileName: string;
+  title?: string;
   fileType: "pdf" | "image" | "document";
   fileSize: number;
   description?: string;
@@ -33,6 +35,32 @@ const getFileIcon = (fileType: string) => {
     default:
       return <FileText className="h-8 w-8 text-gray-500" />;
   }
+};
+
+// Thumbnail component for individual attachments
+const AttachmentThumbnail = ({ attachment }: { attachment: Attachment }) => {
+  const { data: thumbnailUrl } = useAttachmentThumbnail(attachment.id, attachment.fileType);
+  const [imageError, setImageError] = useState(false);
+  
+  if (thumbnailUrl && attachment.fileType === 'image' && !imageError) {
+    return (
+      <div className="w-full h-24 mb-3 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
+        <img 
+          src={thumbnailUrl} 
+          alt={attachment.title || attachment.fileName}
+          className="max-w-full max-h-full object-cover"
+          onError={() => setImageError(true)}
+        />
+      </div>
+    );
+  }
+  
+  // For PDFs and other documents, or failed image loads, show a larger file icon
+  return (
+    <div className="w-full h-24 mb-3 rounded-md bg-gray-50 flex items-center justify-center">
+      {getFileIcon(attachment.fileType)}
+    </div>
+  );
 };
 
 const formatFileSize = (bytes: number) => {
@@ -91,16 +119,25 @@ export default function AttachmentGallery({
                 onClick={() => onView(attachment.id)}
               >
                 <CardContent className="p-4">
+                  <AttachmentThumbnail attachment={attachment} />
+                  
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      {getFileIcon(attachment.fileType)}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-sm truncate mb-1" title={attachment.title || attachment.fileName}>
+                        {attachment.title || attachment.fileName}
+                      </h4>
+                      {attachment.title && attachment.title !== attachment.fileName && (
+                        <p className="text-xs text-muted-foreground truncate" title={attachment.fileName}>
+                          {attachment.fileName}
+                        </p>
+                      )}
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8"
+                          className="h-8 w-8 flex-shrink-0"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <Eye className="h-4 w-4" />
@@ -139,10 +176,6 @@ export default function AttachmentGallery({
                   </div>
                   
                   <div className="space-y-2">
-                    <h4 className="font-medium text-sm truncate" title={attachment.fileName}>
-                      {attachment.fileName}
-                    </h4>
-                    
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-xs">
                         {attachment.fileType.toUpperCase()}
