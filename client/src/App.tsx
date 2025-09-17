@@ -9,6 +9,8 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Suspense, lazy } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageTransition } from "@/components/ui/page-transitions";
+import { FormLoadingSkeleton } from "@/components/ui/loading-components";
 
 // Lazy load large/non-critical pages for better performance
 const MowerDetails = lazy(() => import("@/pages/MowerDetails"));
@@ -25,38 +27,24 @@ import NotFound from "@/pages/not-found";
 // Loading fallback component
 function PageLoadingFallback() {
   return (
-    <div className="space-y-6 p-6">
-      <div className="space-y-2">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-96" />
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-      </div>
-    </div>
+    <PageTransition>
+      <FormLoadingSkeleton fields={6} />
+    </PageTransition>
   );
 }
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/mowers" component={MowerList} />
-      <Route path="/mowers/new" component={AddMower} />
-      <Route path="/mowers/:id/edit" component={EditMower} />
+      <Route path="/" component={() => <PageTransition><Dashboard /></PageTransition>} />
+      <Route path="/mowers" component={() => <PageTransition><MowerList /></PageTransition>} />
+      <Route path="/mowers/new" component={() => <PageTransition><AddMower /></PageTransition>} />
+      <Route path="/mowers/:id/edit" component={() => <PageTransition><EditMower /></PageTransition>} />
       <Route 
         path="/mowers/:id/service/new" 
         component={() => (
           <Suspense fallback={<PageLoadingFallback />}>
-            <AddServiceRecord />
+            <PageTransition><AddServiceRecord /></PageTransition>
           </Suspense>
         )} 
       />
@@ -64,7 +52,7 @@ function Router() {
         path="/mowers/:id/service/:serviceId/edit" 
         component={() => (
           <Suspense fallback={<PageLoadingFallback />}>
-            <EditServiceRecord />
+            <PageTransition><EditServiceRecord /></PageTransition>
           </Suspense>
         )} 
       />
@@ -72,11 +60,11 @@ function Router() {
         path="/mowers/:id" 
         component={() => (
           <Suspense fallback={<PageLoadingFallback />}>
-            <MowerDetails />
+            <PageTransition><MowerDetails /></PageTransition>
           </Suspense>
         )} 
       />
-      <Route component={NotFound} />
+      <Route component={() => <PageTransition><NotFound /></PageTransition>} />
     </Switch>
   );
 }
