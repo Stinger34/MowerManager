@@ -513,18 +513,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create global component (not attached to a mower)
   app.post('/api/components', async (req: Request, res: Response) => {
     try {
-      // For global components, mowerId should be null
-      const componentData = {
-        ...req.body,
-        mowerId: req.body.mowerId || null
-      };
+      // Validate and sanitize input
+      const componentData = req.body;
+
+      // If mowerId is present, ensure it's valid or set to null for global
+      if (componentData.mowerId === undefined || componentData.mowerId === null || componentData.mowerId === "") {
+        componentData.mowerId = null;
+      }
+
+      // Insert using your storage/ORM
       const validatedData = insertComponentSchema.parse(componentData);
       const component = await storage.createComponent(validatedData);
+
       res.status(201).json(component);
     } catch (error) {
-      res.status(400).json({ error: 'Invalid component data', details: error instanceof Error ? error.message : String(error) });
+      console.error('Component creation error:', error);
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid component data' });
     }
   });
 
@@ -670,6 +677,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete asset part allocation' });
     }
+  });
+
+  // Catch-all for undefined API routes to always return JSON, never HTML
+  app.use('/api', (req: Request, res: Response) => {
+    res.status(404).json({ error: 'API route not found' });
   });
 
   const httpServer = createServer(app);
