@@ -12,11 +12,11 @@ import MaintenanceOverview from "@/components/MaintenanceOverview";
 import AttachmentGallery from "@/components/AttachmentGallery";
 import AttachmentMetadataDialog from "@/components/AttachmentMetadataDialog";
 import TaskList from "@/components/TaskList";
-import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMowerThumbnail } from "@/hooks/useThumbnails";
-import type { Mower, Task, InsertTask, ServiceRecord, Attachment } from "@shared/schema";
+import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Component, Part, AssetPart } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
 import { motion } from "framer-motion";
@@ -58,6 +58,18 @@ export default function MowerDetails() {
   // Fetch attachments data
   const { data: attachments = [], isLoading: isAttachmentsLoading, error: attachmentsError } = useQuery<Omit<Attachment, 'fileData'>[]>({
     queryKey: ['/api/mowers', mowerId, 'attachments'],
+    enabled: !!mowerId,
+  });
+
+  // Fetch components data
+  const { data: components = [], isLoading: isComponentsLoading, error: componentsError } = useQuery<Component[]>({
+    queryKey: ['/api/mowers', mowerId, 'components'],
+    enabled: !!mowerId,
+  });
+
+  // Fetch parts data for this mower
+  const { data: mowerParts = [], isLoading: isMowerPartsLoading, error: mowerPartsError } = useQuery<AssetPart[]>({
+    queryKey: ['/api/mowers', mowerId, 'parts'],
     enabled: !!mowerId,
   });
 
@@ -588,6 +600,10 @@ export default function MowerDetails() {
           <TabsTrigger value="tasks" data-testid="tab-tasks">
             Tasks ({tasks.length})
           </TabsTrigger>
+          <TabsTrigger value="parts-components" data-testid="tab-parts-components">
+            <Wrench className="h-4 w-4 mr-2" />
+            Parts/Components ({components.length + mowerParts.length})
+          </TabsTrigger>
           <TabsTrigger value="service-history" data-testid="tab-service-history">
             Service History
           </TabsTrigger>
@@ -689,6 +705,121 @@ export default function MowerDetails() {
               onDeleteTask={(id) => deleteTaskMutation.mutate(id)}
               onCompleteTask={(id) => completeTaskMutation.mutate(id)}
             />
+          )}
+        </TabsContent>
+        
+        <TabsContent value="parts-components">
+          {(isComponentsLoading || isMowerPartsLoading) ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading parts and components...</span>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Components Section */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Wrench className="h-5 w-5" />
+                      Components ({components.length})
+                    </CardTitle>
+                    <Button variant="outline" size="sm" data-testid="button-add-component">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Component
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {components.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      No components yet. Click "Add Component" to get started.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {components.map((component) => (
+                        <div key={component.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-medium">{component.name}</h4>
+                              {component.description && (
+                                <p className="text-sm text-muted-foreground">{component.description}</p>
+                              )}
+                              <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                                {component.partNumber && <span>Part: {component.partNumber}</span>}
+                                {component.manufacturer && <span>Mfg: {component.manufacturer}</span>}
+                                <span>Status: {component.status}</span>
+                                <span>Condition: {component.condition}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="sm">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Parts Section */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Wrench className="h-5 w-5" />
+                      Allocated Parts ({mowerParts.length})
+                    </CardTitle>
+                    <Button variant="outline" size="sm" data-testid="button-add-part">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Allocate Part
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {mowerParts.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      No parts allocated yet. Click "Allocate Part" to assign parts from inventory.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {mowerParts.map((assetPart) => (
+                        <div key={assetPart.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-medium">Part ID: {assetPart.partId}</h4>
+                              <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                                <span>Qty: {assetPart.quantity}</span>
+                                {assetPart.installDate && (
+                                  <span>Installed: {new Date(assetPart.installDate).toLocaleDateString()}</span>
+                                )}
+                              </div>
+                              {assetPart.notes && (
+                                <p className="text-sm text-muted-foreground mt-2">{assetPart.notes}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="sm">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           )}
         </TabsContent>
         
