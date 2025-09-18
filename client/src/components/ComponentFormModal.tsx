@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
+import { useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -38,7 +39,7 @@ type ComponentFormData = z.infer<typeof componentFormSchema>;
 interface ComponentFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  mowerId: string;
+  mowerId?: string | null; // Optional for global components
   component?: Component | null;
   onSuccess?: () => void;
 }
@@ -46,36 +47,57 @@ interface ComponentFormModalProps {
 export default function ComponentFormModal({ 
   isOpen, 
   onClose, 
-  mowerId, 
+  mowerId = null, 
   component = null,
   onSuccess 
 }: ComponentFormModalProps) {
   const { toast } = useToast();
   const isEditing = !!component;
+  const isGlobalComponent = !mowerId || mowerId === "0";
 
   const form = useForm<ComponentFormData>({
     resolver: zodResolver(componentFormSchema),
     defaultValues: {
-      name: component?.name || "",
-      description: component?.description || "",
-      partNumber: component?.partNumber || "",
-      manufacturer: component?.manufacturer || "",
-      model: component?.model || "",
-      serialNumber: component?.serialNumber || "",
-      installDate: component?.installDate ? new Date(component.installDate) : undefined,
-      warrantyExpires: component?.warrantyExpires ? new Date(component.warrantyExpires) : undefined,
-      condition: (component?.condition as "excellent" | "good" | "fair" | "poor") || "good",
-      status: (component?.status as "active" | "maintenance" | "retired") || "active",
-      cost: component?.cost || "",
-      notes: component?.notes || "",
+      name: "",
+      description: "",
+      partNumber: "",
+      manufacturer: "",
+      model: "",
+      serialNumber: "",
+      installDate: undefined,
+      warrantyExpires: undefined,
+      condition: "good",
+      status: "active",
+      cost: "",
+      notes: "",
     },
   });
+
+  // Reset form when component prop changes
+  useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        name: component?.name || "",
+        description: component?.description || "",
+        partNumber: component?.partNumber || "",
+        manufacturer: component?.manufacturer || "",
+        model: component?.model || "",
+        serialNumber: component?.serialNumber || "",
+        installDate: component?.installDate ? new Date(component.installDate) : undefined,
+        warrantyExpires: component?.warrantyExpires ? new Date(component.warrantyExpires) : undefined,
+        condition: (component?.condition as "excellent" | "good" | "fair" | "poor") || "good",
+        status: (component?.status as "active" | "maintenance" | "retired") || "active",
+        cost: component?.cost || "",
+        notes: component?.notes || "",
+      });
+    }
+  }, [component, isOpen, form]);
 
   const createMutation = useMutation({
     mutationFn: async (data: ComponentFormData) => {
       const componentData: InsertComponent = {
         ...data,
-        mowerId: parseInt(mowerId),
+        mowerId: isGlobalComponent ? null : parseInt(mowerId!),
         installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
         warrantyExpires: data.warrantyExpires ? format(data.warrantyExpires, "yyyy-MM-dd") : null,
         cost: data.cost || null,
@@ -87,15 +109,25 @@ export default function ComponentFormModal({
         notes: data.notes || null,
       };
       
-      const response = await apiRequest("POST", `/api/mowers/${mowerId}/components`, componentData);
+      // Use different endpoints for global vs mower-specific components
+      const endpoint = isGlobalComponent 
+        ? "/api/components" 
+        : `/api/mowers/${mowerId}/components`;
+      
+      const response = await apiRequest("POST", endpoint, componentData);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      // Invalidate relevant queries
+      if (isGlobalComponent) {
+        queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      }
       toast({
         title: "Success",
-        description: "Component created successfully",
+        description: `${isGlobalComponent ? 'Global' : 'Mower'} component created successfully`,
       });
       form.reset();
       onClose();
@@ -129,8 +161,13 @@ export default function ComponentFormModal({
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      // Invalidate relevant queries
+      if (isGlobalComponent || !component?.mowerId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['/api/mowers', component.mowerId.toString(), 'components'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      }
       toast({
         title: "Success",
         description: "Component updated successfully",
@@ -165,7 +202,7 @@ export default function ComponentFormModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? "Edit Component" : "Add Component"}
+            {isEditing ? "Edit Component" : `Add ${isGlobalComponent ? 'Global ' : ''}Component`}
           </DialogTitle>
         </DialogHeader>
 

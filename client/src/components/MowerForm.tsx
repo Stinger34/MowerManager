@@ -13,6 +13,7 @@ import { format, addMonths } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import type { InsertMower } from "@shared/schema";
 
 const mowerFormSchema = z.object({
   make: z.string().min(1, "Make is required"),
@@ -32,7 +33,7 @@ type MowerFormData = z.infer<typeof mowerFormSchema>;
 
 interface MowerFormProps {
   initialData?: Partial<MowerFormData>;
-  onSubmit: (data: MowerFormData) => void;
+  onSubmit: (data: InsertMower) => void;
   onCancel: () => void;
   isEditing?: boolean;
 }
@@ -76,7 +77,16 @@ export default function MowerForm({
   const handleSubmit = async (data: MowerFormData) => {
     setIsSubmitting(true);
     console.log('Form submitted:', data);
-    onSubmit(data);
+    
+    // Convert Date objects to strings for API
+    const apiData = {
+      ...data,
+      purchaseDate: data.purchaseDate ? format(data.purchaseDate, 'yyyy-MM-dd') : null,
+      lastServiceDate: data.lastServiceDate ? format(data.lastServiceDate, 'yyyy-MM-dd') : null,
+      nextServiceDate: data.nextServiceDate ? format(data.nextServiceDate, 'yyyy-MM-dd') : null,
+    };
+    
+    onSubmit(apiData as any);
     setIsSubmitting(false);
   };
 

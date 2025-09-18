@@ -434,7 +434,7 @@ export default function PartsCatalog() {
           setShowComponentModal(false);
           setEditingComponent(null);
         }}
-        mowerId="0" // Not needed for global component types
+        mowerId={null} // Global component type
         component={editingComponent}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['/api/components'] });

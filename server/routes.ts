@@ -513,6 +513,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/components', async (req: Request, res: Response) => {
+    try {
+      // For global components, mowerId should be null
+      const componentData = {
+        ...req.body,
+        mowerId: req.body.mowerId || null
+      };
+      const validatedData = insertComponentSchema.parse(componentData);
+      const component = await storage.createComponent(validatedData);
+      res.status(201).json(component);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid component data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
   app.get('/api/mowers/:mowerId/components', async (req: Request, res: Response) => {
     try {
       const components = await storage.getComponentsByMowerId(req.params.mowerId);
