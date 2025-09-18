@@ -115,6 +115,13 @@ export default function ComponentFormModal({
         : `/api/mowers/${mowerId}/components`;
       
       const response = await apiRequest("POST", endpoint, componentData);
+      
+      // Safely parse JSON response 
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Server returned non-JSON response");
+      }
+      
       return response.json();
     },
     onSuccess: () => {
@@ -158,6 +165,13 @@ export default function ComponentFormModal({
       };
       
       const response = await apiRequest("PUT", `/api/components/${component!.id}`, componentData);
+      
+      // Safely parse JSON response 
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Server returned non-JSON response");
+      }
+      
       return response.json();
     },
     onSuccess: () => {

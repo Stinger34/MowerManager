@@ -286,6 +286,7 @@ export class MemStorage implements IStorage {
     const component: Component = {
       ...insertComponent,
       id: parseInt(id),
+      mowerId: insertComponent.mowerId || null,
       condition: insertComponent.condition || "good",
       status: insertComponent.status || "active",
       description: insertComponent.description || null,

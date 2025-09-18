@@ -85,6 +85,13 @@ export default function PartFormModal({
       };
       
       const response = await apiRequest("POST", "/api/parts", partData);
+      
+      // Safely parse JSON response 
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Server returned non-JSON response");
+      }
+      
       return response.json();
     },
     onSuccess: () => {
@@ -117,6 +124,13 @@ export default function PartFormModal({
       };
       
       const response = await apiRequest("PUT", `/api/parts/${part!.id}`, partData);
+      
+      // Safely parse JSON response 
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Server returned non-JSON response");
+      }
+      
       return response.json();
     },
     onSuccess: () => {
