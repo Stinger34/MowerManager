@@ -133,7 +133,7 @@ volumes:
 The application uses the following database tables:
 - `mowers` - Main mower records
 - `service_records` - Service history
-- `attachments` - File attachments (stored as base64)
+- `attachments` - File attachments (stored as base64) with title and description metadata
 - `tasks` - Maintenance tasks
 
 ### Schema Setup
