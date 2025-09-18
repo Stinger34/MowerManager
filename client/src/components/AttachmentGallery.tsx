@@ -10,6 +10,7 @@ interface Attachment {
   fileName: string;
   fileType: "pdf" | "image" | "document";
   fileSize: number;
+  title: string;
   description?: string;
   uploadedAt: string;
 }
@@ -139,9 +140,15 @@ export default function AttachmentGallery({
                   </div>
                   
                   <div className="space-y-2">
-                    <h4 className="font-medium text-sm truncate" title={attachment.fileName}>
-                      {attachment.fileName}
+                    <h4 className="font-medium text-sm truncate" title={attachment.title}>
+                      {attachment.title}
                     </h4>
+                    
+                    {attachment.title !== attachment.fileName && (
+                      <p className="text-xs text-muted-foreground truncate" title={attachment.fileName}>
+                        File: {attachment.fileName}
+                      </p>
+                    )}
                     
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-xs">

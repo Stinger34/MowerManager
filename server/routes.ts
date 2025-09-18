@@ -309,6 +309,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType,
         fileData,
         fileSize: req.file.size,
+        title: req.body.title || req.file.originalname, // Use provided title or default to filename
         description: req.body.description || null,
       };
 

@@ -40,6 +40,7 @@ export const attachments = pgTable("attachments", {
   fileType: text("file_type").notNull(), // pdf, image, document
   fileData: text("file_path").notNull(), // Base64 encoded file content
   fileSize: integer("file_size").notNull(),
+  title: text("title").notNull(), // Required title field, defaults to fileName
   description: text("description"),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
