@@ -1,4 +1,4 @@
-import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, mowers, tasks, serviceRecords, attachments } from "@shared/schema";
+import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, type Component, type InsertComponent, type Part, type InsertPart, mowers, tasks, serviceRecords, attachments, components, parts } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -33,6 +33,23 @@ export interface IStorage {
   getAttachmentsByMowerId(mowerId: string): Promise<Attachment[]>;
   createAttachment(attachment: InsertAttachment): Promise<Attachment>;
   deleteAttachment(id: string): Promise<boolean>;
+  
+  // Component methods
+  getComponent(id: string): Promise<Component | undefined>;
+  getComponentsByMowerId(mowerId: string): Promise<Component[]>;
+  createComponent(component: InsertComponent): Promise<Component>;
+  updateComponent(id: string, component: Partial<InsertComponent>): Promise<Component | undefined>;
+  deleteComponent(id: string): Promise<boolean>;
+  
+  // Part methods
+  getPart(id: string): Promise<Part | undefined>;
+  getPartsByMowerId(mowerId: string): Promise<Part[]>;
+  getPartsByComponentId(componentId: string): Promise<Part[]>;
+  getStockParts(): Promise<Part[]>;
+  createPart(part: InsertPart): Promise<Part>;
+  updatePart(id: string, part: Partial<InsertPart>): Promise<Part | undefined>;
+  deletePart(id: string): Promise<boolean>;
+  allocatePartToAsset(partId: string, mowerId?: string, componentId?: string): Promise<Part | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -235,6 +252,74 @@ export class MemStorage implements IStorage {
   async deleteAttachment(id: string): Promise<boolean> {
     return this.attachments.delete(id);
   }
+
+  // Component methods - MemStorage stubs
+  async getComponent(id: string): Promise<Component | undefined> {
+    return undefined;
+  }
+
+  async getComponentsByMowerId(mowerId: string): Promise<Component[]> {
+    return [];
+  }
+
+  async createComponent(component: InsertComponent): Promise<Component> {
+    const id = randomUUID();
+    const now = new Date();
+    return {
+      ...component,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    } as Component;
+  }
+
+  async updateComponent(id: string, component: Partial<InsertComponent>): Promise<Component | undefined> {
+    return undefined;
+  }
+
+  async deleteComponent(id: string): Promise<boolean> {
+    return false;
+  }
+
+  // Part methods - MemStorage stubs
+  async getPart(id: string): Promise<Part | undefined> {
+    return undefined;
+  }
+
+  async getPartsByMowerId(mowerId: string): Promise<Part[]> {
+    return [];
+  }
+
+  async getPartsByComponentId(componentId: string): Promise<Part[]> {
+    return [];
+  }
+
+  async getStockParts(): Promise<Part[]> {
+    return [];
+  }
+
+  async createPart(part: InsertPart): Promise<Part> {
+    const id = randomUUID();
+    const now = new Date();
+    return {
+      ...part,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    } as Part;
+  }
+
+  async updatePart(id: string, part: Partial<InsertPart>): Promise<Part | undefined> {
+    return undefined;
+  }
+
+  async deletePart(id: string): Promise<boolean> {
+    return false;
+  }
+
+  async allocatePartToAsset(partId: string, mowerId?: string, componentId?: string): Promise<Part | undefined> {
+    return undefined;
+  }
 }
 
 export class DbStorage implements IStorage {
@@ -389,6 +474,103 @@ export class DbStorage implements IStorage {
   async deleteAttachment(id: string): Promise<boolean> {
     const result = await db.delete(attachments).where(eq(attachments.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // Component methods
+  async getComponent(id: string): Promise<Component | undefined> {
+    const result = await db.select().from(components).where(eq(components.id, id));
+    return result[0];
+  }
+
+  async getComponentsByMowerId(mowerId: string): Promise<Component[]> {
+    const result = await db.select().from(components).where(eq(components.mowerId, parseInt(mowerId)));
+    return result;
+  }
+
+  async createComponent(insertComponent: InsertComponent): Promise<Component> {
+    const componentData: typeof components.$inferInsert = {
+      ...insertComponent,
+      id: randomUUID(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    const result = await db.insert(components).values(componentData).returning();
+    return result[0];
+  }
+
+  async updateComponent(id: string, updateData: Partial<InsertComponent>): Promise<Component | undefined> {
+    const result = await db.update(components)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(components.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteComponent(id: string): Promise<boolean> {
+    const result = await db.delete(components).where(eq(components.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Part methods
+  async getPart(id: string): Promise<Part | undefined> {
+    const result = await db.select().from(parts).where(eq(parts.id, id));
+    return result[0];
+  }
+
+  async getPartsByMowerId(mowerId: string): Promise<Part[]> {
+    const result = await db.select().from(parts).where(eq(parts.mowerId, parseInt(mowerId)));
+    return result;
+  }
+
+  async getPartsByComponentId(componentId: string): Promise<Part[]> {
+    const result = await db.select().from(parts).where(eq(parts.componentId, componentId));
+    return result;
+  }
+
+  async getStockParts(): Promise<Part[]> {
+    const result = await db.select().from(parts).where(eq(parts.isStockItem, true));
+    return result;
+  }
+
+  async createPart(insertPart: InsertPart): Promise<Part> {
+    const partData: typeof parts.$inferInsert = {
+      ...insertPart,
+      id: randomUUID(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    const result = await db.insert(parts).values(partData).returning();
+    return result[0];
+  }
+
+  async updatePart(id: string, updateData: Partial<InsertPart>): Promise<Part | undefined> {
+    const result = await db.update(parts)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(parts.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deletePart(id: string): Promise<boolean> {
+    const result = await db.delete(parts).where(eq(parts.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async allocatePartToAsset(partId: string, mowerId?: string, componentId?: string): Promise<Part | undefined> {
+    const updateData: Partial<InsertPart> = {
+      mowerId: mowerId ? parseInt(mowerId) : null,
+      componentId: componentId || null,
+      isStockItem: false,
+      installDate: new Date().toISOString().split('T')[0] as any, // Convert to date string
+    };
+    
+    const result = await db.update(parts)
+      .set(updateData)
+      .where(eq(parts.id, partId))
+      .returning();
+    return result[0];
   }
 }
 

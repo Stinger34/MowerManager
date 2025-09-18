@@ -61,11 +61,63 @@ export const tasks = pgTable("tasks", {
   completedAt: timestamp("completed_at"),
 });
 
+export const components = pgTable("components", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  mowerId: integer("mower_id").notNull().references(() => mowers.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  partNumber: text("part_number"),
+  manufacturer: text("manufacturer"),
+  model: text("model"),
+  serialNumber: text("serial_number"),
+  purchaseDate: date("purchase_date"),
+  purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }),
+  condition: text("condition").notNull().default("good"), // excellent, good, fair, poor
+  status: text("status").notNull().default("active"), // active, maintenance, retired, replaced
+  installDate: date("install_date"),
+  warrantyDate: date("warranty_date"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const parts = pgTable("parts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  partNumber: text("part_number"),
+  manufacturer: text("manufacturer"),
+  category: text("category"), // engine, electrical, hydraulic, cutting, etc.
+  
+  // Asset association - can belong to either mower or component
+  mowerId: integer("mower_id").references(() => mowers.id, { onDelete: "cascade" }),
+  componentId: varchar("component_id").references(() => components.id, { onDelete: "cascade" }),
+  
+  // Catalog/Stock information
+  isStockItem: boolean("is_stock_item").notNull().default(false),
+  stockQuantity: integer("stock_quantity").default(0),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }),
+  supplier: text("supplier"),
+  
+  // Installation information (when allocated to an asset)
+  purchaseDate: date("purchase_date"),
+  installDate: date("install_date"),
+  warrantyDate: date("warranty_date"),
+  condition: text("condition").default("new"), // new, good, fair, poor, replaced
+  status: text("status").notNull().default("active"), // active, maintenance, retired, replaced
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Relations
 export const mowersRelations = relations(mowers, ({ many, one }) => ({
   serviceRecords: many(serviceRecords),
   attachments: many(attachments),
   tasks: many(tasks),
+  components: many(components),
+  parts: many(parts),
   thumbnailAttachment: one(attachments, {
     fields: [mowers.thumbnailAttachmentId],
     references: [attachments.id],
@@ -93,6 +145,25 @@ export const tasksRelations = relations(tasks, ({ one }) => ({
   }),
 }));
 
+export const componentsRelations = relations(components, ({ one, many }) => ({
+  mower: one(mowers, {
+    fields: [components.mowerId],
+    references: [mowers.id],
+  }),
+  parts: many(parts),
+}));
+
+export const partsRelations = relations(parts, ({ one }) => ({
+  mower: one(mowers, {
+    fields: [parts.mowerId],
+    references: [mowers.id],
+  }),
+  component: one(components, {
+    fields: [parts.componentId],
+    references: [components.id],
+  }),
+}));
+
 // Insert schemas
 export const insertMowerSchema = createInsertSchema(mowers).omit({
   id: true,
@@ -114,6 +185,18 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
   completedAt: true,
 });
 
+export const insertComponentSchema = createInsertSchema(components).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPartSchema = createInsertSchema(parts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type InsertMower = z.infer<typeof insertMowerSchema>;
 export type Mower = typeof mowers.$inferSelect;
@@ -127,9 +210,21 @@ export type Attachment = typeof attachments.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasks.$inferSelect;
 
+export type InsertComponent = z.infer<typeof insertComponentSchema>;
+export type Component = typeof components.$inferSelect;
+
+export type InsertPart = z.infer<typeof insertPartSchema>;
+export type Part = typeof parts.$inferSelect;
+
 // Combined types for API responses
 export type MowerWithDetails = Mower & {
   serviceRecords: ServiceRecord[];
   attachments: Attachment[];
   tasks: Task[];
+  components: Component[];
+  parts: Part[];
+};
+
+export type ComponentWithParts = Component & {
+  parts: Part[];
 };
