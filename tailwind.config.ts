@@ -12,27 +12,32 @@ export default {
         card: "1rem", /* 16px - for cards */
         button: "0.5rem", /* 8px - for buttons */
       },
+      boxShadow: {
+        card: "0 2px 8px 0 rgba(22, 90, 90, 0.1)", /* Subtle card shadows with teal tint */
+      },
       colors: {
-        // Custom theme colors from dashboard design
-        background: {
-          DEFAULT: "#AAB0C4",
-          dark: "#868CA0", 
-          light: "#F2F4F7",
-          card: "#FFFFFF",
+        // New dashboard design color palette
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar) / <alpha-value>)",
+          foreground: "hsl(var(--sidebar-foreground) / <alpha-value>)",
+          border: "hsl(var(--sidebar-border) / <alpha-value>)",
+          ring: "hsl(var(--sidebar-ring) / <alpha-value>)",
         },
-        accent: {
-          orange: "#F96A2B",
-          blue: "#5A8EF6"
+        panel: {
+          DEFAULT: "hsl(var(--panel) / <alpha-value>)",
+          border: "hsl(var(--panel-border) / <alpha-value>)",
         },
-        text: {
-          DEFAULT: "#333A48",
-          muted: "#6B7280"
-        },
-        gray: {
-          light: "#E6E8EC",
-          DEFAULT: "#AAB0C4"
-        },
-        // Existing colors maintained for compatibility
+        "accent-orange": "hsl(var(--accent-orange) / <alpha-value>)",
+        "sidebar-icon": "hsl(var(--sidebar-icon) / <alpha-value>)",
+        "accent-card": "hsl(var(--accent-card) / <alpha-value>)",
+        "accent-teal": "hsl(var(--accent-teal) / <alpha-value>)",
+        "calendar-bg": "hsl(var(--calendar-bg) / <alpha-value>)",
+        "text-primary": "hsl(var(--text-primary) / <alpha-value>)",
+        "text-muted": "hsl(var(--text-muted) / <alpha-value>)",
+        "text-dark": "hsl(var(--text-dark) / <alpha-value>)",
+        
+        // Existing shadcn/ui colors maintained for compatibility
+        background: "hsl(var(--background) / <alpha-value>)",
         foreground: "hsl(var(--foreground) / <alpha-value>)",
         border: "hsl(var(--border) / <alpha-value>)",
         input: "hsl(var(--input) / <alpha-value>)",
@@ -79,12 +84,6 @@ export default {
           "4": "hsl(var(--chart-4) / <alpha-value>)",
           "5": "hsl(var(--chart-5) / <alpha-value>)",
         },
-        sidebar: {
-          ring: "hsl(var(--sidebar-ring) / <alpha-value>)",
-          DEFAULT: "hsl(var(--sidebar) / <alpha-value>)",
-          foreground: "hsl(var(--sidebar-foreground) / <alpha-value>)",
-          border: "hsl(var(--sidebar-border) / <alpha-value>)",
-        },
         "sidebar-primary": {
           DEFAULT: "hsl(var(--sidebar-primary) / <alpha-value>)",
           foreground: "hsl(var(--sidebar-primary-foreground) / <alpha-value>)",
@@ -103,7 +102,7 @@ export default {
         },
       },
       boxShadow: {
-        card: "0 2px 8px 0 rgba(170, 176, 196, 0.15)"
+        card: "0 2px 8px 0 rgba(22, 90, 90, 0.1)", /* Subtle card shadows with teal tint */
       },
       fontFamily: {
         sans: ["var(--font-sans)"],

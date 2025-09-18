@@ -9,9 +9,9 @@
 export const statusColors = {
   // Equipment status colors
   active: {
-    background: "bg-accent-blue/10",
-    text: "text-accent-blue",
-    border: "border-accent-blue/20",
+    background: "bg-accent-card/20",
+    text: "text-accent-teal",
+    border: "border-accent-teal/20",
   },
   maintenance: {
     background: "bg-accent-orange/10", 
@@ -19,21 +19,21 @@ export const statusColors = {
     border: "border-accent-orange/20",
   },
   retired: {
-    background: "bg-gray-light",
+    background: "bg-text-muted/10",
     text: "text-text-muted", 
-    border: "border-gray-light",
+    border: "border-text-muted/20",
   },
   
   // Equipment condition colors
   excellent: {
-    background: "bg-accent-blue/10",
-    text: "text-accent-blue",
-    border: "border-accent-blue/20",
+    background: "bg-accent-card/20",
+    text: "text-accent-teal",
+    border: "border-accent-teal/20",
   },
   good: {
-    background: "bg-background-light", 
-    text: "text-text",
-    border: "border-gray-light",
+    background: "bg-accent-card/10", 
+    text: "text-text-primary",
+    border: "border-accent-teal/10",
   },
   fair: {
     background: "bg-accent-orange/10",
@@ -53,38 +53,38 @@ export const statusColors = {
     border: "border-accent-orange/20",
   },
   inspection: {
-    background: "bg-accent-blue/10",
-    text: "text-accent-blue", 
-    border: "border-accent-blue/20",
+    background: "bg-accent-card/20",
+    text: "text-accent-teal", 
+    border: "border-accent-teal/20",
   },
   warranty: {
-    background: "bg-background-light",
-    text: "text-text",
-    border: "border-gray-light",
+    background: "bg-calendar-bg",
+    text: "text-text-primary",
+    border: "border-panel-border/20",
   },
 } as const;
 
 // Dashboard stat card colors
 export const statCardColors = {
   totalMowers: {
-    icon: "text-accent-blue",
-    background: "bg-background-light",
+    icon: "text-accent-teal",
+    background: "bg-accent-card/10",
   },
   active: {
-    icon: "text-accent-blue", 
-    background: "bg-background-light",
+    icon: "text-accent-teal", 
+    background: "bg-accent-card/10",
   },
   maintenance: {
     icon: "text-accent-orange",
-    background: "bg-background-light", 
+    background: "bg-accent-orange/10", 
   },
   upcomingServices: {
-    icon: "text-accent-blue",
-    background: "bg-background-light",
+    icon: "text-accent-teal",
+    background: "bg-calendar-bg",
   },
   overdue: {
     icon: "text-accent-orange",
-    background: "bg-gray-light",
+    background: "bg-accent-orange/10",
   },
 } as const;
 

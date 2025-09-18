@@ -55,7 +55,7 @@ export function StatCard({
     <Card 
       data-testid={testId}
       className={cn(
-        "bg-background-card rounded-card shadow-card border-0",
+        "bg-panel rounded-card shadow-card border border-panel-border",
         clickable && "hover-elevate cursor-pointer",
         className
       )}
@@ -72,7 +72,7 @@ export function StatCard({
       <CardContent>
         <div className="flex items-center gap-2">
           <div 
-            className="text-2xl font-bold text-text" 
+            className="text-2xl font-bold text-text-dark" 
             data-testid={testId ? `${testId}-value` : undefined}
           >
             {value}
