@@ -80,19 +80,19 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <SidebarProvider style={style as React.CSSProperties}>
-            <div className="flex h-screen w-full">
+            <div className="flex h-screen w-full bg-panel">
               <AppSidebar />
               <div className="flex flex-col flex-1">
-                <header className="flex items-center justify-between p-4 border-b bg-background">
+                <header className="flex items-center justify-between p-4 border-b border-panel-border bg-panel shadow-card">
                   <div className="flex items-center gap-4">
                     <SidebarTrigger data-testid="button-sidebar-toggle" />
                     <div className="hidden md:block">
-                      <h2 className="text-lg font-semibold">Mower Manager</h2>
+                      <h2 className="text-lg font-semibold text-text-primary">Mower Manager</h2>
                     </div>
                   </div>
                   <ThemeToggle />
                 </header>
-                <main className="flex-1 overflow-auto p-6">
+                <main className="flex-1 overflow-auto p-6 bg-calendar-bg">
                   <Router />
                 </main>
               </div>

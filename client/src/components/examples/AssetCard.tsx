@@ -17,6 +17,7 @@ export default function AssetCardExample() {
         onViewDetails={(id) => console.log('View details for mower:', id)}
         onEdit={(id) => console.log('Edit mower:', id)}
         onAddService={(id) => console.log('Add service for mower:', id)}
+        onDelete={(id) => console.log('Delete mower:', id)}
       />
       <AssetCard
         id="2"
@@ -32,6 +33,7 @@ export default function AssetCardExample() {
         onViewDetails={(id) => console.log('View details for mower:', id)}
         onEdit={(id) => console.log('Edit mower:', id)}
         onAddService={(id) => console.log('Add service for mower:', id)}
+        onDelete={(id) => console.log('Delete mower:', id)}
       />
       <AssetCard
         id="3"
@@ -47,6 +49,7 @@ export default function AssetCardExample() {
         onViewDetails={(id) => console.log('View details for mower:', id)}
         onEdit={(id) => console.log('Edit mower:', id)}
         onAddService={(id) => console.log('Add service for mower:', id)}
+        onDelete={(id) => console.log('Delete mower:', id)}
       />
     </div>
   );
