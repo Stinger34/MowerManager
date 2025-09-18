@@ -12,11 +12,13 @@ import MaintenanceOverview from "@/components/MaintenanceOverview";
 import AttachmentGallery from "@/components/AttachmentGallery";
 import AttachmentMetadataDialog from "@/components/AttachmentMetadataDialog";
 import TaskList from "@/components/TaskList";
+import ComponentFormModal from "@/components/ComponentFormModal";
+import AllocatePartModal from "@/components/AllocatePartModal";
 import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMowerThumbnail } from "@/hooks/useThumbnails";
-import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Component, Part, AssetPart } from "@shared/schema";
+import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Component, Part, AssetPart, AssetPartWithDetails } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
 import { motion } from "framer-motion";
@@ -36,6 +38,17 @@ export default function MowerDetails() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [showMetadataDialog, setShowMetadataDialog] = useState(false);
+
+  // Modal states for components and parts
+  const [showComponentModal, setShowComponentModal] = useState(false);
+  const [showAllocatePartModal, setShowAllocatePartModal] = useState(false);
+  const [editingComponent, setEditingComponent] = useState<Component | null>(null);
+  const [editingAssetPart, setEditingAssetPart] = useState<AssetPart | null>(null);
+  const [selectedComponentForAllocation, setSelectedComponentForAllocation] = useState<string | null>(null);
+  const [showDeleteComponentDialog, setShowDeleteComponentDialog] = useState(false);
+  const [showDeleteAssetPartDialog, setShowDeleteAssetPartDialog] = useState(false);
+  const [componentToDelete, setComponentToDelete] = useState<Component | null>(null);
+  const [assetPartToDelete, setAssetPartToDelete] = useState<AssetPart | null>(null);
 
   // Fetch mower data
   const { data: mower, isLoading: isMowerLoading, error: mowerError } = useQuery<Mower>({
@@ -67,8 +80,8 @@ export default function MowerDetails() {
     enabled: !!mowerId,
   });
 
-  // Fetch parts data for this mower
-  const { data: mowerParts = [], isLoading: isMowerPartsLoading, error: mowerPartsError } = useQuery<AssetPart[]>({
+  // Fetch parts data for this mower with full part details
+  const { data: mowerParts = [], isLoading: isMowerPartsLoading, error: mowerPartsError } = useQuery<AssetPartWithDetails[]>({
     queryKey: ['/api/mowers', mowerId, 'parts'],
     enabled: !!mowerId,
   });
@@ -266,6 +279,47 @@ export default function MowerDetails() {
     },
   });
 
+  // Component mutations
+  const deleteComponentMutation = useMutation({
+    mutationFn: async (componentId: number) => {
+      await apiRequest('DELETE', `/api/components/${componentId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      toast({ title: "Success", description: "Component deleted successfully" });
+      setShowDeleteComponentDialog(false);
+      setComponentToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete component", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Asset Part mutations
+  const deleteAssetPartMutation = useMutation({
+    mutationFn: async (assetPartId: number) => {
+      await apiRequest('DELETE', `/api/asset-parts/${assetPartId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'parts'] });
+      toast({ title: "Success", description: "Part allocation removed successfully" });
+      setShowDeleteAssetPartDialog(false);
+      setAssetPartToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to remove part allocation", 
+        variant: "destructive" 
+      });
+    },
+  });
+
   // File upload handler
   const handleFileUpload = () => {
     const fileInput = document.createElement('input');
@@ -359,6 +413,64 @@ export default function MowerDetails() {
     if (window.confirm('Are you sure you want to delete this attachment?')) {
       deleteAttachmentMutation.mutate(attachmentId);
     }
+  };
+
+  // Component handlers
+  const handleAddComponent = () => {
+    setEditingComponent(null);
+    setShowComponentModal(true);
+  };
+
+  const handleEditComponent = (component: Component) => {
+    setEditingComponent(component);
+    setShowComponentModal(true);
+  };
+
+  const handleDeleteComponent = (component: Component) => {
+    setComponentToDelete(component);
+    setShowDeleteComponentDialog(true);
+  };
+
+  const handleConfirmDeleteComponent = () => {
+    if (componentToDelete) {
+      deleteComponentMutation.mutate(componentToDelete.id);
+    }
+  };
+
+  // Asset Part handlers
+  const handleAllocatePart = () => {
+    setEditingAssetPart(null);
+    setSelectedComponentForAllocation(null);
+    setShowAllocatePartModal(true);
+  };
+
+  const handleAllocatePartToComponent = (componentId: string) => {
+    setEditingAssetPart(null);
+    setSelectedComponentForAllocation(componentId);
+    setShowAllocatePartModal(true);
+  };
+
+  const handleEditAssetPart = (assetPart: AssetPart) => {
+    setEditingAssetPart(assetPart);
+    setSelectedComponentForAllocation(assetPart.componentId?.toString() || null);
+    setShowAllocatePartModal(true);
+  };
+
+  const handleDeleteAssetPart = (assetPart: AssetPart) => {
+    setAssetPartToDelete(assetPart);
+    setShowDeleteAssetPartDialog(true);
+  };
+
+  const handleConfirmDeleteAssetPart = () => {
+    if (assetPartToDelete) {
+      deleteAssetPartMutation.mutate(assetPartToDelete.id);
+    }
+  };
+
+  const handleModalSuccess = () => {
+    // Refresh data after successful operations
+    queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'parts'] });
   };
 
   // Initialize notes when mower data loads
@@ -670,7 +782,23 @@ export default function MowerDetails() {
         </TabsContent>
 
         <TabsContent value="tasks">
-          {isTasksLoading ? (
+          {tasksError ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-8">
+                  <p className="text-destructive">Failed to load tasks data</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2"
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'tasks'] })}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : isTasksLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin mr-2" />
               <span>Loading tasks...</span>
@@ -709,7 +837,26 @@ export default function MowerDetails() {
         </TabsContent>
         
         <TabsContent value="parts-components">
-          {(isComponentsLoading || isMowerPartsLoading) ? (
+          {componentsError || mowerPartsError ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-8">
+                  <p className="text-destructive">Failed to load parts and components data</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2"
+                    onClick={() => {
+                      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'parts'] });
+                    }}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (isComponentsLoading || isMowerPartsLoading) ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin mr-2" />
               <span>Loading parts and components...</span>
@@ -724,7 +871,7 @@ export default function MowerDetails() {
                       <Wrench className="h-5 w-5" />
                       Components ({components.length})
                     </CardTitle>
-                    <Button variant="outline" size="sm" data-testid="button-add-component">
+                    <Button variant="outline" size="sm" onClick={handleAddComponent} data-testid="button-add-component">
                       <Plus className="h-4 w-4 mr-2" />
                       Add Component
                     </Button>
@@ -740,23 +887,57 @@ export default function MowerDetails() {
                       {components.map((component) => (
                         <div key={component.id} className="border rounded-lg p-4">
                           <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium">{component.name}</h4>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium">{component.name}</h4>
+                                <Badge variant="outline" className="text-xs">
+                                  {component.status}
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  {component.condition}
+                                </Badge>
+                              </div>
                               {component.description && (
-                                <p className="text-sm text-muted-foreground">{component.description}</p>
+                                <p className="text-sm text-muted-foreground mt-1">{component.description}</p>
                               )}
-                              <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                              <div className="flex gap-4 text-sm text-muted-foreground mt-2">
                                 {component.partNumber && <span>Part: {component.partNumber}</span>}
                                 {component.manufacturer && <span>Mfg: {component.manufacturer}</span>}
-                                <span>Status: {component.status}</span>
-                                <span>Condition: {component.condition}</span>
+                                {component.model && <span>Model: {component.model}</span>}
+                                {component.cost && <span>Cost: ${component.cost}</span>}
                               </div>
+                              {(component.installDate || component.warrantyExpires) && (
+                                <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                                  {component.installDate && (
+                                    <span>Installed: {new Date(component.installDate).toLocaleDateString()}</span>
+                                  )}
+                                  {component.warrantyExpires && (
+                                    <span>Warranty: {new Date(component.warrantyExpires).toLocaleDateString()}</span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleAllocatePartToComponent(component.id.toString())}
+                                title="Allocate parts to this component"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditComponent(component)}
+                              >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteComponent(component)}
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
@@ -776,7 +957,7 @@ export default function MowerDetails() {
                       <Wrench className="h-5 w-5" />
                       Allocated Parts ({mowerParts.length})
                     </CardTitle>
-                    <Button variant="outline" size="sm" data-testid="button-add-part">
+                    <Button variant="outline" size="sm" onClick={handleAllocatePart} data-testid="button-add-part">
                       <Plus className="h-4 w-4 mr-2" />
                       Allocate Part
                     </Button>
@@ -792,23 +973,58 @@ export default function MowerDetails() {
                       {mowerParts.map((assetPart) => (
                         <div key={assetPart.id} className="border rounded-lg p-4">
                           <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-medium">Part ID: {assetPart.partId}</h4>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium">{assetPart.part?.name || `Part ID: ${assetPart.partId}`}</h4>
+                                <Badge variant="outline" className="text-xs">
+                                  {assetPart.part?.category || 'Unknown'}
+                                </Badge>
+                                <span className="text-sm text-muted-foreground">
+                                  Qty: {assetPart.quantity}
+                                </span>
+                              </div>
+                              
+                              {assetPart.part && (
+                                <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                                  <span>Part #: {assetPart.part.partNumber}</span>
+                                  {assetPart.part.manufacturer && <span>Mfg: {assetPart.part.manufacturer}</span>}
+                                  {assetPart.part.unitCost && <span>Unit Cost: ${assetPart.part.unitCost}</span>}
+                                </div>
+                              )}
+                              
+                              {assetPart.componentId && (
+                                <div className="text-sm text-muted-foreground mt-1">
+                                  <span>Allocated to Component ID: {assetPart.componentId}</span>
+                                </div>
+                              )}
+                              
                               <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                                <span>Qty: {assetPart.quantity}</span>
                                 {assetPart.installDate && (
                                   <span>Installed: {new Date(assetPart.installDate).toLocaleDateString()}</span>
                                 )}
                               </div>
+                              
+                              {assetPart.part?.description && (
+                                <p className="text-sm text-muted-foreground mt-2">{assetPart.part.description}</p>
+                              )}
+                              
                               {assetPart.notes && (
-                                <p className="text-sm text-muted-foreground mt-2">{assetPart.notes}</p>
+                                <p className="text-sm text-muted-foreground mt-2 italic">{assetPart.notes}</p>
                               )}
                             </div>
                             <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditAssetPart(assetPart)}
+                              >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteAssetPart(assetPart)}
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
@@ -886,6 +1102,86 @@ export default function MowerDetails() {
           fileName={pendingFiles[currentFileIndex].name}
         />
       )}
+
+      {/* Component Form Modal */}
+      <ComponentFormModal
+        isOpen={showComponentModal}
+        onClose={() => {
+          setShowComponentModal(false);
+          setEditingComponent(null);
+        }}
+        mowerId={mowerId!}
+        component={editingComponent}
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Allocate Part Modal */}
+      <AllocatePartModal
+        isOpen={showAllocatePartModal}
+        onClose={() => {
+          setShowAllocatePartModal(false);
+          setEditingAssetPart(null);
+          setSelectedComponentForAllocation(null);
+        }}
+        mowerId={mowerId!}
+        componentId={selectedComponentForAllocation}
+        assetPart={editingAssetPart}
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Delete Component Confirmation Dialog */}
+      <AlertDialog open={showDeleteComponentDialog} onOpenChange={setShowDeleteComponentDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Component</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the component "{componentToDelete?.name}"? This action cannot be undone and will also remove any part allocations to this component.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteComponentDialog(false);
+              setComponentToDelete(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteComponent}
+              disabled={deleteComponentMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteComponentMutation.isPending ? "Deleting..." : "Delete Component"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Asset Part Confirmation Dialog */}
+      <AlertDialog open={showDeleteAssetPartDialog} onOpenChange={setShowDeleteAssetPartDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Part Allocation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this part allocation? This will unlink the part from this {assetPartToDelete?.componentId ? 'component' : 'mower'} but will not delete the part from inventory.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteAssetPartDialog(false);
+              setAssetPartToDelete(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteAssetPart}
+              disabled={deleteAssetPartMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteAssetPartMutation.isPending ? "Removing..." : "Remove Allocation"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
