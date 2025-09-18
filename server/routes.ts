@@ -607,7 +607,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Asset Part allocation routes
   app.get('/api/mowers/:mowerId/parts', async (req: Request, res: Response) => {
     try {
-      const assetParts = await storage.getAssetPartsByMowerId(req.params.mowerId);
+      const assetParts = await storage.getAssetPartsWithDetailsByMowerId(req.params.mowerId);
       res.json(assetParts);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch mower parts' });

@@ -1,4 +1,4 @@
-import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, type Component, type InsertComponent, type Part, type InsertPart, type AssetPart, type InsertAssetPart, mowers, tasks, serviceRecords, attachments, components, parts, assetParts } from "@shared/schema";
+import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, type Component, type InsertComponent, type Part, type InsertPart, type AssetPart, type InsertAssetPart, type AssetPartWithDetails, mowers, tasks, serviceRecords, attachments, components, parts, assetParts } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -51,6 +51,7 @@ export interface IStorage {
   
   // Asset Part allocation methods
   getAssetPartsByMowerId(mowerId: string): Promise<AssetPart[]>;
+  getAssetPartsWithDetailsByMowerId(mowerId: string): Promise<AssetPartWithDetails[]>;
   getAssetPartsByComponentId(componentId: string): Promise<AssetPart[]>;
   createAssetPart(assetPart: InsertAssetPart): Promise<AssetPart>;
   updateAssetPart(id: string, assetPart: Partial<InsertAssetPart>): Promise<AssetPart | undefined>;
@@ -369,6 +370,20 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getAssetPartsWithDetailsByMowerId(mowerId: string): Promise<AssetPartWithDetails[]> {
+    const assetPartsList = Array.from(this.assetParts.values()).filter(assetPart => 
+      assetPart.mowerId && assetPart.mowerId.toString() === mowerId
+    );
+    
+    return assetPartsList.map(assetPart => {
+      const part = this.parts.get(assetPart.partId.toString());
+      return {
+        ...assetPart,
+        part: part!
+      } as AssetPartWithDetails;
+    }).filter(item => item.part); // Filter out any where part wasn't found
+  }
+
   async getAssetPartsByComponentId(componentId: string): Promise<AssetPart[]> {
     return Array.from(this.assetParts.values()).filter(assetPart => 
       assetPart.componentId && assetPart.componentId.toString() === componentId
@@ -626,6 +641,40 @@ export class DbStorage implements IStorage {
   // Asset Part allocation methods
   async getAssetPartsByMowerId(mowerId: string): Promise<AssetPart[]> {
     return await db.select().from(assetParts).where(eq(assetParts.mowerId, parseInt(mowerId)));
+  }
+
+  async getAssetPartsWithDetailsByMowerId(mowerId: string): Promise<AssetPartWithDetails[]> {
+    const result = await db
+      .select({
+        id: assetParts.id,
+        partId: assetParts.partId,
+        mowerId: assetParts.mowerId,
+        componentId: assetParts.componentId,
+        quantity: assetParts.quantity,
+        installDate: assetParts.installDate,
+        serviceRecordId: assetParts.serviceRecordId,
+        notes: assetParts.notes,
+        createdAt: assetParts.createdAt,
+        part: {
+          id: parts.id,
+          name: parts.name,
+          description: parts.description,
+          partNumber: parts.partNumber,
+          manufacturer: parts.manufacturer,
+          category: parts.category,
+          unitCost: parts.unitCost,
+          stockQuantity: parts.stockQuantity,
+          minStockLevel: parts.minStockLevel,
+          notes: parts.notes,
+          createdAt: parts.createdAt,
+          updatedAt: parts.updatedAt,
+        }
+      })
+      .from(assetParts)
+      .innerJoin(parts, eq(assetParts.partId, parts.id))
+      .where(eq(assetParts.mowerId, parseInt(mowerId)));
+    
+    return result as AssetPartWithDetails[];
   }
 
   async getAssetPartsByComponentId(componentId: string): Promise<AssetPart[]> {

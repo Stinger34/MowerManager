@@ -1,18 +1,34 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Search, Plus, Package, Wrench, Edit, Trash2, AlertTriangle } from "lucide-react";
 import { useLocation } from "wouter";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import ComponentFormModal from "@/components/ComponentFormModal";
+import PartFormModal from "@/components/PartFormModal";
 import type { Part, Component } from "@shared/schema";
 
 export default function PartsCatalog() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const { toast } = useToast();
+
+  // Modal states
+  const [showPartModal, setShowPartModal] = useState(false);
+  const [showComponentModal, setShowComponentModal] = useState(false);
+  const [editingPart, setEditingPart] = useState<Part | null>(null);
+  const [editingComponent, setEditingComponent] = useState<Component | null>(null);
+  const [showDeletePartDialog, setShowDeletePartDialog] = useState(false);
+  const [showDeleteComponentDialog, setShowDeleteComponentDialog] = useState(false);
+  const [partToDelete, setPartToDelete] = useState<Part | null>(null);
+  const [componentToDelete, setComponentToDelete] = useState<Component | null>(null);
 
   // Fetch all parts for inventory management
   const { data: parts = [], isLoading: isPartsLoading } = useQuery<Part[]>({
@@ -22,6 +38,45 @@ export default function PartsCatalog() {
   // Fetch all components for management
   const { data: allComponents = [], isLoading: isComponentsLoading } = useQuery<Component[]>({
     queryKey: ['/api/components'],
+  });
+
+  // Delete mutations
+  const deletePartMutation = useMutation({
+    mutationFn: async (partId: number) => {
+      await apiRequest('DELETE', `/api/parts/${partId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/parts'] });
+      toast({ title: "Success", description: "Part deleted successfully" });
+      setShowDeletePartDialog(false);
+      setPartToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete part", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const deleteComponentMutation = useMutation({
+    mutationFn: async (componentId: number) => {
+      await apiRequest('DELETE', `/api/components/${componentId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      toast({ title: "Success", description: "Component deleted successfully" });
+      setShowDeleteComponentDialog(false);
+      setComponentToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete component", 
+        variant: "destructive" 
+      });
+    },
   });
 
   // Filter parts based on search and category
@@ -41,6 +96,45 @@ export default function PartsCatalog() {
     part.minStockLevel && part.stockQuantity <= part.minStockLevel
   );
 
+  // Handlers
+  const handleAddPart = () => {
+    setEditingPart(null);
+    setShowPartModal(true);
+  };
+
+  const handleEditPart = (part: Part) => {
+    setEditingPart(part);
+    setShowPartModal(true);
+  };
+
+  const handleDeletePart = (part: Part) => {
+    setPartToDelete(part);
+    setShowDeletePartDialog(true);
+  };
+
+  const handleAddComponent = () => {
+    setEditingComponent(null);
+    setShowComponentModal(true);
+  };
+
+  const handleEditComponent = (component: Component) => {
+    setEditingComponent(component);
+    setShowComponentModal(true);
+  };
+
+  const handleDeleteComponent = (component: Component) => {
+    setComponentToDelete(component);
+    setShowDeleteComponentDialog(true);
+  };
+
+  const handleViewPartDetails = (partId: number) => {
+    setLocation(`/catalog/parts/${partId}`);
+  };
+
+  const handleViewComponentDetails = (componentId: number) => {
+    setLocation(`/catalog/components/${componentId}`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -51,11 +145,11 @@ export default function PartsCatalog() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setLocation('/catalog/components/new')}>
+          <Button variant="outline" onClick={handleAddComponent}>
             <Wrench className="h-4 w-4 mr-2" />
             Add Component Type
           </Button>
-          <Button onClick={() => setLocation('/catalog/parts/new')}>
+          <Button onClick={handleAddPart}>
             <Plus className="h-4 w-4 mr-2" />
             Add Part
           </Button>
@@ -142,21 +236,35 @@ export default function PartsCatalog() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredParts.map((part) => (
-                <Card key={part.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
+                <Card key={part.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                  <CardHeader onClick={() => handleViewPartDetails(part.id)}>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{part.name}</CardTitle>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditPart(part);
+                          }}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePart(part);
+                          }}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent onClick={() => handleViewPartDetails(part.id)}>
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Part Number:</span>
@@ -228,21 +336,35 @@ export default function PartsCatalog() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {allComponents.map((component) => (
-                <Card key={component.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
+                <Card key={component.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                  <CardHeader onClick={() => handleViewComponentDetails(component.id)}>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{component.name}</CardTitle>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditComponent(component);
+                          }}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteComponent(component);
+                          }}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent onClick={() => handleViewComponentDetails(component.id)}>
                     <div className="space-y-2">
                       {component.partNumber && (
                         <div className="flex justify-between text-sm">
@@ -291,6 +413,87 @@ export default function PartsCatalog() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Part Form Modal */}
+      <PartFormModal
+        isOpen={showPartModal}
+        onClose={() => {
+          setShowPartModal(false);
+          setEditingPart(null);
+        }}
+        part={editingPart}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/parts'] });
+        }}
+      />
+
+      {/* Component Form Modal */}
+      <ComponentFormModal
+        isOpen={showComponentModal}
+        onClose={() => {
+          setShowComponentModal(false);
+          setEditingComponent(null);
+        }}
+        mowerId="0" // Not needed for global component types
+        component={editingComponent}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+        }}
+      />
+
+      {/* Delete Part Confirmation Dialog */}
+      <AlertDialog open={showDeletePartDialog} onOpenChange={setShowDeletePartDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Part</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the part "{partToDelete?.name}"? This action cannot be undone and will also remove any allocations of this part.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeletePartDialog(false);
+              setPartToDelete(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => partToDelete && deletePartMutation.mutate(partToDelete.id)}
+              disabled={deletePartMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletePartMutation.isPending ? "Deleting..." : "Delete Part"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Component Confirmation Dialog */}
+      <AlertDialog open={showDeleteComponentDialog} onOpenChange={setShowDeleteComponentDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Component</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the component "{componentToDelete?.name}"? This action cannot be undone and will also remove any allocations of this component.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteComponentDialog(false);
+              setComponentToDelete(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => componentToDelete && deleteComponentMutation.mutate(componentToDelete.id)}
+              disabled={deleteComponentMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteComponentMutation.isPending ? "Deleting..." : "Delete Component"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
