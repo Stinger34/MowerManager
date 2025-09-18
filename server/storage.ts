@@ -210,6 +210,7 @@ export class MemStorage implements IStorage {
     const attachment: Attachment = {
       ...insertAttachment,
       id,
+      title: insertAttachment.title || null,
       description: insertAttachment.description || null,
       uploadedAt: now,
     };
@@ -368,4 +369,5 @@ export class DbStorage implements IStorage {
   }
 }
 
-export const storage = new DbStorage();
+// Initialize storage based on environment
+export const storage = process.env.DATABASE_URL ? new DbStorage() : new MemStorage();
