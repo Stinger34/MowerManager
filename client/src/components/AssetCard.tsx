@@ -40,7 +40,7 @@ export default function AssetCard({
   onDelete
 }: AssetCardProps) {
   return (
-    <Card className="hover-elevate cursor-pointer" data-testid={`card-mower-${id}`}>
+    <Card className="bg-background-card rounded-card shadow-card border-0 hover-elevate cursor-pointer" data-testid={`card-mower-${id}`}>
       {thumbnailUrl && (
         <div className="w-full h-48 overflow-hidden rounded-t-lg">
           <img 
@@ -54,10 +54,10 @@ export default function AssetCard({
       )}
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
         <div className="space-y-1" onClick={() => onViewDetails(id)}>
-          <h3 className="font-semibold text-lg" data-testid={`text-mower-name-${id}`}>
+          <h3 className="font-semibold text-lg text-text" data-testid={`text-mower-name-${id}`}>
             {make} {model}
           </h3>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-text-muted">
             {year && <span>{year}</span>}
             {serialNumber && <span>• SN: {serialNumber}</span>}
           </div>
@@ -95,8 +95,8 @@ export default function AssetCard({
       
       <CardContent className="space-y-4" onClick={() => onViewDetails(id)}>
         <div className="flex gap-2">
-          <StatusBadge status={condition} data-testid={`badge-condition-${id}`} />
-          <StatusBadge status={status} data-testid={`badge-status-${id}`} />
+          <StatusBadge status={condition} className="rounded-button" data-testid={`badge-condition-${id}`} />
+          <StatusBadge status={status} className="rounded-button" data-testid={`badge-status-${id}`} />
         </div>
         
         <div className="space-y-2 text-sm">

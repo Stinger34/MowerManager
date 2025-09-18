@@ -9,82 +9,82 @@
 export const statusColors = {
   // Equipment status colors
   active: {
-    background: "bg-green-100 dark:bg-green-900/20",
-    text: "text-green-800 dark:text-green-400",
-    border: "border-green-200 dark:border-green-800",
+    background: "bg-accent-blue/10",
+    text: "text-accent-blue",
+    border: "border-accent-blue/20",
   },
   maintenance: {
-    background: "bg-orange-100 dark:bg-orange-900/20", 
-    text: "text-orange-800 dark:text-orange-400",
-    border: "border-orange-200 dark:border-orange-800",
+    background: "bg-accent-orange/10", 
+    text: "text-accent-orange",
+    border: "border-accent-orange/20",
   },
   retired: {
-    background: "bg-gray-100 dark:bg-gray-900/20",
-    text: "text-gray-800 dark:text-gray-400", 
-    border: "border-gray-200 dark:border-gray-800",
+    background: "bg-gray-light",
+    text: "text-text-muted", 
+    border: "border-gray-light",
   },
   
   // Equipment condition colors
   excellent: {
-    background: "bg-green-100 dark:bg-green-900/20",
-    text: "text-green-800 dark:text-green-400",
-    border: "border-green-200 dark:border-green-800",
+    background: "bg-accent-blue/10",
+    text: "text-accent-blue",
+    border: "border-accent-blue/20",
   },
   good: {
-    background: "bg-blue-100 dark:bg-blue-900/20", 
-    text: "text-blue-800 dark:text-blue-400",
-    border: "border-blue-200 dark:border-blue-800",
+    background: "bg-background-light", 
+    text: "text-text",
+    border: "border-gray-light",
   },
   fair: {
-    background: "bg-yellow-100 dark:bg-yellow-900/20",
-    text: "text-yellow-800 dark:text-yellow-400",
-    border: "border-yellow-200 dark:border-yellow-800",
+    background: "bg-accent-orange/10",
+    text: "text-accent-orange",
+    border: "border-accent-orange/20",
   },
   poor: {
-    background: "bg-red-100 dark:bg-red-900/20",
-    text: "text-red-800 dark:text-red-400",
-    border: "border-red-200 dark:border-red-800",
+    background: "bg-accent-orange/20",
+    text: "text-accent-orange",
+    border: "border-accent-orange/30",
   },
   
   // Service type colors
   repair: {
-    background: "bg-red-100 dark:bg-red-900/20",
-    text: "text-red-800 dark:text-red-400",
-    border: "border-red-200 dark:border-red-800",
+    background: "bg-accent-orange/10",
+    text: "text-accent-orange",
+    border: "border-accent-orange/20",
   },
   inspection: {
-    background: "bg-green-100 dark:bg-green-900/20",
-    text: "text-green-800 dark:text-green-400", 
-    border: "border-green-200 dark:border-green-800",
+    background: "bg-accent-blue/10",
+    text: "text-accent-blue", 
+    border: "border-accent-blue/20",
   },
   warranty: {
-    background: "bg-purple-100 dark:bg-purple-900/20",
-    text: "text-purple-800 dark:text-purple-400",
-    border: "border-purple-200 dark:border-purple-800",
+    background: "bg-background-light",
+    text: "text-text",
+    border: "border-gray-light",
   },
 } as const;
 
 // Dashboard stat card colors
 export const statCardColors = {
   totalMowers: {
-    icon: "text-blue-600",
-    background: "bg-blue-100 dark:bg-blue-900/20",
+    icon: "text-accent-blue",
+    background: "bg-background-light",
   },
   active: {
-    icon: "text-green-600", 
-    background: "bg-green-100 dark:bg-green-900/20",
+    icon: "text-accent-blue", 
+    background: "bg-background-light",
   },
   maintenance: {
-    icon: "text-orange-600",
-    background: "bg-orange-100 dark:bg-orange-900/20", 
+    icon: "text-accent-orange",
+    background: "bg-background-light", 
   },
   upcomingServices: {
-    icon: "text-purple-600",
-    background: "bg-purple-100 dark:bg-purple-900/20",
+    icon: "text-accent-blue",
+    background: "bg-background-light",
   },
   overdue: {
-    icon: "text-red-600",
-    background: "bg-red-100 dark:bg-red-900/20",
+    icon: "text-accent-orange",
+    background: "bg-gray-light",
   },
 } as const;
 
