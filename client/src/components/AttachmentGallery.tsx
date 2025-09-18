@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, Image, Download, Eye, Trash2, Loader2, Star } from "lucide-react";
+import { Upload, FileText, Image, Download, Eye, Trash2, Loader2, Star, EllipsisVertical } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAttachmentThumbnail } from "@/hooks/useAttachmentThumbnails";
 
@@ -158,7 +158,7 @@ export default function AttachmentGallery({
                           className="h-8 w-8 flex-shrink-0"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <Eye className="h-4 w-4" />
+                          <EllipsisVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
