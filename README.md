@@ -356,6 +356,36 @@ systemctl status mower-app
 - 🖥️ **Workshop computers**: Local network access
 - 📟 **Other devices**: Any device on your LAN can access the application
 
+## Deployment Scripts
+
+The repository includes deployment automation scripts for different use cases:
+
+### `deploy.sh` - Initial Deployment Script
+
+For setting up and deploying the application from scratch:
+
+```bash
+./deploy.sh
+```
+
+This script runs the following commands in sequence with proper error handling:
+1. `npm install` - Install dependencies (with memory optimization)
+2. `npm run build` - Build the application (with memory optimization)  
+3. `npm run db:push` - Update database schema
+4. `systemctl start mower-app` - Start the application service
+
+The script will stop execution if any command fails and provide clear error messages.
+
+### `update.sh` - Update Existing Installation
+
+For updating an existing installation with new code:
+
+```bash
+./update.sh
+```
+
+This script additionally pulls the latest changes from git and restarts (rather than starts) the service.
+
 ## Environment Variables
 
 The following environment variables must be configured:
