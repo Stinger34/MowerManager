@@ -205,7 +205,7 @@ cd /opt/mower-app
 # sudo lxc file push /path/to/your/app/ mower-app/opt/mower-app/ -r
 
 # If cloning from repository (NOTE: the "." is important - clones into current directory):
-# git clone <your-repo-url> .
+git clone -b dev --single-branch https://github.com/Stinger34/MowerManager.git .
 # 
 # IMPORTANT: Do NOT run "git clone <repo-url>" without the "." 
 # That would create a subdirectory and break the paths!
