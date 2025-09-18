@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
-import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertAttachmentSchema } from "@shared/schema";
+import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertAttachmentSchema, insertComponentSchema, insertPartSchema, insertAssetPartSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // put application routes here
@@ -500,6 +500,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting attachment:', error);
       res.status(500).json({ error: 'Failed to delete attachment' });
+    }
+  });
+
+  // Component routes
+  app.get('/api/components', async (_req: Request, res: Response) => {
+    try {
+      const components = await storage.getAllComponents();
+      res.json(components);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch components' });
+    }
+  });
+
+  app.get('/api/mowers/:mowerId/components', async (req: Request, res: Response) => {
+    try {
+      const components = await storage.getComponentsByMowerId(req.params.mowerId);
+      res.json(components);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch mower components' });
+    }
+  });
+
+  app.post('/api/mowers/:mowerId/components', async (req: Request, res: Response) => {
+    try {
+      const componentData = {
+        ...req.body,
+        mowerId: parseInt(req.params.mowerId)
+      };
+      const validatedData = insertComponentSchema.parse(componentData);
+      const component = await storage.createComponent(validatedData);
+      res.status(201).json(component);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid component data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.put('/api/components/:id', async (req: Request, res: Response) => {
+    try {
+      const component = await storage.updateComponent(req.params.id, req.body);
+      if (!component) {
+        return res.status(404).json({ error: 'Component not found' });
+      }
+      res.json(component);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid component data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.delete('/api/components/:id', async (req: Request, res: Response) => {
+    try {
+      const deleted = await storage.deleteComponent(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Component not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete component' });
+    }
+  });
+
+  // Part routes
+  app.get('/api/parts', async (_req: Request, res: Response) => {
+    try {
+      const parts = await storage.getAllParts();
+      res.json(parts);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch parts' });
+    }
+  });
+
+  app.post('/api/parts', async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertPartSchema.parse(req.body);
+      const part = await storage.createPart(validatedData);
+      res.status(201).json(part);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid part data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.put('/api/parts/:id', async (req: Request, res: Response) => {
+    try {
+      const part = await storage.updatePart(req.params.id, req.body);
+      if (!part) {
+        return res.status(404).json({ error: 'Part not found' });
+      }
+      res.json(part);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid part data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.delete('/api/parts/:id', async (req: Request, res: Response) => {
+    try {
+      const deleted = await storage.deletePart(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Part not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete part' });
+    }
+  });
+
+  // Asset Part allocation routes
+  app.get('/api/mowers/:mowerId/parts', async (req: Request, res: Response) => {
+    try {
+      const assetParts = await storage.getAssetPartsByMowerId(req.params.mowerId);
+      res.json(assetParts);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch mower parts' });
+    }
+  });
+
+  app.get('/api/components/:componentId/parts', async (req: Request, res: Response) => {
+    try {
+      const assetParts = await storage.getAssetPartsByComponentId(req.params.componentId);
+      res.json(assetParts);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch component parts' });
+    }
+  });
+
+  app.post('/api/asset-parts', async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertAssetPartSchema.parse(req.body);
+      const assetPart = await storage.createAssetPart(validatedData);
+      res.status(201).json(assetPart);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid asset part data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.put('/api/asset-parts/:id', async (req: Request, res: Response) => {
+    try {
+      const assetPart = await storage.updateAssetPart(req.params.id, req.body);
+      if (!assetPart) {
+        return res.status(404).json({ error: 'Asset part allocation not found' });
+      }
+      res.json(assetPart);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid asset part data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.delete('/api/asset-parts/:id', async (req: Request, res: Response) => {
+    try {
+      const deleted = await storage.deleteAssetPart(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Asset part allocation not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete asset part allocation' });
     }
   });
 
