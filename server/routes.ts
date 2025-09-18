@@ -513,6 +513,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/components/:id', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching component with ID:', req.params.id);
+      const component = await storage.getComponent(req.params.id);
+      console.log('Component result:', component);
+      if (!component) {
+        return res.status(404).json({ error: 'Component not found' });
+      }
+      res.json(component);
+    } catch (error) {
+      console.error('Error fetching component:', error);
+      res.status(500).json({ error: 'Failed to fetch component' });
+    }
+  });
+
   // Create global component (not attached to a mower)
   app.post('/api/components', async (req: Request, res: Response) => {
     try {
