@@ -23,6 +23,7 @@ import MowerList from "@/pages/MowerList";
 import AddMower from "@/pages/AddMower";
 import EditMower from "@/pages/EditMower";
 import PartsCatalog from "@/pages/PartsCatalog";
+import AddComponent from "@/pages/AddComponent";
 import NotFound from "@/pages/not-found";
 
 // Loading fallback component
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/" component={() => <PageTransition><Dashboard /></PageTransition>} />
       <Route path="/mowers" component={() => <PageTransition><MowerList /></PageTransition>} />
       <Route path="/catalog" component={() => <PageTransition><PartsCatalog /></PageTransition>} />
+      <Route path="/catalog/components/new" component={() => <PageTransition><AddComponent /></PageTransition>} />
       <Route path="/mowers/new" component={() => <PageTransition><AddMower /></PageTransition>} />
       <Route path="/mowers/:id/edit" component={() => <PageTransition><EditMower /></PageTransition>} />
       <Route 
