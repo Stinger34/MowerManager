@@ -592,6 +592,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/parts/:id', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching part with ID:', req.params.id);
+      const part = await storage.getPart(req.params.id);
+      console.log('Part result:', part);
+      if (!part) {
+        return res.status(404).json({ error: 'Part not found' });
+      }
+      res.json(part);
+    } catch (error) {
+      console.error('Error fetching part:', error);
+      res.status(500).json({ error: 'Failed to fetch part' });
+    }
+  });
+
   app.post('/api/parts', async (req: Request, res: Response) => {
     try {
       const validatedData = insertPartSchema.parse(req.body);
