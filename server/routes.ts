@@ -403,27 +403,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/mowers/:id/thumbnail', async (req: Request, res: Response) => {
     try {
       const mowerId = req.params.id;
-      const attachments = await storage.getAttachmentsByMowerId(mowerId);
+      const mower = await storage.getMower(mowerId);
       
-      // Find first image attachment (fileType could be 'image' or 'image/png', etc.)
-      const firstImage = attachments.find(attachment => 
-        attachment.fileType.startsWith('image')
-      );
+      if (!mower) {
+        return res.status(404).json({ error: 'Mower not found' });
+      }
       
-      if (!firstImage) {
+      let thumbnailAttachment = null;
+      
+      // First, check if there's a specifically assigned thumbnail
+      if (mower.thumbnailAttachmentId) {
+        try {
+          thumbnailAttachment = await storage.getAttachment(mower.thumbnailAttachmentId);
+          // Verify it's still an image and belongs to this mower
+          if (!thumbnailAttachment || 
+              !thumbnailAttachment.fileType.startsWith('image') || 
+              thumbnailAttachment.mowerId !== parseInt(mowerId)) {
+            thumbnailAttachment = null;
+          }
+        } catch (error) {
+          // If assigned thumbnail is not found, fall back to first image
+          thumbnailAttachment = null;
+        }
+      }
+      
+      // If no assigned thumbnail or it's invalid, fall back to first image
+      if (!thumbnailAttachment) {
+        const attachments = await storage.getAttachmentsByMowerId(mowerId);
+        thumbnailAttachment = attachments.find(attachment => 
+          attachment.fileType.startsWith('image')
+        );
+      }
+      
+      if (!thumbnailAttachment) {
         return res.status(404).json({ error: 'No image attachments found' });
       }
       
       // Return just the attachment info (not the full base64 data)
       res.json({
-        id: firstImage.id,
-        fileName: firstImage.fileName,
-        fileType: firstImage.fileType,
-        downloadUrl: `/api/attachments/${firstImage.id}/download?inline=1`
+        id: thumbnailAttachment.id,
+        fileName: thumbnailAttachment.fileName,
+        fileType: thumbnailAttachment.fileType,
+        downloadUrl: `/api/attachments/${thumbnailAttachment.id}/download?inline=1`
       });
     } catch (error) {
       console.error('Error getting thumbnail:', error);
       res.status(500).json({ error: 'Failed to get thumbnail' });
+    }
+  });
+
+  // Set thumbnail for a mower
+  app.put('/api/mowers/:id/thumbnail', async (req: Request, res: Response) => {
+    try {
+      const mowerId = req.params.id;
+      const { attachmentId } = req.body;
+      
+      // Validate that the attachment exists and is an image belonging to this mower
+      if (attachmentId) {
+        const attachment = await storage.getAttachment(attachmentId);
+        if (!attachment) {
+          return res.status(404).json({ error: 'Attachment not found' });
+        }
+        if (attachment.mowerId !== parseInt(mowerId)) {
+          return res.status(400).json({ error: 'Attachment does not belong to this mower' });
+        }
+        if (!attachment.fileType.startsWith('image')) {
+          return res.status(400).json({ error: 'Attachment must be an image' });
+        }
+      }
+      
+      // Update the mower's thumbnail
+      const updated = await storage.updateMowerThumbnail(mowerId, attachmentId || null);
+      
+      if (!updated) {
+        return res.status(404).json({ error: 'Mower not found' });
+      }
+      
+      res.json({ success: true, thumbnailAttachmentId: attachmentId || null });
+    } catch (error) {
+      console.error('Error setting thumbnail:', error);
+      res.status(500).json({ error: 'Failed to set thumbnail' });
     }
   });
 

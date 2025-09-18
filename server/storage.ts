@@ -12,6 +12,7 @@ export interface IStorage {
   getAllMowers(): Promise<Mower[]>;
   createMower(mower: InsertMower): Promise<Mower>;
   updateMower(id: string, mower: Partial<InsertMower>): Promise<Mower | undefined>;
+  updateMowerThumbnail(mowerId: string, thumbnailAttachmentId: string | null): Promise<boolean>;
   deleteMower(id: string): Promise<boolean>;
   
   // Task methods
@@ -67,7 +68,8 @@ export class MemStorage implements IStorage {
       status: insertMower.status || "active",
       notes: insertMower.notes || null,
       lastServiceDate: insertMower.lastServiceDate || null,
-      nextServiceDate: insertMower.nextServiceDate || null
+      nextServiceDate: insertMower.nextServiceDate || null,
+      thumbnailAttachmentId: insertMower.thumbnailAttachmentId || null
     };
     this.mowers.set(id.toString(), mower);
     return mower;
@@ -83,6 +85,18 @@ export class MemStorage implements IStorage {
     };
     this.mowers.set(id, updatedMower);
     return updatedMower;
+  }
+
+  async updateMowerThumbnail(mowerId: string, thumbnailAttachmentId: string | null): Promise<boolean> {
+    const existingMower = this.mowers.get(mowerId);
+    if (!existingMower) return false;
+    
+    const updatedMower: Mower = {
+      ...existingMower,
+      thumbnailAttachmentId
+    };
+    this.mowers.set(mowerId, updatedMower);
+    return true;
   }
 
   async deleteMower(id: string): Promise<boolean> {
@@ -246,6 +260,15 @@ export class DbStorage implements IStorage {
       .where(eq(mowers.id, parseInt(id)))
       .returning();
     return result[0];
+  }
+
+  async updateMowerThumbnail(mowerId: string, thumbnailAttachmentId: string | null): Promise<boolean> {
+    const result = await db
+      .update(mowers)
+      .set({ thumbnailAttachmentId })
+      .where(eq(mowers.id, parseInt(mowerId)))
+      .returning();
+    return result.length > 0;
   }
 
   async deleteMower(id: string): Promise<boolean> {

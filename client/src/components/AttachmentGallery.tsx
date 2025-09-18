@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, Image, Download, Eye, Trash2, Loader2 } from "lucide-react";
+import { Upload, FileText, Image, Download, Eye, Trash2, Loader2, Star } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAttachmentThumbnail } from "@/hooks/useAttachmentThumbnails";
 
@@ -22,6 +22,8 @@ interface AttachmentGalleryProps {
   onView: (id: string) => void;
   onDownload: (id: string) => void;
   onDelete: (id: string) => void;
+  onSetThumbnail?: (id: string) => void;
+  thumbnailAttachmentId?: string | null;
   isUploading?: boolean;
   isDeleting?: boolean;
 }
@@ -77,6 +79,8 @@ export default function AttachmentGallery({
   onView,
   onDownload,
   onDelete,
+  onSetThumbnail,
+  thumbnailAttachmentId,
   isUploading = false,
   isDeleting = false
 }: AttachmentGalleryProps) {
@@ -111,14 +115,28 @@ export default function AttachmentGallery({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {attachments.map((attachment) => (
+            {attachments.map((attachment) => {
+              const isThumbnail = thumbnailAttachmentId === attachment.id;
+              const isImage = attachment.fileType === 'image';
+              
+              return (
               <Card 
                 key={attachment.id} 
-                className="hover-elevate cursor-pointer"
+                className="hover-elevate cursor-pointer relative"
                 data-testid={`card-attachment-${attachment.id}`}
                 onClick={() => onView(attachment.id)}
               >
                 <CardContent className="p-4">
+                  {/* Thumbnail Badge */}
+                  {isThumbnail && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <Badge variant="default" className="text-xs bg-yellow-500 hover:bg-yellow-600">
+                        <Star className="h-3 w-3 mr-1" />
+                        Thumbnail
+                      </Badge>
+                    </div>
+                  )}
+                  
                   <AttachmentThumbnail attachment={attachment} />
                   
                   <div className="flex items-start justify-between mb-3">
@@ -158,6 +176,15 @@ export default function AttachmentGallery({
                           <Download className="h-4 w-4 mr-2" />
                           Download
                         </DropdownMenuItem>
+                        {isImage && onSetThumbnail && (
+                          <DropdownMenuItem 
+                            onClick={() => onSetThumbnail(attachment.id)}
+                            data-testid={`button-set-thumbnail-${attachment.id}`}
+                          >
+                            <Star className="h-4 w-4 mr-2" />
+                            {isThumbnail ? 'Remove as Thumbnail' : 'Set as Thumbnail'}
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem 
                           onClick={() => onDelete(attachment.id)}
                           className="text-destructive"
@@ -197,7 +224,8 @@ export default function AttachmentGallery({
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            );
+            })}
           </div>
         )}
       </CardContent>

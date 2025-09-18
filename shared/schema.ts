@@ -17,6 +17,7 @@ export const mowers = pgTable("mowers", {
   status: text("status").notNull().default("active"), // active, maintenance, retired
   lastServiceDate: date("last_service_date"),
   nextServiceDate: date("next_service_date"),
+  thumbnailAttachmentId: varchar("thumbnail_attachment_id"), // References attachments.id
   notes: text("notes"),
 });
 
@@ -61,10 +62,14 @@ export const tasks = pgTable("tasks", {
 });
 
 // Relations
-export const mowersRelations = relations(mowers, ({ many }) => ({
+export const mowersRelations = relations(mowers, ({ many, one }) => ({
   serviceRecords: many(serviceRecords),
   attachments: many(attachments),
   tasks: many(tasks),
+  thumbnailAttachment: one(attachments, {
+    fields: [mowers.thumbnailAttachmentId],
+    references: [attachments.id],
+  }),
 }));
 
 export const serviceRecordsRelations = relations(serviceRecords, ({ one }) => ({
