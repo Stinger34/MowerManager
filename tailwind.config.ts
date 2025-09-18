@@ -9,10 +9,30 @@ export default {
         lg: ".5625rem", /* 9px */
         md: ".375rem", /* 6px */
         sm: ".1875rem", /* 3px */
+        card: "1rem", /* 16px - for cards */
+        button: "0.5rem", /* 8px - for buttons */
       },
       colors: {
-        // Flat / base colors (regular buttons)
-        background: "hsl(var(--background) / <alpha-value>)",
+        // Custom theme colors from dashboard design
+        background: {
+          DEFAULT: "#AAB0C4",
+          dark: "#868CA0", 
+          light: "#F2F4F7",
+          card: "#FFFFFF",
+        },
+        accent: {
+          orange: "#F96A2B",
+          blue: "#5A8EF6"
+        },
+        text: {
+          DEFAULT: "#333A48",
+          muted: "#6B7280"
+        },
+        gray: {
+          light: "#E6E8EC",
+          DEFAULT: "#AAB0C4"
+        },
+        // Existing colors maintained for compatibility
         foreground: "hsl(var(--foreground) / <alpha-value>)",
         border: "hsl(var(--border) / <alpha-value>)",
         input: "hsl(var(--input) / <alpha-value>)",
@@ -81,6 +101,9 @@ export default {
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
         },
+      },
+      boxShadow: {
+        card: "0 2px 8px 0 rgba(170, 176, 196, 0.15)"
       },
       fontFamily: {
         sans: ["var(--font-sans)"],
