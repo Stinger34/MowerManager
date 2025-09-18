@@ -2,6 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
+import { useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -44,17 +45,34 @@ export default function PartFormModal({
   const form = useForm<PartFormData>({
     resolver: zodResolver(partFormSchema),
     defaultValues: {
-      name: part?.name || "",
-      description: part?.description || "",
-      partNumber: part?.partNumber || "",
-      manufacturer: part?.manufacturer || "",
-      category: part?.category || "",
-      unitCost: part?.unitCost || "",
-      stockQuantity: part?.stockQuantity || 0,
-      minStockLevel: part?.minStockLevel || 0,
-      notes: part?.notes || "",
+      name: "",
+      description: "",
+      partNumber: "",
+      manufacturer: "",
+      category: "",
+      unitCost: "",
+      stockQuantity: 0,
+      minStockLevel: 0,
+      notes: "",
     },
   });
+
+  // Reset form when part prop changes
+  useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        name: part?.name || "",
+        description: part?.description || "",
+        partNumber: part?.partNumber || "",
+        manufacturer: part?.manufacturer || "",
+        category: part?.category || "",
+        unitCost: part?.unitCost || "",
+        stockQuantity: part?.stockQuantity || 0,
+        minStockLevel: part?.minStockLevel || 0,
+        notes: part?.notes || "",
+      });
+    }
+  }, [part, isOpen, form]);
 
   const createMutation = useMutation({
     mutationFn: async (data: PartFormData) => {
