@@ -271,7 +271,9 @@ export class MemStorage implements IStorage {
   }
 
   async getComponentsByMowerId(mowerId: string): Promise<Component[]> {
-    return Array.from(this.components.values()).filter(component => component.mowerId.toString() === mowerId);
+    return Array.from(this.components.values()).filter(component => 
+      component.mowerId !== null && component.mowerId.toString() === mowerId
+    );
   }
 
   async getAllComponents(): Promise<Component[]> {
