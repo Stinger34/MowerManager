@@ -233,6 +233,27 @@ export default function MowerDetails() {
     },
   });
 
+  // Thumbnail assignment mutation
+  const setThumbnailMutation = useMutation({
+    mutationFn: async (attachmentId: string) => {
+      const currentThumbnailId = mower?.thumbnailAttachmentId;
+      const isRemovingThumbnail = currentThumbnailId === attachmentId;
+      
+      const response = await apiRequest('PUT', `/api/mowers/${mowerId}/thumbnail`, { 
+        attachmentId: isRemovingThumbnail ? null : attachmentId 
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId] });
+      queryClient.invalidateQueries({ queryKey: ['mower-thumbnail', mowerId] });
+      toast({ title: "Success", description: "Thumbnail updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to set thumbnail", variant: "destructive" });
+    },
+  });
+
   // File upload handler
   const handleFileUpload = () => {
     const fileInput = document.createElement('input');
@@ -724,6 +745,8 @@ export default function MowerDetails() {
                 }
               }}
               onDelete={handleDeleteAttachment}
+              onSetThumbnail={(id) => setThumbnailMutation.mutate(id)}
+              thumbnailAttachmentId={mower?.thumbnailAttachmentId ?? null}
               isUploading={uploadAttachmentMutation.isPending}
               isDeleting={deleteAttachmentMutation.isPending}
             />
