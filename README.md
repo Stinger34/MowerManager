@@ -412,8 +412,14 @@ The following environment variables must be configured:
 The application uses the following database tables:
 - `mowers` - Main mower records
 - `service_records` - Service history
-- `attachments` - File attachments (stored as base64)
+- `attachments` - File attachments with title and description (stored as base64)
 - `tasks` - Maintenance tasks
+
+### Attachment Features
+- **Title Support**: Each attachment can have a custom title (defaults to filename if not provided)
+- **Description**: Optional description field for additional context
+- **File Types**: PDF, images, and documents (10MB limit)
+- **Storage**: Files stored as base64 in database for simplified deployment
 
 ## Troubleshooting
 
