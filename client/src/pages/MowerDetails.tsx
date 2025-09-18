@@ -13,6 +13,7 @@ import AttachmentGallery from "@/components/AttachmentGallery";
 import AttachmentMetadataDialog from "@/components/AttachmentMetadataDialog";
 import TaskList from "@/components/TaskList";
 import ComponentFormModal from "@/components/ComponentFormModal";
+import AllocateComponentModal from "@/components/AllocateComponentModal";
 import AllocatePartModal from "@/components/AllocatePartModal";
 import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench } from "lucide-react";
 import { useLocation } from "wouter";
@@ -41,6 +42,7 @@ export default function MowerDetails() {
 
   // Modal states for components and parts
   const [showComponentModal, setShowComponentModal] = useState(false);
+  const [showAllocateComponentModal, setShowAllocateComponentModal] = useState(false);
   const [showAllocatePartModal, setShowAllocatePartModal] = useState(false);
   const [editingComponent, setEditingComponent] = useState<Component | null>(null);
   const [editingAssetPart, setEditingAssetPart] = useState<AssetPart | null>(null);
@@ -419,6 +421,10 @@ export default function MowerDetails() {
   const handleAddComponent = () => {
     setEditingComponent(null);
     setShowComponentModal(true);
+  };
+
+  const handleAllocateComponent = () => {
+    setShowAllocateComponentModal(true);
   };
 
   const handleEditComponent = (component: Component) => {
@@ -871,16 +877,22 @@ export default function MowerDetails() {
                       <Wrench className="h-5 w-5" />
                       Components ({components.length})
                     </CardTitle>
-                    <Button variant="outline" size="sm" onClick={handleAddComponent} data-testid="button-add-component">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Component
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handleAllocateComponent} data-testid="button-allocate-component">
+                        <Wrench className="h-4 w-4 mr-2" />
+                        Allocate Component
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleAddComponent} data-testid="button-add-component">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Component
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   {components.length === 0 ? (
                     <p className="text-muted-foreground text-center py-8">
-                      No components yet. Click "Add Component" to get started.
+                      No components yet. Use "Allocate Component" to select from existing components or "Add Component" to create a new one.
                     </p>
                   ) : (
                     <div className="space-y-3">
@@ -1112,6 +1124,14 @@ export default function MowerDetails() {
         }}
         mowerId={mowerId!}
         component={editingComponent}
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Allocate Component Modal */}
+      <AllocateComponentModal
+        isOpen={showAllocateComponentModal}
+        onClose={() => setShowAllocateComponentModal(false)}
+        mowerId={mowerId!}
         onSuccess={handleModalSuccess}
       />
 
