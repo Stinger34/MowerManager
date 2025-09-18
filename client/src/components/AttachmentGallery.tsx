@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 interface Attachment {
   id: string;
   fileName: string;
+  title: string;
   fileType: "pdf" | "image" | "document";
   fileSize: number;
   description?: string;
@@ -139,8 +140,8 @@ export default function AttachmentGallery({
                   </div>
                   
                   <div className="space-y-2">
-                    <h4 className="font-medium text-sm truncate" title={attachment.fileName}>
-                      {attachment.fileName}
+                    <h4 className="font-medium text-sm truncate" title={attachment.title}>
+                      {attachment.title}
                     </h4>
                     
                     <div className="flex items-center gap-2">
