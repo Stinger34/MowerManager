@@ -55,29 +55,30 @@ export function StatCard({
     <Card 
       data-testid={testId}
       className={cn(
+        "bg-background-card rounded-card shadow-card border-0",
         clickable && "hover-elevate cursor-pointer",
         className
       )}
       onClick={clickable ? onClick : undefined}
     >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+        <CardTitle className="text-sm font-medium text-text-muted">
           {title}
         </CardTitle>
-        <div className={cn("p-2 rounded-md", colors.background)}>
+        <div className={cn("p-2 rounded-button", colors.background)}>
           <Icon className={cn("h-4 w-4", colors.icon)} />
         </div>
       </CardHeader>
       <CardContent>
         <div className="flex items-center gap-2">
           <div 
-            className="text-2xl font-bold" 
+            className="text-2xl font-bold text-text" 
             data-testid={testId ? `${testId}-value` : undefined}
           >
             {value}
           </div>
           {badge && (
-            <Badge variant={badge.variant || "default"} className="text-xs">
+            <Badge variant={badge.variant || "default"} className="text-xs rounded-button">
               {badge.text}
             </Badge>
           )}
