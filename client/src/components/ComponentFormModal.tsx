@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Component, InsertComponent } from "@shared/schema";
+import AttachmentUploadArea from "./AttachmentUploadArea";
+import { uploadAttachmentsForEntity } from "@/lib/attachmentUpload";
 
 const componentFormSchema = z.object({
   name: z.string().min(1, "Component name is required"),
@@ -35,6 +37,14 @@ const componentFormSchema = z.object({
 });
 
 type ComponentFormData = z.infer<typeof componentFormSchema>;
+
+interface AttachmentFile {
+  file: File;
+  metadata: {
+    title: string;
+    description: string;
+  };
+}
 
 interface ComponentFormModalProps {
   isOpen: boolean;
@@ -54,6 +64,7 @@ export default function ComponentFormModal({
   const { toast } = useToast();
   const isEditing = !!component;
   const isGlobalComponent = !mowerId || mowerId === "0";
+  const [pendingAttachments, setPendingAttachments] = useState<AttachmentFile[]>([]);
 
   const form = useForm<ComponentFormData>({
     resolver: zodResolver(componentFormSchema),
@@ -90,8 +101,12 @@ export default function ComponentFormModal({
         cost: component?.cost || "",
         notes: component?.notes || "",
       });
+      // Reset attachments for editing mode
+      if (isEditing) {
+        setPendingAttachments([]);
+      }
     }
-  }, [component, isOpen, form]);
+  }, [component, isOpen, form, isEditing]);
 
   const createMutation = useMutation({
     mutationFn: async (data: ComponentFormData) => {
@@ -122,7 +137,14 @@ export default function ComponentFormModal({
         throw new Error("Server returned non-JSON response");
       }
       
-      return response.json();
+      const createdComponent = await response.json();
+      
+      // Upload attachments if any
+      if (pendingAttachments.length > 0) {
+        await uploadAttachmentsForEntity('components', createdComponent.id, pendingAttachments);
+      }
+      
+      return createdComponent;
     },
     onSuccess: () => {
       // Invalidate relevant queries
@@ -134,9 +156,10 @@ export default function ComponentFormModal({
       }
       toast({
         title: "Success",
-        description: `${isGlobalComponent ? 'Global' : 'Mower'} component created successfully`,
+        description: `${isGlobalComponent ? 'Global' : 'Mower'} component created successfully${pendingAttachments.length > 0 ? ` with ${pendingAttachments.length} attachment(s)` : ''}`,
       });
       form.reset();
+      setPendingAttachments([]);
       onClose();
       onSuccess?.();
     },
@@ -208,6 +231,7 @@ export default function ComponentFormModal({
 
   const handleClose = () => {
     form.reset();
+    setPendingAttachments([]);
     onClose();
   };
 
@@ -472,6 +496,14 @@ export default function ComponentFormModal({
                 </FormItem>
               )}
             />
+
+            {/* Only show attachment upload during creation */}
+            {!isEditing && (
+              <AttachmentUploadArea
+                onAttachmentsChange={setPendingAttachments}
+                disabled={createMutation.isPending}
+              />
+            )}
 
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={handleClose}>

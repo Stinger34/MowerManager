@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Part, InsertPart } from "@shared/schema";
+import AttachmentUploadArea from "./AttachmentUploadArea";
+import { uploadAttachmentsForEntity } from "@/lib/attachmentUpload";
 
 const partFormSchema = z.object({
   name: z.string().min(1, "Part name is required"),
@@ -25,6 +27,14 @@ const partFormSchema = z.object({
 });
 
 type PartFormData = z.infer<typeof partFormSchema>;
+
+interface AttachmentFile {
+  file: File;
+  metadata: {
+    title: string;
+    description: string;
+  };
+}
 
 interface PartFormModalProps {
   isOpen: boolean;
@@ -41,6 +51,7 @@ export default function PartFormModal({
 }: PartFormModalProps) {
   const { toast } = useToast();
   const isEditing = !!part;
+  const [pendingAttachments, setPendingAttachments] = useState<AttachmentFile[]>([]);
 
   const form = useForm<PartFormData>({
     resolver: zodResolver(partFormSchema),
@@ -71,8 +82,12 @@ export default function PartFormModal({
         minStockLevel: part?.minStockLevel || 0,
         notes: part?.notes || "",
       });
+      // Reset attachments for editing mode
+      if (isEditing) {
+        setPendingAttachments([]);
+      }
     }
-  }, [part, isOpen, form]);
+  }, [part, isOpen, form, isEditing]);
 
   const createMutation = useMutation({
     mutationFn: async (data: PartFormData) => {
@@ -92,15 +107,23 @@ export default function PartFormModal({
         throw new Error("Server returned non-JSON response");
       }
       
-      return response.json();
+      const createdPart = await response.json();
+      
+      // Upload attachments if any
+      if (pendingAttachments.length > 0) {
+        await uploadAttachmentsForEntity('parts', createdPart.id, pendingAttachments);
+      }
+      
+      return createdPart;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/parts'] });
       toast({
         title: "Success",
-        description: "Part created successfully",
+        description: `Part created successfully${pendingAttachments.length > 0 ? ` with ${pendingAttachments.length} attachment(s)` : ''}`,
       });
       form.reset();
+      setPendingAttachments([]);
       onClose();
       onSuccess?.();
     },
@@ -161,6 +184,7 @@ export default function PartFormModal({
 
   const handleClose = () => {
     form.reset();
+    setPendingAttachments([]);
     onClose();
   };
 
@@ -340,6 +364,14 @@ export default function PartFormModal({
                 </FormItem>
               )}
             />
+
+            {/* Only show attachment upload during creation */}
+            {!isEditing && (
+              <AttachmentUploadArea
+                onAttachmentsChange={setPendingAttachments}
+                disabled={createMutation.isPending}
+              />
+            )}
 
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={handleClose}>
