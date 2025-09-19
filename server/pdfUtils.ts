@@ -12,16 +12,24 @@ export interface PDFInfo {
  */
 export async function processPDF(fileBuffer: Buffer): Promise<PDFInfo> {
   try {
-    // Dynamically import pdf-parse to avoid initialization issues
-    const pdf = await import('pdf-parse');
-    const pdfParse = pdf.default;
-    
-    // Parse PDF to get page count
-    const pdfData = await pdfParse(fileBuffer);
-    const pageCount = pdfData.numpages;
-
     // Generate thumbnail of first page
     let thumbnailBuffer: Buffer | undefined;
+    let pageCount = 1; // Default to 1 page if we can't parse
+    
+    // Try to get page count with pdf-parse, but don't fail if it doesn't work
+    try {
+      // Dynamically import pdf-parse to avoid initialization issues
+      const pdf = await import('pdf-parse');
+      const pdfParse = pdf.default;
+      
+      // Parse PDF to get page count
+      const pdfData = await pdfParse(fileBuffer);
+      pageCount = pdfData.numpages;
+      console.log('✓ Got page count from pdf-parse:', pageCount);
+    } catch (parseError) {
+      console.warn('⚠ pdf-parse failed, using default page count of 1:', parseError.message);
+      // Continue with default pageCount = 1
+    }
     
     try {
       // Dynamically import pdf2pic to avoid initialization issues
@@ -32,6 +40,7 @@ export async function processPDF(fileBuffer: Buffer): Promise<PDFInfo> {
       const tempDir = tmpdir();
       const tempPdfPath = path.join(tempDir, `temp_pdf_${Date.now()}.pdf`);
       
+      console.log('📄 Writing PDF to temp file:', tempPdfPath);
       // Write PDF buffer to temporary file
       fs.writeFileSync(tempPdfPath, fileBuffer);
       
@@ -45,22 +54,53 @@ export async function processPDF(fileBuffer: Buffer): Promise<PDFInfo> {
         height: 300, // Thumbnail height
       });
       
-      // Convert first page to image
-      const result = await convert(1, { responseType: 'buffer' });
+      console.log('🖼️ Converting PDF page to image...');
+      // Convert first page to image - try without responseType first
+      const result = await convert(1);
       
-      if (result && 'buffer' in result) {
+      console.log('📊 pdf2pic result:', {
+        hasResult: !!result,
+        resultType: typeof result,
+        resultKeys: result ? Object.keys(result) : [],
+        hasBuffer: result && 'buffer' in result,
+        hasPath: result && 'path' in result,
+      });
+      
+      // If we got a file path, read it as buffer
+      if (result && 'path' in result && result.path) {
+        try {
+          const imageBuffer = fs.readFileSync(result.path);
+          thumbnailBuffer = imageBuffer;
+          console.log('✓ Read thumbnail from path:', result.path, 'size:', imageBuffer.length);
+          
+          // Clean up the generated image file
+          try {
+            fs.unlinkSync(result.path);
+            console.log('🧹 Cleaned up generated image file');
+          } catch (cleanupError) {
+            console.warn('Failed to clean up generated image file:', cleanupError);
+          }
+        } catch (readError) {
+          console.warn('Failed to read generated image file:', readError);
+        }
+      } else if (result && 'buffer' in result) {
         thumbnailBuffer = result.buffer as Buffer;
+        console.log('✓ Thumbnail buffer size:', thumbnailBuffer.length);
+      } else {
+        console.warn('⚠ Unexpected pdf2pic result format');
       }
       
       // Clean up temporary PDF file
       try {
         fs.unlinkSync(tempPdfPath);
+        console.log('🧹 Cleaned up temp file');
       } catch (cleanupError) {
         console.warn('Failed to clean up temporary PDF file:', cleanupError);
       }
       
     } catch (thumbnailError) {
       console.warn('Failed to generate PDF thumbnail:', thumbnailError);
+      console.error('Thumbnail error stack:', thumbnailError.stack);
       // Continue without thumbnail
     }
 
