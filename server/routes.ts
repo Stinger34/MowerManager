@@ -13,7 +13,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
-      fileSize: 10 * 1024 * 1024, // 10MB limit
+      fileSize: 30 * 1024 * 1024, // 30MB limit
     },
     fileFilter: (req, file, cb) => {
       // Accept PDF, images, and common document types
@@ -344,7 +344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Attachment upload error:', error);
       if (error instanceof multer.MulterError) {
         if (error.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+          return res.status(400).json({ error: 'File too large. Maximum size is 30MB.' });
         }
       }
       res.status(400).json({ error: 'Invalid attachment data', details: error instanceof Error ? error.message : String(error) });
@@ -668,6 +668,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Component attachment routes
+  app.post('/api/components/:id/attachments', upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      console.log('Component attachment upload request:', { params: req.params, file: req.file, body: req.body });
+      
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Verify component exists
+      const component = await storage.getComponent(req.params.id);
+      if (!component) {
+        return res.status(404).json({ error: 'Component not found' });
+      }
+
+      // Convert file buffer to base64
+      const fileData = req.file.buffer.toString('base64');
+      
+      // Determine file type category
+      let fileType = 'document';
+      if (req.file.mimetype.startsWith('image/')) {
+        fileType = 'image';
+      } else if (req.file.mimetype === 'application/pdf') {
+        fileType = 'pdf';
+      }
+
+      // Extract page count for PDFs and documents
+      let pageCount: number | null = null;
+      try {
+        if (fileType === 'pdf') {
+          const pdfInfo = await processPDF(req.file.buffer);
+          pageCount = pdfInfo.pageCount;
+        } else if (fileType === 'document' && 
+                   (req.file.mimetype === 'application/msword' || 
+                    req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+          pageCount = await getDocumentPageCount(req.file.buffer, req.file.mimetype);
+        }
+      } catch (error) {
+        console.warn('Failed to extract page count:', error);
+        // Continue without page count
+      }
+
+      const attachment = await storage.createAttachment({
+        componentId: parseInt(req.params.id),
+        mowerId: null,
+        partId: null,
+        fileName: req.file.originalname,
+        title: req.body.title || req.file.originalname,
+        fileType,
+        fileData,
+        fileSize: req.file.size,
+        pageCount,
+        description: req.body.description || null,
+      });
+
+      // Return attachment without file data
+      const { fileData: _, ...attachmentResponse } = attachment;
+      res.status(201).json(attachmentResponse);
+    } catch (error) {
+      console.error('Component attachment upload error:', error);
+      if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large. Maximum size is 30MB.' });
+        }
+      }
+      res.status(400).json({ error: 'Invalid attachment data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.get('/api/components/:id/attachments', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching attachments for component ID:', req.params.id);
+      const attachments = await storage.getAttachmentsByComponentId(req.params.id);
+      
+      // Return attachments without file data for list view
+      const attachmentsResponse = attachments.map(({ fileData, ...attachment }) => attachment);
+      console.log('Component attachments result:', attachmentsResponse.length, 'attachments found');
+      res.json(attachmentsResponse);
+    } catch (error) {
+      console.error('Error fetching component attachments:', error);
+      res.status(500).json({ error: 'Failed to fetch component attachments' });
+    }
+  });
+
   // Part routes
   app.get('/api/parts', async (_req: Request, res: Response) => {
     try {
@@ -724,6 +808,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete part' });
+    }
+  });
+
+  // Part attachment routes
+  app.post('/api/parts/:id/attachments', upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      console.log('Part attachment upload request:', { params: req.params, file: req.file, body: req.body });
+      
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Verify part exists
+      const part = await storage.getPart(req.params.id);
+      if (!part) {
+        return res.status(404).json({ error: 'Part not found' });
+      }
+
+      // Convert file buffer to base64
+      const fileData = req.file.buffer.toString('base64');
+      
+      // Determine file type category
+      let fileType = 'document';
+      if (req.file.mimetype.startsWith('image/')) {
+        fileType = 'image';
+      } else if (req.file.mimetype === 'application/pdf') {
+        fileType = 'pdf';
+      }
+
+      // Extract page count for PDFs and documents
+      let pageCount: number | null = null;
+      try {
+        if (fileType === 'pdf') {
+          const pdfInfo = await processPDF(req.file.buffer);
+          pageCount = pdfInfo.pageCount;
+        } else if (fileType === 'document' && 
+                   (req.file.mimetype === 'application/msword' || 
+                    req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+          pageCount = await getDocumentPageCount(req.file.buffer, req.file.mimetype);
+        }
+      } catch (error) {
+        console.warn('Failed to extract page count:', error);
+        // Continue without page count
+      }
+
+      const attachment = await storage.createAttachment({
+        partId: parseInt(req.params.id),
+        mowerId: null,
+        componentId: null,
+        fileName: req.file.originalname,
+        title: req.body.title || req.file.originalname,
+        fileType,
+        fileData,
+        fileSize: req.file.size,
+        pageCount,
+        description: req.body.description || null,
+      });
+
+      // Return attachment without file data
+      const { fileData: _, ...attachmentResponse } = attachment;
+      res.status(201).json(attachmentResponse);
+    } catch (error) {
+      console.error('Part attachment upload error:', error);
+      if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large. Maximum size is 30MB.' });
+        }
+      }
+      res.status(400).json({ error: 'Invalid attachment data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.get('/api/parts/:id/attachments', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching attachments for part ID:', req.params.id);
+      const attachments = await storage.getAttachmentsByPartId(req.params.id);
+      
+      // Return attachments without file data for list view
+      const attachmentsResponse = attachments.map(({ fileData, ...attachment }) => attachment);
+      console.log('Part attachments result:', attachmentsResponse.length, 'attachments found');
+      res.json(attachmentsResponse);
+    } catch (error) {
+      console.error('Error fetching part attachments:', error);
+      res.status(500).json({ error: 'Failed to fetch part attachments' });
     }
   });
 
