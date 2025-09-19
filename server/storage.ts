@@ -256,6 +256,7 @@ export class MemStorage implements IStorage {
       id,
       title: insertAttachment.title || null,
       description: insertAttachment.description || null,
+      pageCount: insertAttachment.pageCount ?? null,
       uploadedAt: now,
     };
     this.attachments.set(id, attachment);

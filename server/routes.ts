@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
 import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertAttachmentSchema, insertComponentSchema, insertPartSchema, insertAssetPartSchema } from "@shared/schema";
+import { processPDF, getDocumentPageCount } from "./pdfUtils";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // put application routes here
@@ -303,6 +304,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType = 'pdf';
       }
 
+      // Extract page count for PDFs and documents
+      let pageCount: number | null = null;
+      try {
+        if (fileType === 'pdf') {
+          const pdfInfo = await processPDF(req.file.buffer);
+          pageCount = pdfInfo.pageCount;
+        } else if (fileType === 'document') {
+          pageCount = getDocumentPageCount(req.file.buffer, req.file.originalname);
+        }
+      } catch (error) {
+        console.warn('Failed to extract page count:', error);
+        // Continue without page count
+      }
+
       const attachmentData = {
         mowerId: parseInt(req.params.id),
         fileName: req.file.originalname,
@@ -310,6 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType,
         fileData,
         fileSize: req.file.size,
+        pageCount,
         description: req.body.description || null,
       };
 
@@ -396,6 +412,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error downloading attachment:', error);
       res.status(500).json({ error: 'Failed to download attachment' });
+    }
+  });
+
+  // Generate PDF thumbnail
+  app.get('/api/attachments/:id/thumbnail', async (req: Request, res: Response) => {
+    try {
+      console.log('Generating PDF thumbnail for attachment ID:', req.params.id);
+      const attachment = await storage.getAttachment(req.params.id);
+      
+      if (!attachment) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+
+      if (attachment.fileType !== 'pdf') {
+        return res.status(400).json({ error: 'Thumbnail generation only supported for PDFs' });
+      }
+
+      // Convert base64 back to buffer
+      const fileBuffer = Buffer.from(attachment.fileData, 'base64');
+      
+      // Generate PDF thumbnail
+      const pdfInfo = await processPDF(fileBuffer);
+      
+      if (!pdfInfo.thumbnailBuffer) {
+        return res.status(500).json({ error: 'Failed to generate PDF thumbnail' });
+      }
+
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Length', pdfInfo.thumbnailBuffer.length);
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+      
+      console.log('Sending PDF thumbnail for:', attachment.fileName, 'Size:', pdfInfo.thumbnailBuffer.length);
+      res.send(pdfInfo.thumbnailBuffer);
+    } catch (error) {
+      console.error('Error generating PDF thumbnail:', error);
+      res.status(500).json({ error: 'Failed to generate PDF thumbnail' });
     }
   });
 
