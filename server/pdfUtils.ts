@@ -1,5 +1,3 @@
-import pdf from 'pdf-parse';
-import pdf2pic from 'pdf2pic';
 import fs from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
@@ -14,14 +12,22 @@ export interface PDFInfo {
  */
 export async function processPDF(fileBuffer: Buffer): Promise<PDFInfo> {
   try {
+    // Dynamically import pdf-parse to avoid initialization issues
+    const pdf = await import('pdf-parse');
+    const pdfParse = pdf.default;
+    
     // Parse PDF to get page count
-    const pdfData = await pdf(fileBuffer);
+    const pdfData = await pdfParse(fileBuffer);
     const pageCount = pdfData.numpages;
 
     // Generate thumbnail of first page
     let thumbnailBuffer: Buffer | undefined;
     
     try {
+      // Dynamically import pdf2pic to avoid initialization issues
+      const pdf2picModule = await import('pdf2pic');
+      const pdf2pic = pdf2picModule.default;
+      
       // Create temporary file for pdf2pic processing
       const tempDir = tmpdir();
       const tempPdfPath = path.join(tempDir, `temp_pdf_${Date.now()}.pdf`);
