@@ -36,7 +36,9 @@ export const serviceRecords = pgTable("service_records", {
 
 export const attachments = pgTable("attachments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  mowerId: integer("mower_id").notNull().references(() => mowers.id, { onDelete: "cascade" }),
+  mowerId: integer("mower_id").references(() => mowers.id, { onDelete: "cascade" }),
+  componentId: integer("component_id").references(() => components.id, { onDelete: "cascade" }),
+  partId: integer("part_id").references(() => parts.id, { onDelete: "cascade" }),
   fileName: text("file_name").notNull(),
   title: text("title"), // User-provided title, defaults to fileName if not provided
   fileType: text("file_type").notNull(), // pdf, image, document
@@ -134,6 +136,14 @@ export const attachmentsRelations = relations(attachments, ({ one }) => ({
     fields: [attachments.mowerId],
     references: [mowers.id],
   }),
+  component: one(components, {
+    fields: [attachments.componentId],
+    references: [components.id],
+  }),
+  part: one(parts, {
+    fields: [attachments.partId],
+    references: [parts.id],
+  }),
 }));
 
 export const tasksRelations = relations(tasks, ({ one }) => ({
@@ -149,10 +159,12 @@ export const componentsRelations = relations(components, ({ one, many }) => ({
     references: [mowers.id],
   }),
   assetParts: many(assetParts),
+  attachments: many(attachments),
 }));
 
 export const partsRelations = relations(parts, ({ many }) => ({
   assetParts: many(assetParts),
+  attachments: many(attachments),
 }));
 
 export const assetPartsRelations = relations(assetParts, ({ one }) => ({

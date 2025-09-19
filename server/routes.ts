@@ -574,6 +574,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Component attachment routes
+  app.post('/api/components/:id/attachments', upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      console.log('Component attachment upload request:', { params: req.params, file: req.file, body: req.body });
+      
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Convert file buffer to base64
+      const fileData = req.file.buffer.toString('base64');
+      
+      // Determine file type category
+      let fileType = 'document';
+      if (req.file.mimetype.startsWith('image/')) {
+        fileType = 'image';
+      } else if (req.file.mimetype === 'application/pdf') {
+        fileType = 'pdf';
+      }
+
+      // Extract page count for PDFs and documents
+      let pageCount: number | null = null;
+      try {
+        if (fileType === 'pdf') {
+          const pdfInfo = await processPDF(req.file.buffer);
+          pageCount = pdfInfo.pageCount;
+        } else if (fileType === 'document') {
+          pageCount = getDocumentPageCount(req.file.buffer, req.file.originalname);
+        }
+      } catch (error) {
+        console.warn('Failed to extract page count:', error);
+        // Continue without page count
+      }
+
+      const attachmentData = {
+        componentId: parseInt(req.params.id),
+        fileName: req.file.originalname,
+        title: req.body.title || null,
+        fileType,
+        fileData,
+        fileSize: req.file.size,
+        pageCount,
+        description: req.body.description || null,
+      };
+
+      console.log('Component attachment data (without file content):', {
+        ...attachmentData,
+        fileData: `[${fileData.length} characters]`
+      });
+
+      const validatedData = insertAttachmentSchema.parse(attachmentData);
+      const attachment = await storage.createAttachment(validatedData);
+      
+      // Return attachment without file data for response
+      const { fileData: _, ...attachmentResponse } = attachment;
+      res.status(201).json(attachmentResponse);
+    } catch (error) {
+      console.error('Component attachment upload error:', error);
+      if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+        }
+      }
+      res.status(400).json({ error: 'Invalid attachment data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.get('/api/components/:id/attachments', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching attachments for component ID:', req.params.id);
+      const attachments = await storage.getAttachmentsByComponentId(req.params.id);
+      
+      // Return attachments without file data for list view
+      const attachmentsResponse = attachments.map(({ fileData, ...attachment }) => attachment);
+      console.log('Component attachments result:', attachmentsResponse.length, 'attachments found');
+      res.json(attachmentsResponse);
+    } catch (error) {
+      console.error('Error fetching component attachments:', error);
+      res.status(500).json({ error: 'Failed to fetch component attachments' });
+    }
+  });
+
+  // Part attachment routes
+  app.post('/api/parts/:id/attachments', upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      console.log('Part attachment upload request:', { params: req.params, file: req.file, body: req.body });
+      
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Convert file buffer to base64
+      const fileData = req.file.buffer.toString('base64');
+      
+      // Determine file type category
+      let fileType = 'document';
+      if (req.file.mimetype.startsWith('image/')) {
+        fileType = 'image';
+      } else if (req.file.mimetype === 'application/pdf') {
+        fileType = 'pdf';
+      }
+
+      // Extract page count for PDFs and documents
+      let pageCount: number | null = null;
+      try {
+        if (fileType === 'pdf') {
+          const pdfInfo = await processPDF(req.file.buffer);
+          pageCount = pdfInfo.pageCount;
+        } else if (fileType === 'document') {
+          pageCount = getDocumentPageCount(req.file.buffer, req.file.originalname);
+        }
+      } catch (error) {
+        console.warn('Failed to extract page count:', error);
+        // Continue without page count
+      }
+
+      const attachmentData = {
+        partId: parseInt(req.params.id),
+        fileName: req.file.originalname,
+        title: req.body.title || null,
+        fileType,
+        fileData,
+        fileSize: req.file.size,
+        pageCount,
+        description: req.body.description || null,
+      };
+
+      console.log('Part attachment data (without file content):', {
+        ...attachmentData,
+        fileData: `[${fileData.length} characters]`
+      });
+
+      const validatedData = insertAttachmentSchema.parse(attachmentData);
+      const attachment = await storage.createAttachment(validatedData);
+      
+      // Return attachment without file data for response
+      const { fileData: _, ...attachmentResponse } = attachment;
+      res.status(201).json(attachmentResponse);
+    } catch (error) {
+      console.error('Part attachment upload error:', error);
+      if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+        }
+      }
+      res.status(400).json({ error: 'Invalid attachment data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.get('/api/parts/:id/attachments', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching attachments for part ID:', req.params.id);
+      const attachments = await storage.getAttachmentsByPartId(req.params.id);
+      
+      // Return attachments without file data for list view
+      const attachmentsResponse = attachments.map(({ fileData, ...attachment }) => attachment);
+      console.log('Part attachments result:', attachmentsResponse.length, 'attachments found');
+      res.json(attachmentsResponse);
+    } catch (error) {
+      console.error('Error fetching part attachments:', error);
+      res.status(500).json({ error: 'Failed to fetch part attachments' });
+    }
+  });
+
   // Component routes
   app.get('/api/components', async (_req: Request, res: Response) => {
     try {

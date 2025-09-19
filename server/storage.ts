@@ -31,6 +31,8 @@ export interface IStorage {
   // Attachment methods
   getAttachment(id: string): Promise<Attachment | undefined>;
   getAttachmentsByMowerId(mowerId: string): Promise<Attachment[]>;
+  getAttachmentsByComponentId(componentId: string): Promise<Attachment[]>;
+  getAttachmentsByPartId(partId: string): Promise<Attachment[]>;
   createAttachment(attachment: InsertAttachment): Promise<Attachment>;
   updateAttachmentMetadata(id: string, metadata: { title?: string; description?: string }): Promise<Attachment | undefined>;
   deleteAttachment(id: string): Promise<boolean>;
@@ -246,6 +248,14 @@ export class MemStorage implements IStorage {
 
   async getAttachmentsByMowerId(mowerId: string): Promise<Attachment[]> {
     return Array.from(this.attachments.values()).filter(attachment => attachment.mowerId === parseInt(mowerId));
+  }
+
+  async getAttachmentsByComponentId(componentId: string): Promise<Attachment[]> {
+    return Array.from(this.attachments.values()).filter(attachment => attachment.componentId === parseInt(componentId));
+  }
+
+  async getAttachmentsByPartId(partId: string): Promise<Attachment[]> {
+    return Array.from(this.attachments.values()).filter(attachment => attachment.partId === parseInt(partId));
   }
 
   async createAttachment(insertAttachment: InsertAttachment): Promise<Attachment> {
@@ -581,6 +591,14 @@ export class DbStorage implements IStorage {
 
   async getAttachmentsByMowerId(mowerId: string): Promise<Attachment[]> {
     return await db.select().from(attachments).where(eq(attachments.mowerId, parseInt(mowerId)));
+  }
+
+  async getAttachmentsByComponentId(componentId: string): Promise<Attachment[]> {
+    return await db.select().from(attachments).where(eq(attachments.componentId, parseInt(componentId)));
+  }
+
+  async getAttachmentsByPartId(partId: string): Promise<Attachment[]> {
+    return await db.select().from(attachments).where(eq(attachments.partId, parseInt(partId)));
   }
 
   async createAttachment(insertAttachment: InsertAttachment): Promise<Attachment> {
