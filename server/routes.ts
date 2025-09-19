@@ -503,6 +503,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/attachments/:id', async (req: Request, res: Response) => {
+    try {
+      console.log('Updating attachment metadata for ID:', req.params.id);
+      const { title, description } = req.body;
+      
+      const updated = await storage.updateAttachmentMetadata(req.params.id, { title, description });
+      
+      if (!updated) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+      
+      console.log('Attachment metadata updated successfully');
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating attachment metadata:', error);
+      res.status(500).json({ error: 'Failed to update attachment metadata' });
+    }
+  });
+
   // Component routes
   app.get('/api/components', async (_req: Request, res: Response) => {
     try {

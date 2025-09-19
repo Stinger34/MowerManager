@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, Image, Download, Eye, Trash2, Loader2, Star, EllipsisVertical } from "lucide-react";
+import { Upload, FileText, Image, Download, Eye, Trash2, Loader2, Star, EllipsisVertical, Edit } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAttachmentThumbnail } from "@/hooks/useAttachmentThumbnails";
 
@@ -22,6 +22,7 @@ interface AttachmentGalleryProps {
   onView: (id: string) => void;
   onDownload: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit?: (id: string) => void;
   onSetThumbnail?: (id: string) => void;
   thumbnailAttachmentId?: string | null;
   isUploading?: boolean;
@@ -57,7 +58,19 @@ const AttachmentThumbnail = ({ attachment }: { attachment: Attachment }) => {
     );
   }
   
-  // For PDFs and other documents, or failed image loads, show a larger file icon
+  // For PDFs, show a larger PDF icon with file name preview
+  if (attachment.fileType === 'pdf') {
+    return (
+      <div className="w-full h-24 mb-3 rounded-md bg-red-50 border border-red-200 flex flex-col items-center justify-center p-2">
+        <FileText className="h-8 w-8 text-red-500 mb-1" />
+        <span className="text-xs text-red-600 text-center font-medium truncate w-full">
+          PDF
+        </span>
+      </div>
+    );
+  }
+  
+  // For other document types or failed image loads, show a generic file icon
   return (
     <div className="w-full h-24 mb-3 rounded-md bg-gray-50 flex items-center justify-center">
       {getFileIcon(attachment.fileType)}
@@ -79,6 +92,7 @@ export default function AttachmentGallery({
   onView,
   onDownload,
   onDelete,
+  onEdit,
   onSetThumbnail,
   thumbnailAttachmentId,
   isUploading = false,
@@ -163,22 +177,43 @@ export default function AttachmentGallery({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem 
-                          onClick={() => onView(attachment.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onView(attachment.id);
+                          }}
                           data-testid={`button-view-attachment-${attachment.id}`}
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           View
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={() => onDownload(attachment.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDownload(attachment.id);
+                          }}
                           data-testid={`button-download-attachment-${attachment.id}`}
                         >
                           <Download className="h-4 w-4 mr-2" />
                           Download
                         </DropdownMenuItem>
+                        {onEdit && (
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEdit(attachment.id);
+                            }}
+                            data-testid={`button-edit-attachment-${attachment.id}`}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
                         {isImage && onSetThumbnail && (
                           <DropdownMenuItem 
-                            onClick={() => onSetThumbnail(attachment.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSetThumbnail(attachment.id);
+                            }}
                             data-testid={`button-set-thumbnail-${attachment.id}`}
                           >
                             <Star className="h-4 w-4 mr-2" />
@@ -186,7 +221,10 @@ export default function AttachmentGallery({
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem 
-                          onClick={() => onDelete(attachment.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(attachment.id);
+                          }}
                           className="text-destructive"
                           disabled={isDeleting}
                           data-testid={`button-delete-attachment-${attachment.id}`}
