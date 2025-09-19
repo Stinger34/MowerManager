@@ -22,7 +22,7 @@ if ! npm run db:push; then
 fi
 
 echo "==> Starting mower-app service..."
-if ! systemctl start mower-app; then
+if ! systemctl restart mower-app; then
     echo "ERROR: Failed to start mower-app service" >&2
     exit 1
 fi
