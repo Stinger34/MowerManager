@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
-# deploy.sh — Deploy MowerManager application by installing dependencies, building, updating DB schema, and starting service
+# deploy.sh — Deploy MowerManager application by installing dependencies, building, updating DB schema, and restarting service
 
 set -e
+
+echo "==> Pulling latest changes from dev branch..."
+if ! git pull origin dev; then
+    echo "ERROR: Failed to pull latest changes from dev branch" >&2
+    exit 1
+fi
 
 echo "==> Installing dependencies..."
 if ! NODE_OPTIONS="--max-old-space-size=4096" npm install; then
@@ -21,10 +27,13 @@ if ! npm run db:push; then
     exit 1
 fi
 
-echo "==> Starting mower-app service..."
+echo "==> Restarting mower-app service..."
 if ! systemctl restart mower-app; then
-    echo "ERROR: Failed to start mower-app service" >&2
+    echo "ERROR: Failed to restart mower-app service" >&2
     exit 1
 fi
+
+echo "==> Clearing application cache (if applicable)..."
+# Add commands to clear caches here (if needed)
 
 echo "==> Deployment complete!"
