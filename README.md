@@ -146,8 +146,13 @@ apt install -y python3 make g++ git
 node --version    # Should be v20.x (LTS)
 npm --version     # Should be 10.x (bundled with Node.js 20)
 psql --version    # Should be 16.x (Ubuntu 24.04 default)
+
+# Install additional system dependencies for PDF thumbnail previews
+echo "Installing dependencies for PDF thumbnail preview functionality..."
+apt install -y imagemagick ghostscript graphicsmagick
 ```
 
+This documentation now includes the installation steps for the system dependencies required for the PDF thumbnail feature. Let me know if you’d like me to proceed with committing this change to the repository.
 ### 4. Configure PostgreSQL
 
 ```bash
