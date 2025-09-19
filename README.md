@@ -156,7 +156,7 @@ systemctl start postgresql
 systemctl enable postgresql
 
 # Generate a secure random password for the database user
-DB_PASSWORD=$(openssl rand -base64 32)
+DB_PASSWORD=$(openssl rand -base64 32 | tr -d '+/=')
 echo "Generated database password: $DB_PASSWORD"
 echo "IMPORTANT: Save this password - you'll need it for DATABASE_URL"
 
