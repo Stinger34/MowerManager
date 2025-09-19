@@ -15,6 +15,7 @@ import TaskList from "@/components/TaskList";
 import ComponentFormModal from "@/components/ComponentFormModal";
 import AllocateComponentModal from "@/components/AllocateComponentModal";
 import AllocatePartModal from "@/components/AllocatePartModal";
+import PartFormModal from "@/components/PartFormModal";
 import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -44,6 +45,7 @@ export default function MowerDetails() {
   const [showComponentModal, setShowComponentModal] = useState(false);
   const [showAllocateComponentModal, setShowAllocateComponentModal] = useState(false);
   const [showAllocatePartModal, setShowAllocatePartModal] = useState(false);
+  const [showPartModal, setShowPartModal] = useState(false);
   const [editingComponent, setEditingComponent] = useState<Component | null>(null);
   const [editingAssetPart, setEditingAssetPart] = useState<AssetPart | null>(null);
   const [selectedComponentForAllocation, setSelectedComponentForAllocation] = useState<string | null>(null);
@@ -441,6 +443,11 @@ export default function MowerDetails() {
     if (componentToDelete) {
       deleteComponentMutation.mutate(componentToDelete.id);
     }
+  };
+
+  // Part handlers
+  const handleCreatePart = () => {
+    setShowPartModal(true);
   };
 
   // Asset Part handlers
@@ -884,7 +891,7 @@ export default function MowerDetails() {
                       </Button>
                       <Button variant="outline" size="sm" onClick={handleAddComponent} data-testid="button-add-component">
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Component
+                        Create Component
                       </Button>
                     </div>
                   </div>
@@ -892,7 +899,7 @@ export default function MowerDetails() {
                 <CardContent>
                   {components.length === 0 ? (
                     <p className="text-muted-foreground text-center py-8">
-                      No components yet. Use "Allocate Component" to select from existing components or "Add Component" to create a new one.
+                      No components yet. Use "Allocate Component" to select from existing components or "Create Component" to create a new one.
                     </p>
                   ) : (
                     <div className="space-y-3">
@@ -969,10 +976,16 @@ export default function MowerDetails() {
                       <Wrench className="h-5 w-5" />
                       Allocated Parts ({mowerParts.length})
                     </CardTitle>
-                    <Button variant="outline" size="sm" onClick={handleAllocatePart} data-testid="button-add-part">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Allocate Part
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handleAllocatePart} data-testid="button-add-part">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Allocate Part
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleCreatePart} data-testid="button-create-part">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Part
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -1146,6 +1159,13 @@ export default function MowerDetails() {
         mowerId={mowerId!}
         componentId={selectedComponentForAllocation}
         assetPart={editingAssetPart}
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Part Form Modal */}
+      <PartFormModal
+        isOpen={showPartModal}
+        onClose={() => setShowPartModal(false)}
         onSuccess={handleModalSuccess}
       />
 
