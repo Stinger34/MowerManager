@@ -12,6 +12,7 @@ interface Attachment {
   title?: string;
   fileType: "pdf" | "image" | "document";
   fileSize: number;
+  pageCount?: number | null;
   description?: string;
   uploadedAt: string;
 }
@@ -58,16 +59,29 @@ const AttachmentThumbnail = ({ attachment }: { attachment: Attachment }) => {
     );
   }
   
-  // For PDFs, show a larger PDF icon with file name preview
+  // For PDFs, show thumbnail if available, otherwise show icon
   if (attachment.fileType === 'pdf') {
-    return (
-      <div className="w-full h-24 mb-3 rounded-md bg-red-50 border border-red-200 flex flex-col items-center justify-center p-2">
-        <FileText className="h-8 w-8 text-red-500 mb-1" />
-        <span className="text-xs text-red-600 text-center font-medium truncate w-full">
-          PDF
-        </span>
-      </div>
-    );
+    if (thumbnailUrl && !imageError) {
+      return (
+        <div className="w-full h-24 mb-3 rounded-md overflow-hidden bg-red-50 border border-red-200 flex items-center justify-center">
+          <img 
+            src={thumbnailUrl} 
+            alt={`PDF preview: ${attachment.title || attachment.fileName}`}
+            className="max-w-full max-h-full object-contain"
+            onError={() => setImageError(true)}
+          />
+        </div>
+      );
+    } else {
+      return (
+        <div className="w-full h-24 mb-3 rounded-md bg-red-50 border border-red-200 flex flex-col items-center justify-center p-2">
+          <FileText className="h-8 w-8 text-red-500 mb-1" />
+          <span className="text-xs text-red-600 text-center font-medium truncate w-full">
+            PDF
+          </span>
+        </div>
+      );
+    }
   }
   
   // For other document types or failed image loads, show a generic file icon
@@ -241,13 +255,18 @@ export default function AttachmentGallery({
                   </div>
                   
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="secondary" className="text-xs">
                         {attachment.fileType.toUpperCase()}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {formatFileSize(attachment.fileSize)}
                       </span>
+                      {attachment.pageCount && attachment.pageCount > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {attachment.pageCount} {attachment.pageCount === 1 ? 'page' : 'pages'}
+                        </span>
+                      )}
                     </div>
                     
                     {attachment.description && (

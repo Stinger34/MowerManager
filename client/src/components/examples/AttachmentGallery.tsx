@@ -13,6 +13,7 @@ export default function AttachmentGalleryExample() {
       title: "Owner's Manual",
       fileType: "pdf" as const,
       fileSize: 2048576, // 2MB
+      pageCount: 24,
       description: "Original owner's manual and warranty information",
       uploadedAt: "Dec 1, 2024"
     },
@@ -22,6 +23,7 @@ export default function AttachmentGalleryExample() {
       title: "Purchase Receipt",
       fileType: "pdf" as const,
       fileSize: 512000, // 500KB
+      pageCount: 2,
       description: "Purchase receipt from dealer",
       uploadedAt: "Nov 15, 2024"
     },
@@ -40,6 +42,7 @@ export default function AttachmentGalleryExample() {
       title: "Maintenance Checklist",
       fileType: "document" as const,
       fileSize: 256000, // 250KB
+      pageCount: 1,
       description: "Maintenance checklist template",
       uploadedAt: "Sep 30, 2024"
     },
