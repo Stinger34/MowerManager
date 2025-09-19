@@ -11,6 +11,7 @@ import ServiceHistoryTable from "@/components/ServiceHistoryTable";
 import MaintenanceOverview from "@/components/MaintenanceOverview";
 import AttachmentGallery from "@/components/AttachmentGallery";
 import AttachmentMetadataDialog from "@/components/AttachmentMetadataDialog";
+import EditAttachmentDialog from "@/components/EditAttachmentDialog";
 import TaskList from "@/components/TaskList";
 import ComponentFormModal from "@/components/ComponentFormModal";
 import AllocateComponentModal from "@/components/AllocateComponentModal";
@@ -40,6 +41,10 @@ export default function MowerDetails() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [showMetadataDialog, setShowMetadataDialog] = useState(false);
+  
+  // Edit attachment state
+  const [showEditAttachmentDialog, setShowEditAttachmentDialog] = useState(false);
+  const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
 
   // Modal states for components and parts
   const [showComponentModal, setShowComponentModal] = useState(false);
@@ -262,6 +267,22 @@ export default function MowerDetails() {
     },
   });
 
+  const editAttachmentMutation = useMutation({
+    mutationFn: async ({ attachmentId, metadata }: { attachmentId: string; metadata: { title: string; description: string } }) => {
+      const response = await apiRequest('PUT', `/api/attachments/${attachmentId}`, metadata);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'attachments'] });
+      toast({ title: "Success", description: "Attachment updated successfully" });
+      setShowEditAttachmentDialog(false);
+      setEditingAttachment(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update attachment", variant: "destructive" });
+    },
+  });
+
   // Thumbnail assignment mutation
   const setThumbnailMutation = useMutation({
     mutationFn: async (attachmentId: string) => {
@@ -416,6 +437,25 @@ export default function MowerDetails() {
   const handleDeleteAttachment = (attachmentId: string) => {
     if (window.confirm('Are you sure you want to delete this attachment?')) {
       deleteAttachmentMutation.mutate(attachmentId);
+    }
+  };
+
+  // Edit attachment handler
+  const handleEditAttachment = (attachmentId: string) => {
+    const attachment = attachments.find(a => a.id === attachmentId);
+    if (attachment) {
+      // Convert to the expected type by adding fileData field (not needed for editing)
+      setEditingAttachment({ ...attachment, fileData: '' });
+      setShowEditAttachmentDialog(true);
+    }
+  };
+
+  const handleEditAttachmentSubmit = (metadata: { title: string; description: string }) => {
+    if (editingAttachment) {
+      editAttachmentMutation.mutate({
+        attachmentId: editingAttachment.id,
+        metadata
+      });
     }
   };
 
@@ -1109,6 +1149,7 @@ export default function MowerDetails() {
                 }
               }}
               onDelete={handleDeleteAttachment}
+              onEdit={handleEditAttachment}
               onSetThumbnail={(id) => setThumbnailMutation.mutate(id)}
               thumbnailAttachmentId={mower?.thumbnailAttachmentId ?? null}
               isUploading={uploadAttachmentMutation.isPending}
@@ -1127,6 +1168,18 @@ export default function MowerDetails() {
           fileName={pendingFiles[currentFileIndex].name}
         />
       )}
+
+      {/* Edit Attachment Dialog */}
+      <EditAttachmentDialog
+        isOpen={showEditAttachmentDialog}
+        onClose={() => {
+          setShowEditAttachmentDialog(false);
+          setEditingAttachment(null);
+        }}
+        onSubmit={handleEditAttachmentSubmit}
+        attachment={editingAttachment}
+        isLoading={editAttachmentMutation.isPending}
+      />
 
       {/* Component Form Modal */}
       <ComponentFormModal

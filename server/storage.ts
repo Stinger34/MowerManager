@@ -32,6 +32,7 @@ export interface IStorage {
   getAttachment(id: string): Promise<Attachment | undefined>;
   getAttachmentsByMowerId(mowerId: string): Promise<Attachment[]>;
   createAttachment(attachment: InsertAttachment): Promise<Attachment>;
+  updateAttachmentMetadata(id: string, metadata: { title?: string; description?: string }): Promise<Attachment | undefined>;
   deleteAttachment(id: string): Promise<boolean>;
   
   // Component methods
@@ -263,6 +264,20 @@ export class MemStorage implements IStorage {
 
   async deleteAttachment(id: string): Promise<boolean> {
     return this.attachments.delete(id);
+  }
+
+  async updateAttachmentMetadata(id: string, metadata: { title?: string; description?: string }): Promise<Attachment | undefined> {
+    const attachment = this.attachments.get(id);
+    if (!attachment) return undefined;
+    
+    const updated = {
+      ...attachment,
+      title: metadata.title ?? attachment.title,
+      description: metadata.description ?? attachment.description,
+    };
+    
+    this.attachments.set(id, updated);
+    return updated;
   }
 
   // Component methods
@@ -581,6 +596,14 @@ export class DbStorage implements IStorage {
   async deleteAttachment(id: string): Promise<boolean> {
     const result = await db.delete(attachments).where(eq(attachments.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async updateAttachmentMetadata(id: string, metadata: { title?: string; description?: string }): Promise<Attachment | undefined> {
+    const result = await db.update(attachments)
+      .set(metadata)
+      .where(eq(attachments.id, id))
+      .returning();
+    return result[0];
   }
 
   // Component methods

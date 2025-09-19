@@ -12,16 +12,22 @@ export function useAttachmentThumbnail(attachmentId: string, fileType: string) {
   return useQuery<string | null>({
     queryKey: ['attachment-thumbnail', attachmentId],
     queryFn: async () => {
-      // Only try to get thumbnail for images
-      if (!fileType.startsWith('image')) {
+      // For images, we can use the direct download URL with inline parameter
+      if (fileType.startsWith('image')) {
+        return `/api/attachments/${attachmentId}/download?inline=1`;
+      }
+      
+      // For PDFs, we could potentially get a thumbnail from server
+      // For now, return null to show file icon instead
+      if (fileType === 'pdf') {
+        // TODO: Implement PDF thumbnail generation on server side
         return null;
       }
       
-      // For images, we can use the direct download URL with inline parameter
-      return `/api/attachments/${attachmentId}/download?inline=1`;
+      return null;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: fileType.startsWith('image'),
+    enabled: fileType.startsWith('image') || fileType === 'pdf',
   });
 }
 
