@@ -104,12 +104,12 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Dashboard</h1>
+          <p className="text-text-muted">
             Overview of your lawn mower fleet and maintenance schedule
           </p>
         </div>
-        <Button onClick={() => setLocation('/mowers/new')} data-testid="button-add-mower">
+        <Button onClick={() => setLocation('/mowers/new')} className="bg-accent-orange text-white hover:bg-accent-orange/90 rounded-button" data-testid="button-add-mower">
           <Plus className="h-4 w-4 mr-2" />
           Add Mower
         </Button>
@@ -126,7 +126,7 @@ export default function Dashboard() {
       <div className="space-y-4">
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted h-4 w-4" />
             <Input
               placeholder="Search mowers..."
               value={searchQuery}
@@ -161,7 +161,7 @@ export default function Dashboard() {
         </div>
 
         {filteredMowers.length === 0 && searchQuery && (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-8 text-text-muted">
             <p>No mowers found matching "{searchQuery}"</p>
             <p className="text-sm">Try adjusting your search terms</p>
           </div>

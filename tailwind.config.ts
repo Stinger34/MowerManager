@@ -9,9 +9,34 @@ export default {
         lg: ".5625rem", /* 9px */
         md: ".375rem", /* 6px */
         sm: ".1875rem", /* 3px */
+        card: "1rem", /* 16px - for cards */
+        button: "0.5rem", /* 8px - for buttons */
+      },
+      boxShadow: {
+        card: "0 2px 8px 0 rgba(22, 90, 90, 0.1)", /* Subtle card shadows with teal tint */
       },
       colors: {
-        // Flat / base colors (regular buttons)
+        // New dashboard design color palette
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar) / <alpha-value>)",
+          foreground: "hsl(var(--sidebar-foreground) / <alpha-value>)",
+          border: "hsl(var(--sidebar-border) / <alpha-value>)",
+          ring: "hsl(var(--sidebar-ring) / <alpha-value>)",
+        },
+        panel: {
+          DEFAULT: "hsl(var(--panel) / <alpha-value>)",
+          border: "hsl(var(--panel-border) / <alpha-value>)",
+        },
+        "accent-orange": "hsl(var(--accent-orange) / <alpha-value>)",
+        "sidebar-icon": "hsl(var(--sidebar-icon) / <alpha-value>)",
+        "accent-card": "hsl(var(--accent-card) / <alpha-value>)",
+        "accent-teal": "hsl(var(--accent-teal) / <alpha-value>)",
+        "calendar-bg": "hsl(var(--calendar-bg) / <alpha-value>)",
+        "text-primary": "hsl(var(--text-primary) / <alpha-value>)",
+        "text-muted": "hsl(var(--text-muted) / <alpha-value>)",
+        "text-dark": "hsl(var(--text-dark) / <alpha-value>)",
+        
+        // Existing shadcn/ui colors maintained for compatibility
         background: "hsl(var(--background) / <alpha-value>)",
         foreground: "hsl(var(--foreground) / <alpha-value>)",
         border: "hsl(var(--border) / <alpha-value>)",
@@ -59,12 +84,6 @@ export default {
           "4": "hsl(var(--chart-4) / <alpha-value>)",
           "5": "hsl(var(--chart-5) / <alpha-value>)",
         },
-        sidebar: {
-          ring: "hsl(var(--sidebar-ring) / <alpha-value>)",
-          DEFAULT: "hsl(var(--sidebar) / <alpha-value>)",
-          foreground: "hsl(var(--sidebar-foreground) / <alpha-value>)",
-          border: "hsl(var(--sidebar-border) / <alpha-value>)",
-        },
         "sidebar-primary": {
           DEFAULT: "hsl(var(--sidebar-primary) / <alpha-value>)",
           foreground: "hsl(var(--sidebar-primary-foreground) / <alpha-value>)",
@@ -81,6 +100,9 @@ export default {
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
         },
+      },
+      boxShadow: {
+        card: "0 2px 8px 0 rgba(22, 90, 90, 0.1)", /* Subtle card shadows with teal tint */
       },
       fontFamily: {
         sans: ["var(--font-sans)"],

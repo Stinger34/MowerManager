@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Calendar, MapPin, Wrench, FileText, MoreHorizontal, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -22,19 +22,6 @@ interface AssetCardProps {
   onDelete: (id: string) => void;
 }
 
-const conditionColors = {
-  excellent: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400",
-  good: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
-  fair: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400",
-  poor: "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
-};
-
-const statusColors = {
-  active: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400",
-  maintenance: "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400",
-  retired: "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400"
-};
-
 export default function AssetCard({
   id,
   make,
@@ -53,7 +40,7 @@ export default function AssetCard({
   onDelete
 }: AssetCardProps) {
   return (
-    <Card className="hover-elevate cursor-pointer" data-testid={`card-mower-${id}`}>
+    <Card className="bg-panel rounded-card shadow-card border border-panel-border hover-elevate cursor-pointer" data-testid={`card-mower-${id}`}>
       {thumbnailUrl && (
         <div className="w-full h-48 overflow-hidden rounded-t-lg">
           <img 
@@ -67,10 +54,10 @@ export default function AssetCard({
       )}
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
         <div className="space-y-1" onClick={() => onViewDetails(id)}>
-          <h3 className="font-semibold text-lg" data-testid={`text-mower-name-${id}`}>
+          <h3 className="font-semibold text-lg text-text-primary" data-testid={`text-mower-name-${id}`}>
             {make} {model}
           </h3>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-text-muted">
             {year && <span>{year}</span>}
             {serialNumber && <span>• SN: {serialNumber}</span>}
           </div>
@@ -108,28 +95,24 @@ export default function AssetCard({
       
       <CardContent className="space-y-4" onClick={() => onViewDetails(id)}>
         <div className="flex gap-2">
-          <Badge className={conditionColors[condition]} data-testid={`badge-condition-${id}`}>
-            {condition.charAt(0).toUpperCase() + condition.slice(1)}
-          </Badge>
-          <Badge className={statusColors[status]} data-testid={`badge-status-${id}`}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </Badge>
+          <StatusBadge status={condition} className="rounded-button" data-testid={`badge-condition-${id}`} />
+          <StatusBadge status={status} className="rounded-button" data-testid={`badge-status-${id}`} />
         </div>
         
         <div className="space-y-2 text-sm">
           {lastService && (
-            <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="flex items-center gap-2 text-text-muted">
               <Wrench className="h-4 w-4" />
               <span>Last service: {lastService}</span>
             </div>
           )}
           {nextService && (
-            <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="flex items-center gap-2 text-text-muted">
               <Calendar className="h-4 w-4" />
               <span>Next service: {nextService}</span>
             </div>
           )}
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="flex items-center gap-2 text-text-muted">
             <FileText className="h-4 w-4" />
             <span>{attachmentCount} attachment{attachmentCount !== 1 ? 's' : ''}</span>
           </div>

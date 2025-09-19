@@ -156,7 +156,7 @@ systemctl start postgresql
 systemctl enable postgresql
 
 # Generate a secure random password for the database user
-DB_PASSWORD=$(openssl rand -base64 32)
+DB_PASSWORD=$(openssl rand -base64 32 | tr -d '+/=')
 echo "Generated database password: $DB_PASSWORD"
 echo "IMPORTANT: Save this password - you'll need it for DATABASE_URL"
 
@@ -205,7 +205,7 @@ cd /opt/mower-app
 # sudo lxc file push /path/to/your/app/ mower-app/opt/mower-app/ -r
 
 # If cloning from repository (NOTE: the "." is important - clones into current directory):
-# git clone <your-repo-url> .
+git clone -b dev --single-branch https://github.com/Stinger34/MowerManager.git .
 # 
 # IMPORTANT: Do NOT run "git clone <repo-url>" without the "." 
 # That would create a subdirectory and break the paths!
@@ -355,6 +355,36 @@ systemctl status mower-app
 - 📱 **Mobile devices**: Same URL works on phones/tablets  
 - 🖥️ **Workshop computers**: Local network access
 - 📟 **Other devices**: Any device on your LAN can access the application
+
+## Deployment Scripts
+
+The repository includes deployment automation scripts for different use cases:
+
+### `deploy.sh` - Initial Deployment Script
+
+For setting up and deploying the application from scratch:
+
+```bash
+./deploy.sh
+```
+
+This script runs the following commands in sequence with proper error handling:
+1. `npm install` - Install dependencies (with memory optimization)
+2. `npm run build` - Build the application (with memory optimization)  
+3. `npm run db:push` - Update database schema
+4. `systemctl start mower-app` - Start the application service
+
+The script will stop execution if any command fails and provide clear error messages.
+
+### `update.sh` - Update Existing Installation
+
+For updating an existing installation with new code:
+
+```bash
+./update.sh
+```
+
+This script additionally pulls the latest changes from git and restarts (rather than starts) the service.
 
 ## Environment Variables
 

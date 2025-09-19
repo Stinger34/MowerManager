@@ -2,7 +2,8 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
-import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertAttachmentSchema } from "@shared/schema";
+import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertAttachmentSchema, insertComponentSchema, insertPartSchema, insertAssetPartSchema } from "@shared/schema";
+import { processPDF, getDocumentPageCount } from "./pdfUtils";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // put application routes here
@@ -303,12 +304,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType = 'pdf';
       }
 
+      // Extract page count for PDFs and documents
+      let pageCount: number | null = null;
+      try {
+        if (fileType === 'pdf') {
+          const pdfInfo = await processPDF(req.file.buffer);
+          pageCount = pdfInfo.pageCount;
+        } else if (fileType === 'document') {
+          pageCount = getDocumentPageCount(req.file.buffer, req.file.originalname);
+        }
+      } catch (error) {
+        console.warn('Failed to extract page count:', error);
+        // Continue without page count
+      }
+
       const attachmentData = {
         mowerId: parseInt(req.params.id),
         fileName: req.file.originalname,
+        title: req.body.title || null, // Use provided title or null (will fall back to fileName on client)
         fileType,
         fileData,
         fileSize: req.file.size,
+        pageCount,
         description: req.body.description || null,
       };
 
@@ -398,31 +415,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate PDF thumbnail
+  app.get('/api/attachments/:id/thumbnail', async (req: Request, res: Response) => {
+    try {
+      console.log('Generating PDF thumbnail for attachment ID:', req.params.id);
+      const attachment = await storage.getAttachment(req.params.id);
+      
+      if (!attachment) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+
+      if (attachment.fileType !== 'pdf') {
+        return res.status(400).json({ error: 'Thumbnail generation only supported for PDFs' });
+      }
+
+      // Convert base64 back to buffer
+      const fileBuffer = Buffer.from(attachment.fileData, 'base64');
+      
+      // Generate PDF thumbnail
+      const pdfInfo = await processPDF(fileBuffer);
+      
+      if (!pdfInfo.thumbnailBuffer) {
+        return res.status(500).json({ error: 'Failed to generate PDF thumbnail' });
+      }
+
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Length', pdfInfo.thumbnailBuffer.length);
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+      
+      console.log('Sending PDF thumbnail for:', attachment.fileName, 'Size:', pdfInfo.thumbnailBuffer.length);
+      res.send(pdfInfo.thumbnailBuffer);
+    } catch (error) {
+      console.error('Error generating PDF thumbnail:', error);
+      res.status(500).json({ error: 'Failed to generate PDF thumbnail' });
+    }
+  });
+
   // Get first image attachment for a mower (for thumbnails)
   app.get('/api/mowers/:id/thumbnail', async (req: Request, res: Response) => {
     try {
       const mowerId = req.params.id;
-      const attachments = await storage.getAttachmentsByMowerId(mowerId);
+      const mower = await storage.getMower(mowerId);
       
-      // Find first image attachment (fileType could be 'image' or 'image/png', etc.)
-      const firstImage = attachments.find(attachment => 
-        attachment.fileType.startsWith('image')
-      );
+      if (!mower) {
+        return res.status(404).json({ error: 'Mower not found' });
+      }
       
-      if (!firstImage) {
+      let thumbnailAttachment = null;
+      
+      // First, check if there's a specifically assigned thumbnail
+      if (mower.thumbnailAttachmentId) {
+        try {
+          thumbnailAttachment = await storage.getAttachment(mower.thumbnailAttachmentId);
+          // Verify it's still an image and belongs to this mower
+          if (!thumbnailAttachment || 
+              !thumbnailAttachment.fileType.startsWith('image') || 
+              thumbnailAttachment.mowerId !== parseInt(mowerId)) {
+            thumbnailAttachment = null;
+          }
+        } catch (error) {
+          // If assigned thumbnail is not found, fall back to first image
+          thumbnailAttachment = null;
+        }
+      }
+      
+      // If no assigned thumbnail or it's invalid, fall back to first image
+      if (!thumbnailAttachment) {
+        const attachments = await storage.getAttachmentsByMowerId(mowerId);
+        thumbnailAttachment = attachments.find(attachment => 
+          attachment.fileType.startsWith('image')
+        );
+      }
+      
+      if (!thumbnailAttachment) {
         return res.status(404).json({ error: 'No image attachments found' });
       }
       
       // Return just the attachment info (not the full base64 data)
       res.json({
-        id: firstImage.id,
-        fileName: firstImage.fileName,
-        fileType: firstImage.fileType,
-        downloadUrl: `/api/attachments/${firstImage.id}/download?inline=1`
+        id: thumbnailAttachment.id,
+        fileName: thumbnailAttachment.fileName,
+        fileType: thumbnailAttachment.fileType,
+        downloadUrl: `/api/attachments/${thumbnailAttachment.id}/download?inline=1`
       });
     } catch (error) {
       console.error('Error getting thumbnail:', error);
       res.status(500).json({ error: 'Failed to get thumbnail' });
+    }
+  });
+
+  // Set thumbnail for a mower
+  app.put('/api/mowers/:id/thumbnail', async (req: Request, res: Response) => {
+    try {
+      const mowerId = req.params.id;
+      const { attachmentId } = req.body;
+      
+      // Validate that the attachment exists and is an image belonging to this mower
+      if (attachmentId) {
+        const attachment = await storage.getAttachment(attachmentId);
+        if (!attachment) {
+          return res.status(404).json({ error: 'Attachment not found' });
+        }
+        if (attachment.mowerId !== parseInt(mowerId)) {
+          return res.status(400).json({ error: 'Attachment does not belong to this mower' });
+        }
+        if (!attachment.fileType.startsWith('image')) {
+          return res.status(400).json({ error: 'Attachment must be an image' });
+        }
+      }
+      
+      // Update the mower's thumbnail
+      const updated = await storage.updateMowerThumbnail(mowerId, attachmentId || null);
+      
+      if (!updated) {
+        return res.status(404).json({ error: 'Mower not found' });
+      }
+      
+      res.json({ success: true, thumbnailAttachmentId: attachmentId || null });
+    } catch (error) {
+      console.error('Error setting thumbnail:', error);
+      res.status(500).json({ error: 'Failed to set thumbnail' });
     }
   });
 
@@ -441,6 +553,236 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error deleting attachment:', error);
       res.status(500).json({ error: 'Failed to delete attachment' });
     }
+  });
+
+  app.put('/api/attachments/:id', async (req: Request, res: Response) => {
+    try {
+      console.log('Updating attachment metadata for ID:', req.params.id);
+      const { title, description } = req.body;
+      
+      const updated = await storage.updateAttachmentMetadata(req.params.id, { title, description });
+      
+      if (!updated) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+      
+      console.log('Attachment metadata updated successfully');
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating attachment metadata:', error);
+      res.status(500).json({ error: 'Failed to update attachment metadata' });
+    }
+  });
+
+  // Component routes
+  app.get('/api/components', async (_req: Request, res: Response) => {
+    try {
+      const components = await storage.getAllComponents();
+      res.json(components);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch components' });
+    }
+  });
+
+  app.get('/api/components/:id', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching component with ID:', req.params.id);
+      const component = await storage.getComponent(req.params.id);
+      console.log('Component result:', component);
+      if (!component) {
+        return res.status(404).json({ error: 'Component not found' });
+      }
+      res.json(component);
+    } catch (error) {
+      console.error('Error fetching component:', error);
+      res.status(500).json({ error: 'Failed to fetch component' });
+    }
+  });
+
+  // Create global component (not attached to a mower)
+  app.post('/api/components', async (req: Request, res: Response) => {
+    try {
+      // Validate and sanitize input
+      const componentData = req.body;
+
+      // If mowerId is present, ensure it's valid or set to null for global
+      if (componentData.mowerId === undefined || componentData.mowerId === null || componentData.mowerId === "") {
+        componentData.mowerId = null;
+      }
+
+      // Insert using your storage/ORM
+      const validatedData = insertComponentSchema.parse(componentData);
+      const component = await storage.createComponent(validatedData);
+
+      res.status(201).json(component);
+    } catch (error) {
+      console.error('Component creation error:', error);
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid component data' });
+    }
+  });
+
+  app.get('/api/mowers/:mowerId/components', async (req: Request, res: Response) => {
+    try {
+      const components = await storage.getComponentsByMowerId(req.params.mowerId);
+      res.json(components);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch mower components' });
+    }
+  });
+
+  app.post('/api/mowers/:mowerId/components', async (req: Request, res: Response) => {
+    try {
+      const componentData = {
+        ...req.body,
+        mowerId: parseInt(req.params.mowerId)
+      };
+      const validatedData = insertComponentSchema.parse(componentData);
+      const component = await storage.createComponent(validatedData);
+      res.status(201).json(component);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid component data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.put('/api/components/:id', async (req: Request, res: Response) => {
+    try {
+      const component = await storage.updateComponent(req.params.id, req.body);
+      if (!component) {
+        return res.status(404).json({ error: 'Component not found' });
+      }
+      res.json(component);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid component data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.delete('/api/components/:id', async (req: Request, res: Response) => {
+    try {
+      const deleted = await storage.deleteComponent(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Component not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete component' });
+    }
+  });
+
+  // Part routes
+  app.get('/api/parts', async (_req: Request, res: Response) => {
+    try {
+      const parts = await storage.getAllParts();
+      res.json(parts);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch parts' });
+    }
+  });
+
+  app.get('/api/parts/:id', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching part with ID:', req.params.id);
+      const part = await storage.getPart(req.params.id);
+      console.log('Part result:', part);
+      if (!part) {
+        return res.status(404).json({ error: 'Part not found' });
+      }
+      res.json(part);
+    } catch (error) {
+      console.error('Error fetching part:', error);
+      res.status(500).json({ error: 'Failed to fetch part' });
+    }
+  });
+
+  app.post('/api/parts', async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertPartSchema.parse(req.body);
+      const part = await storage.createPart(validatedData);
+      res.status(201).json(part);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid part data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.put('/api/parts/:id', async (req: Request, res: Response) => {
+    try {
+      const part = await storage.updatePart(req.params.id, req.body);
+      if (!part) {
+        return res.status(404).json({ error: 'Part not found' });
+      }
+      res.json(part);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid part data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.delete('/api/parts/:id', async (req: Request, res: Response) => {
+    try {
+      const deleted = await storage.deletePart(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Part not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete part' });
+    }
+  });
+
+  // Asset Part allocation routes
+  app.get('/api/mowers/:mowerId/parts', async (req: Request, res: Response) => {
+    try {
+      const assetParts = await storage.getAssetPartsWithDetailsByMowerId(req.params.mowerId);
+      res.json(assetParts);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch mower parts' });
+    }
+  });
+
+  app.get('/api/components/:componentId/parts', async (req: Request, res: Response) => {
+    try {
+      const assetParts = await storage.getAssetPartsByComponentId(req.params.componentId);
+      res.json(assetParts);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch component parts' });
+    }
+  });
+
+  app.post('/api/asset-parts', async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertAssetPartSchema.parse(req.body);
+      const assetPart = await storage.createAssetPart(validatedData);
+      res.status(201).json(assetPart);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid asset part data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.put('/api/asset-parts/:id', async (req: Request, res: Response) => {
+    try {
+      const assetPart = await storage.updateAssetPart(req.params.id, req.body);
+      if (!assetPart) {
+        return res.status(404).json({ error: 'Asset part allocation not found' });
+      }
+      res.json(assetPart);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid asset part data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.delete('/api/asset-parts/:id', async (req: Request, res: Response) => {
+    try {
+      const deleted = await storage.deleteAssetPart(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Asset part allocation not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete asset part allocation' });
+    }
+  });
+
+  // Catch-all for undefined API routes to always return JSON, never HTML
+  app.use('/api', (req: Request, res: Response) => {
+    res.status(404).json({ error: 'API route not found' });
   });
 
   const httpServer = createServer(app);

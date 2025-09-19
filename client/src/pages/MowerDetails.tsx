@@ -8,14 +8,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import ServiceHistoryTable from "@/components/ServiceHistoryTable";
+import MaintenanceOverview from "@/components/MaintenanceOverview";
 import AttachmentGallery from "@/components/AttachmentGallery";
+import AttachmentMetadataDialog from "@/components/AttachmentMetadataDialog";
+import EditAttachmentDialog from "@/components/EditAttachmentDialog";
 import TaskList from "@/components/TaskList";
-import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2 } from "lucide-react";
+import ComponentFormModal from "@/components/ComponentFormModal";
+import AllocateComponentModal from "@/components/AllocateComponentModal";
+import AllocatePartModal from "@/components/AllocatePartModal";
+import PartFormModal from "@/components/PartFormModal";
+import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMowerThumbnail } from "@/hooks/useThumbnails";
-import type { Mower, Task, InsertTask, ServiceRecord, Attachment } from "@shared/schema";
+import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Component, Part, AssetPart, AssetPartWithDetails } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
+import { motion } from "framer-motion";
 
 export default function MowerDetails() {
   const [, params] = useRoute("/mowers/:id");
@@ -26,6 +35,29 @@ export default function MowerDetails() {
   const [notes, setNotes] = useState("");
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState("notes");
+  
+  // File upload state
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [showMetadataDialog, setShowMetadataDialog] = useState(false);
+  
+  // Edit attachment state
+  const [showEditAttachmentDialog, setShowEditAttachmentDialog] = useState(false);
+  const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
+
+  // Modal states for components and parts
+  const [showComponentModal, setShowComponentModal] = useState(false);
+  const [showAllocateComponentModal, setShowAllocateComponentModal] = useState(false);
+  const [showAllocatePartModal, setShowAllocatePartModal] = useState(false);
+  const [showPartModal, setShowPartModal] = useState(false);
+  const [editingComponent, setEditingComponent] = useState<Component | null>(null);
+  const [editingAssetPart, setEditingAssetPart] = useState<AssetPart | null>(null);
+  const [selectedComponentForAllocation, setSelectedComponentForAllocation] = useState<string | null>(null);
+  const [showDeleteComponentDialog, setShowDeleteComponentDialog] = useState(false);
+  const [showDeleteAssetPartDialog, setShowDeleteAssetPartDialog] = useState(false);
+  const [componentToDelete, setComponentToDelete] = useState<Component | null>(null);
+  const [assetPartToDelete, setAssetPartToDelete] = useState<AssetPart | null>(null);
 
   // Fetch mower data
   const { data: mower, isLoading: isMowerLoading, error: mowerError } = useQuery<Mower>({
@@ -48,6 +80,18 @@ export default function MowerDetails() {
   // Fetch attachments data
   const { data: attachments = [], isLoading: isAttachmentsLoading, error: attachmentsError } = useQuery<Omit<Attachment, 'fileData'>[]>({
     queryKey: ['/api/mowers', mowerId, 'attachments'],
+    enabled: !!mowerId,
+  });
+
+  // Fetch components data
+  const { data: components = [], isLoading: isComponentsLoading, error: componentsError } = useQuery<Component[]>({
+    queryKey: ['/api/mowers', mowerId, 'components'],
+    enabled: !!mowerId,
+  });
+
+  // Fetch parts data for this mower with full part details
+  const { data: mowerParts = [], isLoading: isMowerPartsLoading, error: mowerPartsError } = useQuery<AssetPartWithDetails[]>({
+    queryKey: ['/api/mowers', mowerId, 'parts'],
     enabled: !!mowerId,
   });
 
@@ -162,10 +206,12 @@ export default function MowerDetails() {
 
   // Attachment mutations
   const uploadAttachmentMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, metadata }: { file: File; metadata: { title: string; description: string } }) => {
       const formData = new FormData();
       formData.append('file', file);
-      // Optional description can be added later
+      formData.append('title', metadata.title);
+      formData.append('description', metadata.description);
+      
       const response = await fetch(`/api/mowers/${mowerId}/attachments`, {
         method: 'POST',
         body: formData,
@@ -182,6 +228,17 @@ export default function MowerDetails() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'attachments'] });
       toast({ title: "Success", description: "File uploaded successfully" });
+      
+      // Process next file if there are more
+      const nextIndex = currentFileIndex + 1;
+      if (nextIndex < pendingFiles.length) {
+        setCurrentFileIndex(nextIndex);
+        setShowMetadataDialog(true);
+      } else {
+        // Clear pending files when done
+        setPendingFiles([]);
+        setCurrentFileIndex(0);
+      }
     },
     onError: (error: Error) => {
       toast({ 
@@ -189,6 +246,11 @@ export default function MowerDetails() {
         description: error.message.includes('Invalid file type') ? 'Invalid file type. Only PDF, images, and documents are allowed.' : 'Upload failed. Please try again.',
         variant: "destructive" 
       });
+      
+      // Clear pending files on error
+      setPendingFiles([]);
+      setCurrentFileIndex(0);
+      setShowMetadataDialog(false);
     },
   });
 
@@ -205,6 +267,84 @@ export default function MowerDetails() {
     },
   });
 
+  const editAttachmentMutation = useMutation({
+    mutationFn: async ({ attachmentId, metadata }: { attachmentId: string; metadata: { title: string; description: string } }) => {
+      const response = await apiRequest('PUT', `/api/attachments/${attachmentId}`, metadata);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'attachments'] });
+      toast({ title: "Success", description: "Attachment updated successfully" });
+      setShowEditAttachmentDialog(false);
+      setEditingAttachment(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update attachment", variant: "destructive" });
+    },
+  });
+
+  // Thumbnail assignment mutation
+  const setThumbnailMutation = useMutation({
+    mutationFn: async (attachmentId: string) => {
+      const currentThumbnailId = mower?.thumbnailAttachmentId;
+      const isRemovingThumbnail = currentThumbnailId === attachmentId;
+      
+      const response = await apiRequest('PUT', `/api/mowers/${mowerId}/thumbnail`, { 
+        attachmentId: isRemovingThumbnail ? null : attachmentId 
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId] });
+      queryClient.invalidateQueries({ queryKey: ['mower-thumbnail', mowerId] });
+      toast({ title: "Success", description: "Thumbnail updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to set thumbnail", variant: "destructive" });
+    },
+  });
+
+  // Component mutations
+  const deleteComponentMutation = useMutation({
+    mutationFn: async (componentId: number) => {
+      await apiRequest('DELETE', `/api/components/${componentId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      toast({ title: "Success", description: "Component deleted successfully" });
+      setShowDeleteComponentDialog(false);
+      setComponentToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete component", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Asset Part mutations
+  const deleteAssetPartMutation = useMutation({
+    mutationFn: async (assetPartId: number) => {
+      await apiRequest('DELETE', `/api/asset-parts/${assetPartId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'parts'] });
+      toast({ title: "Success", description: "Part allocation removed successfully" });
+      setShowDeleteAssetPartDialog(false);
+      setAssetPartToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to remove part allocation", 
+        variant: "destructive" 
+      });
+    },
+  });
+
   // File upload handler
   const handleFileUpload = () => {
     const fileInput = document.createElement('input');
@@ -215,6 +355,8 @@ export default function MowerDetails() {
     fileInput.onchange = (e) => {
       const files = (e.target as HTMLInputElement).files;
       if (files) {
+        const validFiles: File[] = [];
+        
         Array.from(files).forEach(file => {
           // Check file size (10MB limit)
           if (file.size > 10 * 1024 * 1024) {
@@ -225,12 +367,34 @@ export default function MowerDetails() {
             });
             return;
           }
-          uploadAttachmentMutation.mutate(file);
+          validFiles.push(file);
         });
+        
+        if (validFiles.length > 0) {
+          setPendingFiles(validFiles);
+          setCurrentFileIndex(0);
+          setShowMetadataDialog(true);
+        }
       }
     };
     
     fileInput.click();
+  };
+  
+  // Handle metadata submission for file upload
+  const handleMetadataSubmit = (metadata: { title: string; description: string }) => {
+    const currentFile = pendingFiles[currentFileIndex];
+    if (currentFile) {
+      uploadAttachmentMutation.mutate({ file: currentFile, metadata });
+    }
+    setShowMetadataDialog(false);
+  };
+  
+  // Handle metadata dialog close
+  const handleMetadataCancel = () => {
+    setShowMetadataDialog(false);
+    setPendingFiles([]);
+    setCurrentFileIndex(0);
   };
 
   // Download attachment handler
@@ -276,6 +440,92 @@ export default function MowerDetails() {
     }
   };
 
+  // Edit attachment handler
+  const handleEditAttachment = (attachmentId: string) => {
+    const attachment = attachments.find(a => a.id === attachmentId);
+    if (attachment) {
+      // Convert to the expected type by adding fileData field (not needed for editing)
+      setEditingAttachment({ ...attachment, fileData: '' });
+      setShowEditAttachmentDialog(true);
+    }
+  };
+
+  const handleEditAttachmentSubmit = (metadata: { title: string; description: string }) => {
+    if (editingAttachment) {
+      editAttachmentMutation.mutate({
+        attachmentId: editingAttachment.id,
+        metadata
+      });
+    }
+  };
+
+  // Component handlers
+  const handleAddComponent = () => {
+    setEditingComponent(null);
+    setShowComponentModal(true);
+  };
+
+  const handleAllocateComponent = () => {
+    setShowAllocateComponentModal(true);
+  };
+
+  const handleEditComponent = (component: Component) => {
+    setEditingComponent(component);
+    setShowComponentModal(true);
+  };
+
+  const handleDeleteComponent = (component: Component) => {
+    setComponentToDelete(component);
+    setShowDeleteComponentDialog(true);
+  };
+
+  const handleConfirmDeleteComponent = () => {
+    if (componentToDelete) {
+      deleteComponentMutation.mutate(componentToDelete.id);
+    }
+  };
+
+  // Part handlers
+  const handleCreatePart = () => {
+    setShowPartModal(true);
+  };
+
+  // Asset Part handlers
+  const handleAllocatePart = () => {
+    setEditingAssetPart(null);
+    setSelectedComponentForAllocation(null);
+    setShowAllocatePartModal(true);
+  };
+
+  const handleAllocatePartToComponent = (componentId: string) => {
+    setEditingAssetPart(null);
+    setSelectedComponentForAllocation(componentId);
+    setShowAllocatePartModal(true);
+  };
+
+  const handleEditAssetPart = (assetPart: AssetPart) => {
+    setEditingAssetPart(assetPart);
+    setSelectedComponentForAllocation(assetPart.componentId?.toString() || null);
+    setShowAllocatePartModal(true);
+  };
+
+  const handleDeleteAssetPart = (assetPart: AssetPart) => {
+    setAssetPartToDelete(assetPart);
+    setShowDeleteAssetPartDialog(true);
+  };
+
+  const handleConfirmDeleteAssetPart = () => {
+    if (assetPartToDelete) {
+      deleteAssetPartMutation.mutate(assetPartToDelete.id);
+    }
+  };
+
+  const handleModalSuccess = () => {
+    // Refresh data after successful operations
+    queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'parts'] });
+  };
+
   // Initialize notes when mower data loads
   useEffect(() => {
     if (mower?.notes && notes === "") {
@@ -285,12 +535,7 @@ export default function MowerDetails() {
 
   // Loading and error states
   if (isMowerLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading mower details...</span>
-      </div>
-    );
+    return <CardLoadingSkeleton cards={4} className="grid-cols-1 lg:grid-cols-3" />;
   }
 
   if (mowerError || !mower) {
@@ -388,12 +633,13 @@ export default function MowerDetails() {
                   data-testid="button-confirm-delete"
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  {deleteMowerMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
+                  <ButtonLoading 
+                    isLoading={deleteMowerMutation.isPending} 
+                    loadingText="Deleting..."
+                  >
                     <Trash2 className="h-4 w-4 mr-2" />
-                  )}
-                  Delete Mower
+                    Delete Mower
+                  </ButtonLoading>
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -401,10 +647,20 @@ export default function MowerDetails() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card>
+      <motion.div 
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, staggerChildren: 0.1 }}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Card>
           <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
+            <CardTitle>Mower Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-between">
@@ -431,14 +687,7 @@ export default function MowerDetails() {
                 {mower.status.charAt(0).toUpperCase() + mower.status.slice(1)}
               </Badge>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Purchase Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+            <hr className="border-border" />
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <div>
@@ -455,8 +704,25 @@ export default function MowerDetails() {
             </div>
           </CardContent>
         </Card>
+        </motion.div>
 
-        <Card>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
+          <MaintenanceOverview 
+            serviceRecords={serviceRecords}
+            onViewDetails={() => setActiveTab("service-history")}
+          />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+        >
+          <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
@@ -477,18 +743,20 @@ export default function MowerDetails() {
               disabled={uploadAttachmentMutation.isPending}
               data-testid="button-upload-attachment"
             >
-              {uploadAttachmentMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
+              <ButtonLoading 
+                isLoading={uploadAttachmentMutation.isPending} 
+                loadingText="Uploading..."
+              >
                 <Plus className="h-4 w-4 mr-2" />
-              )}
-              Upload Attachment
+                Upload Attachment
+              </ButtonLoading>
             </Button>
           </CardContent>
         </Card>
-      </div>
+        </motion.div>
+      </motion.div>
 
-      <Tabs defaultValue="notes" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="notes" data-testid="tab-notes">
             <FileText className="h-4 w-4 mr-2" />
@@ -496,6 +764,10 @@ export default function MowerDetails() {
           </TabsTrigger>
           <TabsTrigger value="tasks" data-testid="tab-tasks">
             Tasks ({tasks.length})
+          </TabsTrigger>
+          <TabsTrigger value="parts-components" data-testid="tab-parts-components">
+            <Wrench className="h-4 w-4 mr-2" />
+            Parts/Components ({components.length + mowerParts.length})
           </TabsTrigger>
           <TabsTrigger value="service-history" data-testid="tab-service-history">
             Service History
@@ -526,12 +798,13 @@ export default function MowerDetails() {
                   disabled={updateNotesMutation.isPending}
                   data-testid="button-edit-notes"
                 >
-                  {updateNotesMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
+                  <ButtonLoading 
+                    isLoading={updateNotesMutation.isPending} 
+                    loadingText="Saving..."
+                  >
                     <Edit className="h-4 w-4 mr-2" />
-                  )}
-                  {isEditingNotes ? "Save" : "Edit"}
+                    {isEditingNotes ? "Save" : "Edit"}
+                  </ButtonLoading>
                 </Button>
               </div>
             </CardHeader>
@@ -562,7 +835,23 @@ export default function MowerDetails() {
         </TabsContent>
 
         <TabsContent value="tasks">
-          {isTasksLoading ? (
+          {tasksError ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-8">
+                  <p className="text-destructive">Failed to load tasks data</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2"
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'tasks'] })}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : isTasksLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin mr-2" />
               <span>Loading tasks...</span>
@@ -600,6 +889,221 @@ export default function MowerDetails() {
           )}
         </TabsContent>
         
+        <TabsContent value="parts-components">
+          {componentsError || mowerPartsError ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-8">
+                  <p className="text-destructive">Failed to load parts and components data</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2"
+                    onClick={() => {
+                      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'parts'] });
+                    }}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (isComponentsLoading || isMowerPartsLoading) ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading parts and components...</span>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Components Section */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Wrench className="h-5 w-5" />
+                      Components ({components.length})
+                    </CardTitle>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handleAllocateComponent} data-testid="button-allocate-component">
+                        <Wrench className="h-4 w-4 mr-2" />
+                        Allocate Component
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleAddComponent} data-testid="button-add-component">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Component
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {components.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      No components yet. Use "Allocate Component" to select from existing components or "Create Component" to create a new one.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {components.map((component) => (
+                        <div key={component.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium">{component.name}</h4>
+                                <Badge variant="outline" className="text-xs">
+                                  {component.status}
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  {component.condition}
+                                </Badge>
+                              </div>
+                              {component.description && (
+                                <p className="text-sm text-muted-foreground mt-1">{component.description}</p>
+                              )}
+                              <div className="flex gap-4 text-sm text-muted-foreground mt-2">
+                                {component.partNumber && <span>Part: {component.partNumber}</span>}
+                                {component.manufacturer && <span>Mfg: {component.manufacturer}</span>}
+                                {component.model && <span>Model: {component.model}</span>}
+                                {component.cost && <span>Cost: ${component.cost}</span>}
+                              </div>
+                              {(component.installDate || component.warrantyExpires) && (
+                                <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                                  {component.installDate && (
+                                    <span>Installed: {new Date(component.installDate).toLocaleDateString()}</span>
+                                  )}
+                                  {component.warrantyExpires && (
+                                    <span>Warranty: {new Date(component.warrantyExpires).toLocaleDateString()}</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleAllocatePartToComponent(component.id.toString())}
+                                title="Allocate parts to this component"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditComponent(component)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteComponent(component)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Parts Section */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Wrench className="h-5 w-5" />
+                      Allocated Parts ({mowerParts.length})
+                    </CardTitle>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={handleAllocatePart} data-testid="button-add-part">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Allocate Part
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleCreatePart} data-testid="button-create-part">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Part
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {mowerParts.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      No parts allocated yet. Click "Allocate Part" to assign parts from inventory.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {mowerParts.map((assetPart) => (
+                        <div key={assetPart.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium">{assetPart.part?.name || `Part ID: ${assetPart.partId}`}</h4>
+                                <Badge variant="outline" className="text-xs">
+                                  {assetPart.part?.category || 'Unknown'}
+                                </Badge>
+                                <span className="text-sm text-muted-foreground">
+                                  Qty: {assetPart.quantity}
+                                </span>
+                              </div>
+                              
+                              {assetPart.part && (
+                                <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                                  <span>Part #: {assetPart.part.partNumber}</span>
+                                  {assetPart.part.manufacturer && <span>Mfg: {assetPart.part.manufacturer}</span>}
+                                  {assetPart.part.unitCost && <span>Unit Cost: ${assetPart.part.unitCost}</span>}
+                                </div>
+                              )}
+                              
+                              {assetPart.componentId && (
+                                <div className="text-sm text-muted-foreground mt-1">
+                                  <span>Allocated to Component ID: {assetPart.componentId}</span>
+                                </div>
+                              )}
+                              
+                              <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                                {assetPart.installDate && (
+                                  <span>Installed: {new Date(assetPart.installDate).toLocaleDateString()}</span>
+                                )}
+                              </div>
+                              
+                              {assetPart.part?.description && (
+                                <p className="text-sm text-muted-foreground mt-2">{assetPart.part.description}</p>
+                              )}
+                              
+                              {assetPart.notes && (
+                                <p className="text-sm text-muted-foreground mt-2 italic">{assetPart.notes}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleEditAssetPart(assetPart)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleDeleteAssetPart(assetPart)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </TabsContent>
+        
         <TabsContent value="service-history">
           <ServiceHistoryTable
             serviceRecords={serviceRecords.map(record => ({
@@ -628,6 +1132,7 @@ export default function MowerDetails() {
                 ...attachment,
                 fileType: attachment.fileType as "pdf" | "image" | "document",
                 uploadedAt: new Date(attachment.uploadedAt).toLocaleDateString(),
+                title: attachment.title ?? undefined,
                 description: attachment.description ?? undefined,
               }))}
               onUpload={handleFileUpload}
@@ -644,12 +1149,132 @@ export default function MowerDetails() {
                 }
               }}
               onDelete={handleDeleteAttachment}
+              onEdit={handleEditAttachment}
+              onSetThumbnail={(id) => setThumbnailMutation.mutate(id)}
+              thumbnailAttachmentId={mower?.thumbnailAttachmentId ?? null}
               isUploading={uploadAttachmentMutation.isPending}
               isDeleting={deleteAttachmentMutation.isPending}
             />
           )}
         </TabsContent>
       </Tabs>
+      
+      {/* Attachment Metadata Dialog */}
+      {showMetadataDialog && pendingFiles[currentFileIndex] && (
+        <AttachmentMetadataDialog
+          isOpen={showMetadataDialog}
+          onClose={handleMetadataCancel}
+          onSubmit={handleMetadataSubmit}
+          fileName={pendingFiles[currentFileIndex].name}
+        />
+      )}
+
+      {/* Edit Attachment Dialog */}
+      <EditAttachmentDialog
+        isOpen={showEditAttachmentDialog}
+        onClose={() => {
+          setShowEditAttachmentDialog(false);
+          setEditingAttachment(null);
+        }}
+        onSubmit={handleEditAttachmentSubmit}
+        attachment={editingAttachment}
+        isLoading={editAttachmentMutation.isPending}
+      />
+
+      {/* Component Form Modal */}
+      <ComponentFormModal
+        isOpen={showComponentModal}
+        onClose={() => {
+          setShowComponentModal(false);
+          setEditingComponent(null);
+        }}
+        mowerId={mowerId!}
+        component={editingComponent}
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Allocate Component Modal */}
+      <AllocateComponentModal
+        isOpen={showAllocateComponentModal}
+        onClose={() => setShowAllocateComponentModal(false)}
+        mowerId={mowerId!}
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Allocate Part Modal */}
+      <AllocatePartModal
+        isOpen={showAllocatePartModal}
+        onClose={() => {
+          setShowAllocatePartModal(false);
+          setEditingAssetPart(null);
+          setSelectedComponentForAllocation(null);
+        }}
+        mowerId={mowerId!}
+        componentId={selectedComponentForAllocation}
+        assetPart={editingAssetPart}
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Part Form Modal */}
+      <PartFormModal
+        isOpen={showPartModal}
+        onClose={() => setShowPartModal(false)}
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Delete Component Confirmation Dialog */}
+      <AlertDialog open={showDeleteComponentDialog} onOpenChange={setShowDeleteComponentDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Component</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the component "{componentToDelete?.name}"? This action cannot be undone and will also remove any part allocations to this component.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteComponentDialog(false);
+              setComponentToDelete(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteComponent}
+              disabled={deleteComponentMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteComponentMutation.isPending ? "Deleting..." : "Delete Component"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Asset Part Confirmation Dialog */}
+      <AlertDialog open={showDeleteAssetPartDialog} onOpenChange={setShowDeleteAssetPartDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Part Allocation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this part allocation? This will unlink the part from this {assetPartToDelete?.componentId ? 'component' : 'mower'} but will not delete the part from inventory.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteAssetPartDialog(false);
+              setAssetPartToDelete(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteAssetPart}
+              disabled={deleteAssetPartMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteAssetPartMutation.isPending ? "Removing..." : "Remove Allocation"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

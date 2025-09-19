@@ -1,5 +1,5 @@
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { Home, Tractor, Settings, Plus } from "lucide-react";
+import { Home, Tractor, Settings, Plus, Package } from "lucide-react";
 import { useLocation } from "wouter";
 
 const navigationItems = [
@@ -12,6 +12,11 @@ const navigationItems = [
     title: "Mowers",
     url: "/mowers",
     icon: Tractor,
+  },
+  {
+    title: "Parts Catalog",
+    url: "/catalog",
+    icon: Package,
   },
 ];
 

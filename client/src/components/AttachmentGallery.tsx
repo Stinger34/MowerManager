@@ -2,14 +2,17 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, Image, Download, Eye, Trash2, Loader2 } from "lucide-react";
+import { Upload, FileText, Image, Download, Eye, Trash2, Loader2, Star, EllipsisVertical, Edit } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useAttachmentThumbnail } from "@/hooks/useAttachmentThumbnails";
 
 interface Attachment {
   id: string;
   fileName: string;
+  title?: string;
   fileType: "pdf" | "image" | "document";
   fileSize: number;
+  pageCount?: number | null;
   description?: string;
   uploadedAt: string;
 }
@@ -20,6 +23,9 @@ interface AttachmentGalleryProps {
   onView: (id: string) => void;
   onDownload: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit?: (id: string) => void;
+  onSetThumbnail?: (id: string) => void;
+  thumbnailAttachmentId?: string | null;
   isUploading?: boolean;
   isDeleting?: boolean;
 }
@@ -33,6 +39,57 @@ const getFileIcon = (fileType: string) => {
     default:
       return <FileText className="h-8 w-8 text-gray-500" />;
   }
+};
+
+// Thumbnail component for individual attachments
+const AttachmentThumbnail = ({ attachment }: { attachment: Attachment }) => {
+  const { data: thumbnailUrl } = useAttachmentThumbnail(attachment.id, attachment.fileType);
+  const [imageError, setImageError] = useState(false);
+  
+  if (thumbnailUrl && attachment.fileType === 'image' && !imageError) {
+    return (
+      <div className="w-full h-24 mb-3 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
+        <img 
+          src={thumbnailUrl} 
+          alt={attachment.title || attachment.fileName}
+          className="max-w-full max-h-full object-cover"
+          onError={() => setImageError(true)}
+        />
+      </div>
+    );
+  }
+  
+  // For PDFs, show thumbnail if available, otherwise show icon
+  if (attachment.fileType === 'pdf') {
+    if (thumbnailUrl && !imageError) {
+      return (
+        <div className="w-full h-24 mb-3 rounded-md overflow-hidden bg-red-50 border border-red-200 flex items-center justify-center">
+          <img 
+            src={thumbnailUrl} 
+            alt={`PDF preview: ${attachment.title || attachment.fileName}`}
+            className="max-w-full max-h-full object-contain"
+            onError={() => setImageError(true)}
+          />
+        </div>
+      );
+    } else {
+      return (
+        <div className="w-full h-24 mb-3 rounded-md bg-red-50 border border-red-200 flex flex-col items-center justify-center p-2">
+          <FileText className="h-8 w-8 text-red-500 mb-1" />
+          <span className="text-xs text-red-600 text-center font-medium truncate w-full">
+            PDF
+          </span>
+        </div>
+      );
+    }
+  }
+  
+  // For other document types or failed image loads, show a generic file icon
+  return (
+    <div className="w-full h-24 mb-3 rounded-md bg-gray-50 flex items-center justify-center">
+      {getFileIcon(attachment.fileType)}
+    </div>
+  );
 };
 
 const formatFileSize = (bytes: number) => {
@@ -49,6 +106,9 @@ export default function AttachmentGallery({
   onView,
   onDownload,
   onDelete,
+  onEdit,
+  onSetThumbnail,
+  thumbnailAttachmentId,
   isUploading = false,
   isDeleting = false
 }: AttachmentGalleryProps) {
@@ -83,46 +143,102 @@ export default function AttachmentGallery({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {attachments.map((attachment) => (
+            {attachments.map((attachment) => {
+              const isThumbnail = thumbnailAttachmentId === attachment.id;
+              const isImage = attachment.fileType === 'image';
+              
+              return (
               <Card 
                 key={attachment.id} 
-                className="hover-elevate cursor-pointer"
+                className="hover-elevate cursor-pointer relative"
                 data-testid={`card-attachment-${attachment.id}`}
                 onClick={() => onView(attachment.id)}
               >
                 <CardContent className="p-4">
+                  {/* Thumbnail Badge */}
+                  {isThumbnail && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <Badge variant="default" className="text-xs bg-yellow-500 hover:bg-yellow-600">
+                        <Star className="h-3 w-3 mr-1" />
+                        Thumbnail
+                      </Badge>
+                    </div>
+                  )}
+                  
+                  <AttachmentThumbnail attachment={attachment} />
+                  
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      {getFileIcon(attachment.fileType)}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-sm truncate mb-1" title={attachment.title || attachment.fileName}>
+                        {attachment.title || attachment.fileName}
+                      </h4>
+                      {attachment.title && attachment.title !== attachment.fileName && (
+                        <p className="text-xs text-muted-foreground truncate" title={attachment.fileName}>
+                          {attachment.fileName}
+                        </p>
+                      )}
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8"
+                          className="h-8 w-8 flex-shrink-0"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <Eye className="h-4 w-4" />
+                          <EllipsisVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem 
-                          onClick={() => onView(attachment.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onView(attachment.id);
+                          }}
                           data-testid={`button-view-attachment-${attachment.id}`}
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           View
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          onClick={() => onDownload(attachment.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDownload(attachment.id);
+                          }}
                           data-testid={`button-download-attachment-${attachment.id}`}
                         >
                           <Download className="h-4 w-4 mr-2" />
                           Download
                         </DropdownMenuItem>
+                        {onEdit && (
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEdit(attachment.id);
+                            }}
+                            data-testid={`button-edit-attachment-${attachment.id}`}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+                        {isImage && onSetThumbnail && (
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSetThumbnail(attachment.id);
+                            }}
+                            data-testid={`button-set-thumbnail-${attachment.id}`}
+                          >
+                            <Star className="h-4 w-4 mr-2" />
+                            {isThumbnail ? 'Remove as Thumbnail' : 'Set as Thumbnail'}
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem 
-                          onClick={() => onDelete(attachment.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(attachment.id);
+                          }}
                           className="text-destructive"
                           disabled={isDeleting}
                           data-testid={`button-delete-attachment-${attachment.id}`}
@@ -139,17 +255,18 @@ export default function AttachmentGallery({
                   </div>
                   
                   <div className="space-y-2">
-                    <h4 className="font-medium text-sm truncate" title={attachment.fileName}>
-                      {attachment.fileName}
-                    </h4>
-                    
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="secondary" className="text-xs">
                         {attachment.fileType.toUpperCase()}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {formatFileSize(attachment.fileSize)}
                       </span>
+                      {attachment.pageCount && attachment.pageCount > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {attachment.pageCount} {attachment.pageCount === 1 ? 'page' : 'pages'}
+                        </span>
+                      )}
                     </div>
                     
                     {attachment.description && (
@@ -164,7 +281,8 @@ export default function AttachmentGallery({
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            );
+            })}
           </div>
         )}
       </CardContent>
