@@ -3,10 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Wrench, DollarSign, Hash, Building, FileText, AlertTriangle, Calendar } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Wrench, DollarSign, Hash, Building, FileText, AlertTriangle, Calendar, Paperclip } from "lucide-react";
 import { useLocation } from "wouter";
-import type { Component } from "@shared/schema";
+import type { Component, Attachment } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
+import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
 
 export default function ComponentDetails() {
   const [, params] = useRoute("/catalog/components/:componentId");
@@ -16,6 +18,12 @@ export default function ComponentDetails() {
   // Fetch component data
   const { data: component, isLoading, error } = useQuery<Component>({
     queryKey: ['/api/components', componentId],
+    enabled: !!componentId,
+  });
+
+  // Fetch component attachments
+  const { data: attachments = [], isLoading: isAttachmentsLoading } = useQuery<Omit<Attachment, 'fileData'>[]>({
+    queryKey: ['/api/components', componentId, 'attachments'],
     enabled: !!componentId,
   });
 
@@ -80,181 +88,205 @@ export default function ComponentDetails() {
         <h1 className="text-2xl font-bold text-gray-900">{component.name}</h1>
       </div>
 
-      {/* Component Details */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Basic Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5" />
-              Component Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {component.partNumber && (
-              <div>
-                <label className="text-sm font-medium text-gray-600">Part Number</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Hash className="h-4 w-4 text-gray-400" />
-                  <span className="font-mono text-sm">{component.partNumber}</span>
+      <Tabs defaultValue="details" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="details">
+            <Wrench className="h-4 w-4 mr-2" />
+            Details
+          </TabsTrigger>
+          <TabsTrigger value="attachments">
+            <Paperclip className="h-4 w-4 mr-2" />
+            Attachments ({attachments.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="details" className="space-y-6">
+          {/* Component Details */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Basic Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wrench className="h-5 w-5" />
+                  Component Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {component.partNumber && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Part Number</label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Hash className="h-4 w-4 text-gray-400" />
+                      <span className="font-mono text-sm">{component.partNumber}</span>
+                    </div>
+                  </div>
+                )}
+
+                {component.manufacturer && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Manufacturer</label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Building className="h-4 w-4 text-gray-400" />
+                      <span>{component.manufacturer}</span>
+                    </div>
+                  </div>
+                )}
+
+                {component.model && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Model</label>
+                    <p className="text-sm text-gray-800 mt-1">{component.model}</p>
+                  </div>
+                )}
+
+                {component.serialNumber && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Serial Number</label>
+                    <p className="text-sm text-gray-800 mt-1 font-mono">{component.serialNumber}</p>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Status</label>
+                  <div className="mt-1">
+                    <Badge variant={component.status === 'active' ? 'default' : 'secondary'} className="capitalize">
+                      {component.status}
+                    </Badge>
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {component.manufacturer && (
-              <div>
-                <label className="text-sm font-medium text-gray-600">Manufacturer</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Building className="h-4 w-4 text-gray-400" />
-                  <span>{component.manufacturer}</span>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Condition</label>
+                  <div className="mt-1">
+                    <Badge variant="outline" className="capitalize">
+                      {component.condition}
+                    </Badge>
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {component.model && (
-              <div>
-                <label className="text-sm font-medium text-gray-600">Model</label>
-                <p className="text-sm text-gray-800 mt-1">{component.model}</p>
-              </div>
-            )}
+                {component.description && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Description</label>
+                    <p className="text-sm text-gray-800 mt-1">{component.description}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-            {component.serialNumber && (
-              <div>
-                <label className="text-sm font-medium text-gray-600">Serial Number</label>
-                <p className="text-sm text-gray-800 mt-1 font-mono">{component.serialNumber}</p>
-              </div>
-            )}
+            {/* Dates and Pricing */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Pricing & Dates
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {component.cost && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Cost</label>
+                    <p className="text-lg font-semibold text-green-600 mt-1">
+                      ${parseFloat(component.cost).toFixed(2)}
+                    </p>
+                  </div>
+                )}
 
-            <div>
-              <label className="text-sm font-medium text-gray-600">Status</label>
-              <div className="mt-1">
-                <Badge variant={component.status === 'active' ? 'default' : 'secondary'} className="capitalize">
-                  {component.status}
-                </Badge>
-              </div>
-            </div>
+                {component.installDate && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Install Date</label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Calendar className="h-4 w-4 text-gray-400" />
+                      <span>{new Date(component.installDate).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                )}
 
-            <div>
-              <label className="text-sm font-medium text-gray-600">Condition</label>
-              <div className="mt-1">
-                <Badge variant="outline" className="capitalize">
-                  {component.condition}
-                </Badge>
-              </div>
-            </div>
+                {component.warrantyExpires && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Warranty Expires</label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Calendar className="h-4 w-4 text-gray-400" />
+                      <span className={new Date(component.warrantyExpires) < new Date() ? 'text-red-600' : 'text-gray-800'}>
+                        {new Date(component.warrantyExpires).toLocaleDateString()}
+                      </span>
+                      {new Date(component.warrantyExpires) < new Date() && (
+                        <Badge variant="destructive" className="ml-2">Expired</Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
 
-            {component.description && (
-              <div>
-                <label className="text-sm font-medium text-gray-600">Description</label>
-                <p className="text-sm text-gray-800 mt-1">{component.description}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                {component.mowerId && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Associated Mower</label>
+                    <Button 
+                      variant="ghost" 
+                      className="p-0 h-auto text-blue-600 mt-1"
+                      onClick={() => setLocation(`/mowers/${component.mowerId}`)}
+                    >
+                      View Mower Details
+                    </Button>
+                  </div>
+                )}
 
-        {/* Dates and Pricing */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Pricing & Dates
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {component.cost && (
-              <div>
-                <label className="text-sm font-medium text-gray-600">Cost</label>
-                <p className="text-lg font-semibold text-green-600 mt-1">
-                  ${parseFloat(component.cost).toFixed(2)}
-                </p>
-              </div>
-            )}
-
-            {component.installDate && (
-              <div>
-                <label className="text-sm font-medium text-gray-600">Install Date</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <span>{new Date(component.installDate).toLocaleDateString()}</span>
-                </div>
-              </div>
-            )}
-
-            {component.warrantyExpires && (
-              <div>
-                <label className="text-sm font-medium text-gray-600">Warranty Expires</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                  <span className={new Date(component.warrantyExpires) < new Date() ? 'text-red-600' : 'text-gray-800'}>
-                    {new Date(component.warrantyExpires).toLocaleDateString()}
-                  </span>
-                  {new Date(component.warrantyExpires) < new Date() && (
-                    <Badge variant="destructive" className="ml-2">Expired</Badge>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {component.mowerId && (
-              <div>
-                <label className="text-sm font-medium text-gray-600">Associated Mower</label>
-                <Button 
-                  variant="link" 
-                  className="p-0 h-auto text-blue-600 mt-1"
-                  onClick={() => setLocation(`/mowers/${component.mowerId}`)}
-                >
-                  View Mower Details
-                </Button>
-              </div>
-            )}
-
-            {!component.mowerId && (
-              <div>
-                <label className="text-sm font-medium text-gray-600">Component Type</label>
-                <p className="text-sm text-gray-800 mt-1">Global Component (not assigned to specific mower)</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Notes */}
-      {component.notes && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Notes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-800 whitespace-pre-wrap">{component.notes}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Metadata */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Component Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <label className="font-medium text-gray-600">Created</label>
-              <p className="text-gray-800 mt-1">
-                {new Date(component.createdAt).toLocaleDateString()} at {new Date(component.createdAt).toLocaleTimeString()}
-              </p>
-            </div>
-            <div>
-              <label className="font-medium text-gray-600">Last Updated</label>
-              <p className="text-gray-800 mt-1">
-                {new Date(component.updatedAt).toLocaleDateString()} at {new Date(component.updatedAt).toLocaleTimeString()}
-              </p>
-            </div>
+                {!component.mowerId && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Component Type</label>
+                    <p className="text-sm text-gray-800 mt-1">Global Component (not assigned to specific mower)</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Notes */}
+          {component.notes && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Notes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-800 whitespace-pre-wrap">{component.notes}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Metadata */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Component Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <label className="font-medium text-gray-600">Created</label>
+                  <p className="text-gray-800 mt-1">
+                    {new Date(component.createdAt).toLocaleDateString()} at {new Date(component.createdAt).toLocaleTimeString()}
+                  </p>
+                </div>
+                <div>
+                  <label className="font-medium text-gray-600">Last Updated</label>
+                  <p className="text-gray-800 mt-1">
+                    {new Date(component.updatedAt).toLocaleDateString()} at {new Date(component.updatedAt).toLocaleTimeString()}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="attachments">
+          <GenericAttachmentGallery
+            attachments={attachments}
+            entityId={componentId!}
+            entityType="components"
+            isLoading={isAttachmentsLoading}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
