@@ -358,11 +358,11 @@ export default function MowerDetails() {
         const validFiles: File[] = [];
         
         Array.from(files).forEach(file => {
-          // Check file size (10MB limit)
-          if (file.size > 10 * 1024 * 1024) {
+          // Check file size (30MB limit)
+          if (file.size > 30 * 1024 * 1024) {
             toast({
               title: "File Too Large",
-              description: `${file.name} is larger than 10MB limit`,
+              description: `${file.name} is larger than 30MB limit`,
               variant: "destructive"
             });
             return;

@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Package, DollarSign, Hash, Building, FileText, AlertTriangle } from "lucide-react";
 import { useLocation } from "wouter";
-import type { Part } from "@shared/schema";
+import type { Part, Attachment } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
+import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
 
 export default function PartDetails() {
   const [, params] = useRoute("/catalog/parts/:partId");
@@ -16,6 +17,12 @@ export default function PartDetails() {
   // Fetch part data
   const { data: part, isLoading, error } = useQuery<Part>({
     queryKey: ['/api/parts', partId],
+    enabled: !!partId,
+  });
+
+  // Fetch attachments data
+  const { data: attachments = [], isLoading: isAttachmentsLoading, error: attachmentsError } = useQuery<Omit<Attachment, 'fileData'>[]>({
+    queryKey: ['/api/parts', partId, 'attachments'],
     enabled: !!partId,
   });
 
@@ -194,6 +201,20 @@ export default function PartDetails() {
           </CardContent>
         </Card>
       )}
+
+      {/* Attachments */}
+      <GenericAttachmentGallery
+        attachments={attachments.map(attachment => ({
+          ...attachment,
+          fileType: attachment.fileType as "pdf" | "image" | "document",
+          uploadedAt: new Date(attachment.uploadedAt).toLocaleDateString(),
+          title: attachment.title ?? undefined,
+          description: attachment.description ?? undefined,
+        }))}
+        entityType="part"
+        entityId={partId!}
+        queryKey={['/api/parts', partId, 'attachments']}
+      />
 
       {/* Metadata */}
       <Card>
