@@ -4,3 +4,8 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Deployment logs and temporary files
+deploy.log
+migrations/temp_migration_*.sql
+.detected_changes
