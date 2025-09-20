@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
 import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertAttachmentSchema, insertComponentSchema, insertPartSchema, insertAssetPartSchema } from "@shared/schema";
-import { processPDF, getDocumentPageCount } from "./pdfUtils";
+import { processPDF, getDocumentPageCount, generateTxtThumbnail } from "./pdfUtils";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // put application routes here
@@ -302,6 +302,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType = 'image';
       } else if (req.file.mimetype === 'application/pdf') {
         fileType = 'pdf';
+      } else if (req.file.mimetype === 'text/plain') {
+        fileType = 'txt';
       }
 
       // Extract page count for PDFs and documents
@@ -310,7 +312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (fileType === 'pdf') {
           const pdfInfo = await processPDF(req.file.buffer);
           pageCount = pdfInfo.pageCount;
-        } else if (fileType === 'document') {
+        } else if (fileType === 'document' || fileType === 'txt') {
           pageCount = getDocumentPageCount(req.file.buffer, req.file.originalname);
         }
       } catch (error) {
@@ -448,6 +450,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error generating PDF thumbnail:', error);
       res.status(500).json({ error: 'Failed to generate PDF thumbnail' });
+    }
+  });
+
+  // Generate TXT thumbnail
+  app.get('/api/attachments/:id/txt-thumbnail', async (req: Request, res: Response) => {
+    try {
+      console.log('Generating TXT thumbnail for attachment ID:', req.params.id);
+      const attachment = await storage.getAttachment(req.params.id);
+      
+      if (!attachment) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+
+      if (!attachment.fileName.toLowerCase().endsWith('.txt')) {
+        return res.status(400).json({ error: 'Thumbnail generation only supported for TXT files' });
+      }
+
+      // Convert base64 back to buffer
+      const fileBuffer = Buffer.from(attachment.fileData, 'base64');
+      
+      // Generate TXT thumbnail
+      const txtInfo = await generateTxtThumbnail(fileBuffer);
+      
+      if (!txtInfo.thumbnailBuffer) {
+        return res.status(500).json({ error: 'Failed to generate TXT thumbnail' });
+      }
+
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Length', txtInfo.thumbnailBuffer.length);
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+      
+      console.log('Sending TXT thumbnail for:', attachment.fileName, 'Size:', txtInfo.thumbnailBuffer.length);
+      res.send(txtInfo.thumbnailBuffer);
+    } catch (error) {
+      console.error('Error generating TXT thumbnail:', error);
+      res.status(500).json({ error: 'Failed to generate TXT thumbnail' });
     }
   });
 
@@ -692,6 +730,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType = 'image';
       } else if (req.file.mimetype === 'application/pdf') {
         fileType = 'pdf';
+      } else if (req.file.mimetype === 'text/plain') {
+        fileType = 'txt';
       }
 
       // Extract page count for PDFs and documents
@@ -704,6 +744,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                    (req.file.mimetype === 'application/msword' || 
                     req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
           pageCount = await getDocumentPageCount(req.file.buffer, req.file.mimetype);
+        } else if (fileType === 'txt') {
+          pageCount = getDocumentPageCount(req.file.buffer, req.file.originalname);
         }
       } catch (error) {
         console.warn('Failed to extract page count:', error);
@@ -835,6 +877,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType = 'image';
       } else if (req.file.mimetype === 'application/pdf') {
         fileType = 'pdf';
+      } else if (req.file.mimetype === 'text/plain') {
+        fileType = 'txt';
       }
 
       // Extract page count for PDFs and documents
@@ -847,6 +891,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                    (req.file.mimetype === 'application/msword' || 
                     req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
           pageCount = await getDocumentPageCount(req.file.buffer, req.file.mimetype);
+        } else if (fileType === 'txt') {
+          pageCount = getDocumentPageCount(req.file.buffer, req.file.originalname);
         }
       } catch (error) {
         console.warn('Failed to extract page count:', error);
