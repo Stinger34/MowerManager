@@ -8,7 +8,7 @@ interface ThumbnailData {
 }
 
 // Hook to fetch thumbnail for a single attachment if it's an image
-export function useAttachmentThumbnail(attachmentId: string, fileType: string) {
+export function useAttachmentThumbnail(attachmentId: string, fileType: string, fileName?: string) {
   return useQuery<string | null>({
     queryKey: ['attachment-thumbnail', attachmentId],
     queryFn: async () => {
@@ -22,10 +22,15 @@ export function useAttachmentThumbnail(attachmentId: string, fileType: string) {
         return `/api/attachments/${attachmentId}/thumbnail`;
       }
       
+      // For TXT files, use the TXT thumbnail endpoint
+      if (fileName && fileName.toLowerCase().endsWith('.txt')) {
+        return `/api/attachments/${attachmentId}/txt-thumbnail`;
+      }
+      
       return null;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: fileType.startsWith('image') || fileType === 'pdf',
+    enabled: fileType.startsWith('image') || fileType === 'pdf' || (fileName && fileName.toLowerCase().endsWith('.txt')),
   });
 }
 

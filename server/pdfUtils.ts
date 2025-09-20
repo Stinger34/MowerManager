@@ -7,6 +7,70 @@ export interface PDFInfo {
   thumbnailBuffer?: Buffer;
 }
 
+export interface TxtThumbnailInfo {
+  thumbnailBuffer: Buffer;
+}
+
+/**
+ * Generate a text-based thumbnail for TXT files
+ */
+export async function generateTxtThumbnail(fileBuffer: Buffer): Promise<TxtThumbnailInfo> {
+  try {
+    // Dynamically import canvas to avoid initialization issues
+    const { createCanvas } = await import('canvas');
+    
+    // Get text content
+    const textContent = fileBuffer.toString('utf-8');
+    const lines = textContent.split('\n').slice(0, 10); // First 10 lines
+    
+    // Create canvas for text rendering
+    const canvas = createCanvas(200, 300);
+    const ctx = canvas.getContext('2d');
+    
+    // Set background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 200, 300);
+    
+    // Set text properties
+    ctx.fillStyle = '#333333';
+    ctx.font = '10px monospace';
+    
+    // Add file type indicator
+    ctx.fillStyle = '#666666';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText('TXT', 10, 20);
+    
+    // Draw text lines
+    ctx.fillStyle = '#333333';
+    ctx.font = '8px monospace';
+    
+    let y = 40;
+    for (const line of lines) {
+      if (y > 280) break; // Don't exceed canvas height
+      
+      // Truncate long lines
+      const truncatedLine = line.length > 25 ? line.substring(0, 25) + '...' : line;
+      ctx.fillText(truncatedLine, 10, y);
+      y += 12;
+    }
+    
+    // Add border
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, 200, 300);
+    
+    // Convert to buffer
+    const thumbnailBuffer = canvas.toBuffer('image/png');
+    
+    return {
+      thumbnailBuffer
+    };
+  } catch (error) {
+    console.error('Error generating TXT thumbnail:', error);
+    throw new Error('Failed to generate TXT thumbnail');
+  }
+}
+
 /**
  * Extract PDF information including page count and generate thumbnail
  */
@@ -27,7 +91,7 @@ export async function processPDF(fileBuffer: Buffer): Promise<PDFInfo> {
       pageCount = pdfData.numpages;
       console.log('✓ Got page count from pdf-parse:', pageCount);
     } catch (parseError) {
-      console.warn('⚠ pdf-parse failed, using default page count of 1:', parseError.message);
+      console.warn('⚠ pdf-parse failed, using default page count of 1:', parseError instanceof Error ? parseError.message : String(parseError));
       // Continue with default pageCount = 1
     }
     
@@ -100,7 +164,7 @@ export async function processPDF(fileBuffer: Buffer): Promise<PDFInfo> {
       
     } catch (thumbnailError) {
       console.warn('Failed to generate PDF thumbnail:', thumbnailError);
-      console.error('Thumbnail error stack:', thumbnailError.stack);
+      console.error('Thumbnail error stack:', thumbnailError instanceof Error ? thumbnailError.stack : String(thumbnailError));
       // Continue without thumbnail
     }
 
