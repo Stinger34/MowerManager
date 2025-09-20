@@ -1,0 +1,1 @@
+-- Content of 0000_smart_millenium_guard.sql --
