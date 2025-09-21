@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, Image, Download, Eye, Trash2, Loader2, Star, EllipsisVertical, Edit } from "lucide-react";
+import { Upload, FileText, Image, Download, Eye, Trash2, Loader2, Star, EllipsisVertical, Edit, Archive } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAttachmentThumbnail } from "@/hooks/useAttachmentThumbnails";
 
@@ -36,6 +36,8 @@ const getFileIcon = (fileType: string) => {
       return <FileText className="h-8 w-8 text-red-500" />;
     case "image":
       return <Image className="h-8 w-8 text-blue-500" />;
+    case "zip":
+      return <Archive className="h-8 w-8 text-green-500" />;
     default:
       return <FileText className="h-8 w-8 text-gray-500" />;
   }

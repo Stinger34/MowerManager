@@ -243,7 +243,7 @@ export default function MowerDetails() {
     onError: (error: Error) => {
       toast({ 
         title: "Upload Failed", 
-        description: error.message.includes('Invalid file type') ? 'Invalid file type. Only PDF, images, and documents are allowed.' : 'Upload failed. Please try again.',
+        description: error.message.includes('Invalid file type') ? 'Invalid file type. Only PDF, images, documents, and ZIP files are allowed.' : 'Upload failed. Please try again.',
         variant: "destructive" 
       });
       
