@@ -101,7 +101,12 @@ export default function App() {
                       <h2 className="text-lg font-semibold text-text-primary">Mower Manager</h2>
                     </div>
                   </div>
-                  <ThemeToggle />
+                  <div className="flex items-center gap-4">
+                    <div className="hidden md:flex items-center gap-2 text-sm text-text-muted">
+                      <span>Welcome back, John Doe</span>
+                    </div>
+                    <ThemeToggle />
+                  </div>
                 </header>
                 <main className="flex-1 overflow-auto p-6 bg-calendar-bg">
                   <Router />
