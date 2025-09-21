@@ -314,36 +314,42 @@ execute_alter_column_actions() {
     log INFO "Column alteration detected - verify data integrity after deployment"
 }
 
-# Generate migration if schema changes exist
+# Generate migration only if schema changes exist
 generate_migration() {
     log INFO "Checking for schema changes that require migration..."
-    
-    # Generate a migration to see if there are any changes
-    TEMP_MIGRATION_FILE=$(mktemp "${MIGRATION_DIR}/temp_migration_XXXXXX.sql")
-    
-    if execute "Generate migration file" "npm run db:generate -- --name deployment_$(date +%Y%m%d_%H%M%S)"; then
-        # Find the most recent migration file
-        local latest_migration=$(find "$MIGRATION_DIR" -name "*.sql" -not -path "*/meta/*" | grep -v temp | sort | tail -1)
-        
-        if [[ -n "$latest_migration" && -f "$latest_migration" ]]; then
-            # Check if the migration file has actual changes (not just empty)
-            if [[ -s "$latest_migration" ]] && grep -q "CREATE\|ALTER\|DROP" "$latest_migration"; then
-                log INFO "Schema changes detected in: $(basename "$latest_migration")"
-                detect_schema_changes "$latest_migration"
-                return 0
+
+    # Drizzle supports a 'drizzle-kit diff' to check for changes; if your setup is different, adjust accordingly.
+    local DIFF_OUTPUT
+    DIFF_OUTPUT=$(npx drizzle-kit diff 2>&1 || true)
+    if echo "$DIFF_OUTPUT" | grep -q "No changes detected"; then
+        log INFO "No schema changes detected. Skipping migration generation."
+        return 1
+    else
+        log INFO "Schema changes detected, generating migration."
+        TEMP_MIGRATION_FILE=$(mktemp "${MIGRATION_DIR}/temp_migration_XXXXXX.sql")
+        if execute "Generate migration file" "npm run db:generate -- --name deployment_$(date +%Y%m%d_%H%M%S)"; then
+            # Find the most recent migration file
+            local latest_migration=$(find "$MIGRATION_DIR" -name "*.sql" -not -path "*/meta/*" | grep -v temp | sort | tail -1)
+            if [[ -n "$latest_migration" && -f "$latest_migration" ]]; then
+                if [[ -s "$latest_migration" ]] && grep -q "CREATE\|ALTER\|DROP" "$latest_migration"; then
+                    log INFO "Schema changes detected in: $(basename "$latest_migration")"
+                    detect_schema_changes "$latest_migration"
+                    return 0
+                else
+                    log INFO "Migration file has no actionable changes."
+                    return 1
+                fi
             else
-                log INFO "No schema changes detected"
+                log INFO "No new migration file generated - schema up to date"
                 return 1
             fi
         else
-            log INFO "No new migration file generated - schema up to date"
+            log ERROR "Failed to generate migration"
             return 1
         fi
-    else
-        log ERROR "Failed to generate migration"
-        return 1
     fi
 }
+
 
 # Apply migrations
 apply_migrations() {
