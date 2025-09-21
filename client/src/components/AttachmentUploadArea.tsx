@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { X, Upload, FileText, Image, File } from 'lucide-react';
+import { X, Upload, FileText, Image, File, Archive } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AttachmentMetadataDialog from './AttachmentMetadataDialog';
 
@@ -54,13 +54,16 @@ export default function AttachmentUploadArea({
       'image/webp',
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'text/plain'
+      'text/plain',
+      'application/zip',
+      'application/x-zip-compressed',
+      'multipart/x-zip'
     ];
 
-    if (!allowedTypes.includes(file.type)) {
+    if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.zip')) {
       toast({
         title: "Invalid file type",
-        description: "Only PDF, images, and documents are allowed",
+        description: "Only PDF, images, documents, and ZIP files are allowed",
         variant: "destructive",
       });
       return;
@@ -110,6 +113,8 @@ export default function AttachmentUploadArea({
       return <Image className="h-4 w-4" />;
     } else if (fileType === 'application/pdf') {
       return <FileText className="h-4 w-4" />;
+    } else if (fileType === 'application/zip' || fileType === 'application/x-zip-compressed' || fileType === 'multipart/x-zip') {
+      return <Archive className="h-4 w-4" />;
     } else {
       return <File className="h-4 w-4" />;
     }
@@ -148,7 +153,7 @@ export default function AttachmentUploadArea({
               Add Attachment
             </Button>
             <span className="text-sm text-muted-foreground">
-              Max 30MB • PDF, Images, Documents
+              Max 30MB • PDF, Images, Documents, ZIP
             </span>
           </div>
         </div>
