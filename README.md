@@ -462,53 +462,123 @@ The application uses the following database tables:
 
 ## Backup and Restore
 
-The application includes a comprehensive backup and restore feature accessible through the Settings page (`/settings`).
+The application includes a comprehensive backup and restore feature that provides complete data protection and migration capabilities. All backup operations are accessible through the Settings page (`/settings`).
 
 ### Creating Backups
 
+**Via Settings Page:**
 1. Navigate to the Settings page from the sidebar
 2. Click the "Create Backup" button in the Backup & Restore section
-3. A ZIP file will be automatically downloaded containing:
-   - **manifest.json** - Backup metadata with version info and timestamps
-   - **database.json** - Complete database dump of all tables
-   - **attachments/** - All uploaded files organized by type (mowers, components, parts)
+3. A progress indicator will show backup creation status
+4. A ZIP file will be automatically downloaded with filename: `mower-manager-backup-YYYY-MM-DD.zip`
+
+**What's included in the backup ZIP:**
+- **`manifest.json`** - Backup metadata including:
+  - Version information (backup format v1.0.0)
+  - Creation timestamp
+  - Schema version
+  - Record counts per table for verification
+- **`database.json`** - Complete database dump containing all tables:
+  - `mowers` - Main mower records and configurations
+  - `serviceRecords` - Service history and maintenance logs
+  - `attachments` - File metadata (without binary data)
+  - `tasks` - Maintenance tasks and schedules
+  - `components` - Component definitions and specifications
+  - `parts` - Parts catalog and inventory
+  - `assetParts` - Part allocation to mowers/components
+- **`attachments/`** - Organized file attachments:
+  - `attachments/mowers/{mowerId}/` - Mower-specific files
+  - `attachments/components/{componentId}/` - Component manuals/docs
+  - `attachments/parts/{partId}/` - Part documentation
+  - `attachments/orphaned/` - Unassigned attachments
+  - Files named as: `{attachmentId}_{originalFilename}`
 
 ### Restoring from Backup
 
+**Restore Process:**
 1. Navigate to the Settings page
 2. Click "Choose File" and select a backup ZIP file
-3. Review the warning message about data replacement
-4. Click "Restore Backup" to begin the restore process
-5. The page will refresh automatically upon successful completion
+3. **⚠️ Important Warning:** Review the overwrite warning - restoration will permanently replace all current data
+4. Click "Restore Backup" to begin the process
+5. Progress indicator shows restoration status
+6. Page automatically refreshes upon successful completion
+7. All restored records are logged with counts for verification
 
-### Backup Contents
+**Restore Behavior:**
+- **Complete data replacement:** All existing data is overwritten
+- **Dependency-aware restoration:** Tables restored in correct order (mowers → parts → components → tasks → service records → attachments → asset parts)
+- **File data restoration:** Attachment files are decoded from base64 and restored to database
+- **Error handling:** Failed records are logged but don't stop the process
+- **Verification:** Total restored record count provided
 
-**What's included in backups:**
-- All mower records and details
-- Service history and maintenance records  
-- File attachments (images, PDFs, documents)
-- Tasks and maintenance schedules
-- Parts catalog and inventory
-- Component information
+### Security Considerations and Limitations
 
-**File format:** ZIP archive with JSON database dump and organized attachment folders
+**File Format & Size:**
+- **Format:** Standard ZIP archive with maximum compression (zlib level 9)
+- **Upload limit:** 100MB maximum for restore files
+- **Download size:** Varies based on data volume and attachment files
+- **Validation:** ZIP signature verification before processing
 
-**Compatibility:** Works with all versions of Mower Manager
+**Security Features:**
+- **Access logging:** All backup/restore operations logged with IP address and timestamp
+- **File type validation:** Only ZIP files accepted for restore
+- **Authentication ready:** Framework in place for future auth system integration
+- **Data sanitization:** Attachment file data excluded from JSON dump for security
 
-### Security and Limitations
+**Important Limitations:**
+- **No incremental backups:** Each backup contains complete dataset
+- **No encryption:** Backup files are unencrypted ZIP archives
+- **Memory usage:** Large attachments stored as base64 in memory during operations
+- **No transaction rollback:** Failed restore may leave database in partial state
+- **Overwrite behavior:** Restore completely replaces all data without merge options
 
-- Backup and restore operations are logged for security auditing
-- File size limit: 100MB for backup uploads
-- Only ZIP files are accepted for restore operations
-- Restoring overwrites all existing data - create a backup first if needed
-- Authentication checks are in place (easily configurable for future auth systems)
+**Best Practices:**
+- Create backup before restoring to preserve current data
+- Test restore process on development environment first
+- Monitor disk space - backups can be large with many attachments
+- Regular backup schedule recommended for data protection
+- Verify restored record counts against manifest after restore
 
-### API Endpoints
+### API Endpoints for Advanced Users
 
-For advanced users or automation:
+**Backup Creation:**
+```bash
+POST /api/backup
+Content-Type: application/json
+Authorization: [Currently bypassed - auth system placeholder]
 
-- **POST** `/api/backup` - Creates and downloads a backup ZIP file
-- **POST** `/api/restore` - Accepts multipart/form-data with backup ZIP file
+# Response: ZIP file download
+# Content-Type: application/zip
+# Content-Disposition: attachment; filename="mower-manager-backup-YYYY-MM-DD.zip"
+```
+
+**Backup Restoration:**
+```bash
+POST /api/restore
+Content-Type: multipart/form-data
+Authorization: [Currently bypassed - auth system placeholder]
+
+# Form data:
+# backup: [ZIP file, max 100MB]
+
+# Response JSON:
+{
+  "success": true,
+  "stats": {
+    "totalRecords": 150,
+    "manifest": { ... }
+  }
+}
+```
+
+**Error Responses:**
+- `400` - Invalid file type, size exceeded, or malformed ZIP
+- `500` - Server error during backup creation or restore process
+
+**File Size Limits:**
+- Regular attachments: 30MB per file
+- Backup uploads: 100MB total ZIP file
+- Memory storage: All files stored as base64 in database
 
 ## Troubleshooting
 
