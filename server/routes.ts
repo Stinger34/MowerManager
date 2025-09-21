@@ -17,7 +17,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       fileSize: 30 * 1024 * 1024, // 30MB limit
     },
     fileFilter: (req, file, cb) => {
-      // Accept PDF, images, and common document types
+      // Accept PDF, images, common document types, and ZIP files
       const allowedTypes = [
         'application/pdf',
         'image/jpeg',
@@ -27,13 +27,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'image/webp',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'text/plain'
+        'text/plain',
+        'application/zip',
+        'application/x-zip-compressed',
+        'multipart/x-zip'
       ];
       
-      if (allowedTypes.includes(file.mimetype)) {
+      if (allowedTypes.includes(file.mimetype) || file.originalname.toLowerCase().endsWith('.zip')) {
         cb(null, true);
       } else {
-        cb(new Error('Invalid file type. Only PDF, images, and documents are allowed.'));
+        cb(new Error('Invalid file type. Only PDF, images, documents, and ZIP files are allowed.'));
       }
     }
   });
@@ -326,6 +329,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType = 'pdf';
       } else if (req.file.mimetype === 'text/plain') {
         fileType = 'txt';
+      } else if (req.file.mimetype === 'application/zip' || 
+                 req.file.mimetype === 'application/x-zip-compressed' || 
+                 req.file.mimetype === 'multipart/x-zip' ||
+                 req.file.originalname.toLowerCase().endsWith('.zip')) {
+        fileType = 'zip';
       }
 
       // Extract page count for PDFs and documents
@@ -754,6 +762,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType = 'pdf';
       } else if (req.file.mimetype === 'text/plain') {
         fileType = 'txt';
+      } else if (req.file.mimetype === 'application/zip' || 
+                 req.file.mimetype === 'application/x-zip-compressed' || 
+                 req.file.mimetype === 'multipart/x-zip' ||
+                 req.file.originalname.toLowerCase().endsWith('.zip')) {
+        fileType = 'zip';
       }
 
       // Extract page count for PDFs and documents
@@ -901,6 +914,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType = 'pdf';
       } else if (req.file.mimetype === 'text/plain') {
         fileType = 'txt';
+      } else if (req.file.mimetype === 'application/zip' || 
+                 req.file.mimetype === 'application/x-zip-compressed' || 
+                 req.file.mimetype === 'multipart/x-zip' ||
+                 req.file.originalname.toLowerCase().endsWith('.zip')) {
+        fileType = 'zip';
       }
 
       // Extract page count for PDFs and documents
