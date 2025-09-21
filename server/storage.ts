@@ -18,6 +18,7 @@ export interface IStorage {
   // Task methods
   getTask(id: string): Promise<Task | undefined>;
   getTasksByMowerId(mowerId: string): Promise<Task[]>;
+  getAllTasks(): Promise<Task[]>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
   deleteTask(id: string): Promise<boolean>;
@@ -25,6 +26,7 @@ export interface IStorage {
   
   // Service Record methods
   getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]>;
+  getAllServiceRecords(): Promise<ServiceRecord[]>;
   createServiceRecordWithMowerUpdate(serviceRecord: InsertServiceRecord): Promise<ServiceRecord>;
   updateServiceRecord(id: string, serviceRecord: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined>;
   
@@ -33,6 +35,7 @@ export interface IStorage {
   getAttachmentsByMowerId(mowerId: string): Promise<Attachment[]>;
   getAttachmentsByComponentId(componentId: string): Promise<Attachment[]>;
   getAttachmentsByPartId(partId: string): Promise<Attachment[]>;
+  getAllAttachments(): Promise<Attachment[]>;
   createAttachment(attachment: InsertAttachment): Promise<Attachment>;
   updateAttachmentMetadata(id: string, metadata: { title?: string; description?: string }): Promise<Attachment | undefined>;
   deleteAttachment(id: string): Promise<boolean>;
@@ -56,6 +59,7 @@ export interface IStorage {
   getAssetPartsByMowerId(mowerId: string): Promise<AssetPart[]>;
   getAssetPartsWithDetailsByMowerId(mowerId: string): Promise<AssetPartWithDetails[]>;
   getAssetPartsByComponentId(componentId: string): Promise<AssetPart[]>;
+  getAllAssetParts(): Promise<AssetPart[]>;
   createAssetPart(assetPart: InsertAssetPart): Promise<AssetPart>;
   updateAssetPart(id: string, assetPart: Partial<InsertAssetPart>): Promise<AssetPart | undefined>;
   deleteAssetPart(id: string): Promise<boolean>;
@@ -144,6 +148,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.tasks.values()).filter(task => task.mowerId === parseInt(mowerId));
   }
 
+  async getAllTasks(): Promise<Task[]> {
+    return Array.from(this.tasks.values());
+  }
+
   async createTask(insertTask: InsertTask): Promise<Task> {
     const id = randomUUID();
     const now = new Date();
@@ -203,6 +211,11 @@ export class MemStorage implements IStorage {
     return [];
   }
 
+  async getAllServiceRecords(): Promise<ServiceRecord[]> {
+    // Mock implementation for MemStorage - return empty array
+    return [];
+  }
+
   async createServiceRecordWithMowerUpdate(insertServiceRecord: InsertServiceRecord): Promise<ServiceRecord> {
     // Create service record (mock implementation for MemStorage)
     const id = randomUUID();
@@ -256,6 +269,10 @@ export class MemStorage implements IStorage {
 
   async getAttachmentsByPartId(partId: string): Promise<Attachment[]> {
     return Array.from(this.attachments.values()).filter(attachment => attachment.partId === parseInt(partId));
+  }
+
+  async getAllAttachments(): Promise<Attachment[]> {
+    return Array.from(this.attachments.values());
   }
 
   async createAttachment(insertAttachment: InsertAttachment): Promise<Attachment> {
@@ -420,6 +437,10 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getAllAssetParts(): Promise<AssetPart[]> {
+    return Array.from(this.assetParts.values());
+  }
+
   async createAssetPart(insertAssetPart: InsertAssetPart): Promise<AssetPart> {
     const id = (this.assetParts.size + 1).toString();
     const now = new Date();
@@ -504,6 +525,10 @@ export class DbStorage implements IStorage {
     return await db.select().from(tasks).where(eq(tasks.mowerId, parseInt(mowerId)));
   }
 
+  async getAllTasks(): Promise<Task[]> {
+    return await db.select().from(tasks);
+  }
+
   async createTask(insertTask: InsertTask): Promise<Task> {
     const id = randomUUID();
     const now = new Date();
@@ -546,6 +571,10 @@ export class DbStorage implements IStorage {
   // Service Record methods
   async getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]> {
     return await db.select().from(serviceRecords).where(eq(serviceRecords.mowerId, parseInt(mowerId)));
+  }
+
+  async getAllServiceRecords(): Promise<ServiceRecord[]> {
+    return await db.select().from(serviceRecords);
   }
 
   async createServiceRecordWithMowerUpdate(insertServiceRecord: InsertServiceRecord): Promise<ServiceRecord> {
@@ -599,6 +628,10 @@ export class DbStorage implements IStorage {
 
   async getAttachmentsByPartId(partId: string): Promise<Attachment[]> {
     return await db.select().from(attachments).where(eq(attachments.partId, parseInt(partId)));
+  }
+
+  async getAllAttachments(): Promise<Attachment[]> {
+    return await db.select().from(attachments);
   }
 
   async createAttachment(insertAttachment: InsertAttachment): Promise<Attachment> {
@@ -726,6 +759,10 @@ export class DbStorage implements IStorage {
 
   async getAssetPartsByComponentId(componentId: string): Promise<AssetPart[]> {
     return await db.select().from(assetParts).where(eq(assetParts.componentId, parseInt(componentId)));
+  }
+
+  async getAllAssetParts(): Promise<AssetPart[]> {
+    return await db.select().from(assetParts);
   }
 
   async createAssetPart(insertAssetPart: InsertAssetPart): Promise<AssetPart> {

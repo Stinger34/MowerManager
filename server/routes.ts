@@ -4,6 +4,7 @@ import multer from "multer";
 import { storage } from "./storage";
 import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertAttachmentSchema, insertComponentSchema, insertPartSchema, insertAssetPartSchema } from "@shared/schema";
 import { processPDF, getDocumentPageCount, generateTxtThumbnail } from "./pdfUtils";
+import { createBackup, validateBackupFile, restoreFromBackup } from "./backup";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // put application routes here
@@ -33,6 +34,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cb(null, true);
       } else {
         cb(new Error('Invalid file type. Only PDF, images, and documents are allowed.'));
+      }
+    }
+  });
+
+  // Configure multer for backup uploads (different file types and size limits)
+  const backupUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 100 * 1024 * 1024, // 100MB limit for backups
+    },
+    fileFilter: (req, file, cb) => {
+      // Accept ZIP files for backups
+      const allowedTypes = [
+        'application/zip',
+        'application/x-zip-compressed'
+      ];
+      
+      if (allowedTypes.includes(file.mimetype) || file.originalname.toLowerCase().endsWith('.zip')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid file type. Only ZIP files are allowed for backup restore.'));
       }
     }
   });
@@ -991,6 +1013,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete asset part allocation' });
+    }
+  });
+
+  // Simple authorization middleware for sensitive operations
+  // This can be replaced with proper authentication when implemented
+  const requireAuth = (req: Request, res: Response, next: Function) => {
+    // For now, always allow access since there's no auth system yet
+    // TODO: Implement proper authentication checks here
+    // Example: Check for valid session, JWT token, API key, etc.
+    
+    // Log access attempt for security audit
+    console.log(`Sensitive operation access attempt: ${req.method} ${req.path} from ${req.ip}`);
+    
+    next();
+  };
+
+  // Backup and Restore endpoints
+  app.post('/api/backup', requireAuth, async (req: Request, res: Response) => {
+    try {
+      console.log('Creating backup...');
+      await createBackup(res);
+    } catch (error) {
+      console.error('Backup endpoint error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ 
+          error: 'Failed to create backup', 
+          details: error instanceof Error ? error.message : String(error) 
+        });
+      }
+    }
+  });
+
+  app.post('/api/restore', requireAuth, backupUpload.single('backup'), async (req: Request, res: Response) => {
+    try {
+      console.log('Restore request received');
+      
+      if (!req.file) {
+        return res.status(400).json({ error: 'No backup file uploaded' });
+      }
+
+      console.log('Backup file details:', {
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      });
+
+      // Validate file type
+      if (req.file.mimetype !== 'application/zip' && !req.file.originalname.toLowerCase().endsWith('.zip')) {
+        return res.status(400).json({ error: 'Invalid file type. Please upload a ZIP file.' });
+      }
+
+      // Validate file size (limit to 100MB)
+      const maxSize = 100 * 1024 * 1024; // 100MB
+      if (req.file.size > maxSize) {
+        return res.status(400).json({ error: 'File too large. Maximum size is 100MB.' });
+      }
+
+      // Validate backup file structure
+      const validation = await validateBackupFile(req.file.buffer);
+      if (!validation.valid) {
+        return res.status(400).json({ error: validation.error });
+      }
+
+      console.log('Starting restore process...');
+      
+      // Perform restore
+      const result = await restoreFromBackup(req.file.buffer);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      console.log('Restore completed successfully');
+      res.json({ 
+        success: true, 
+        message: 'Backup restored successfully',
+        stats: result.stats
+      });
+    } catch (error) {
+      console.error('Restore endpoint error:', error);
+      res.status(500).json({ 
+        error: 'Failed to restore backup', 
+        details: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
 

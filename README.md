@@ -460,6 +460,56 @@ The application uses the following database tables:
 - `attachments` - File attachments (stored as base64)
 - `tasks` - Maintenance tasks
 
+## Backup and Restore
+
+The application includes a comprehensive backup and restore feature accessible through the Settings page (`/settings`).
+
+### Creating Backups
+
+1. Navigate to the Settings page from the sidebar
+2. Click the "Create Backup" button in the Backup & Restore section
+3. A ZIP file will be automatically downloaded containing:
+   - **manifest.json** - Backup metadata with version info and timestamps
+   - **database.json** - Complete database dump of all tables
+   - **attachments/** - All uploaded files organized by type (mowers, components, parts)
+
+### Restoring from Backup
+
+1. Navigate to the Settings page
+2. Click "Choose File" and select a backup ZIP file
+3. Review the warning message about data replacement
+4. Click "Restore Backup" to begin the restore process
+5. The page will refresh automatically upon successful completion
+
+### Backup Contents
+
+**What's included in backups:**
+- All mower records and details
+- Service history and maintenance records  
+- File attachments (images, PDFs, documents)
+- Tasks and maintenance schedules
+- Parts catalog and inventory
+- Component information
+
+**File format:** ZIP archive with JSON database dump and organized attachment folders
+
+**Compatibility:** Works with all versions of Mower Manager
+
+### Security and Limitations
+
+- Backup and restore operations are logged for security auditing
+- File size limit: 100MB for backup uploads
+- Only ZIP files are accepted for restore operations
+- Restoring overwrites all existing data - create a backup first if needed
+- Authentication checks are in place (easily configurable for future auth systems)
+
+### API Endpoints
+
+For advanced users or automation:
+
+- **POST** `/api/backup` - Creates and downloads a backup ZIP file
+- **POST** `/api/restore` - Accepts multipart/form-data with backup ZIP file
+
 ## Troubleshooting
 
 ### Common Issues
