@@ -360,18 +360,20 @@ apply_migrations() {
 
 # Main deployment steps
 step_git_pull() {
-    show_progress 1 7 "Pulling latest changes from dev branch..."
+    local CURRENT_BRANCH
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    show_progress 1 7 "Pulling latest changes from $CURRENT_BRANCH branch..."
     
     if [[ "$SKIP_GIT_PULL" == "true" ]]; then
         log INFO "Skipping git pull (--skip-git-pull flag set)"
         return 0
     fi
     
-    if execute "Pull latest changes from dev branch" "git pull origin dev"; then
+    if execute "Pull latest changes from $CURRENT_BRANCH branch" "git pull origin $CURRENT_BRANCH"; then
         log SUCCESS "Git pull completed successfully"
         return 0
     else
-        log ERROR "Failed to pull latest changes from dev branch"
+        log ERROR "Failed to pull latest changes from $CURRENT_BRANCH branch"
         return $EXIT_ERROR_GIT
     fi
 }
