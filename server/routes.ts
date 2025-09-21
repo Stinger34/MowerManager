@@ -1016,8 +1016,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Simple authorization middleware for sensitive operations
+  // This can be replaced with proper authentication when implemented
+  const requireAuth = (req: Request, res: Response, next: Function) => {
+    // For now, always allow access since there's no auth system yet
+    // TODO: Implement proper authentication checks here
+    // Example: Check for valid session, JWT token, API key, etc.
+    
+    // Log access attempt for security audit
+    console.log(`Sensitive operation access attempt: ${req.method} ${req.path} from ${req.ip}`);
+    
+    next();
+  };
+
   // Backup and Restore endpoints
-  app.post('/api/backup', async (req: Request, res: Response) => {
+  app.post('/api/backup', requireAuth, async (req: Request, res: Response) => {
     try {
       console.log('Creating backup...');
       await createBackup(res);
@@ -1032,7 +1045,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/restore', backupUpload.single('backup'), async (req: Request, res: Response) => {
+  app.post('/api/restore', requireAuth, backupUpload.single('backup'), async (req: Request, res: Response) => {
     try {
       console.log('Restore request received');
       
