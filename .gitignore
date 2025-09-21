@@ -5,6 +5,9 @@ server/public
 vite.config.ts.*
 *.tar.gz
 
+# Auto-generated version file (regenerated at build time)
+client/src/version.ts
+
 # Deployment logs and temporary files
 deploy.log
 migrations/temp_migration_*.sql

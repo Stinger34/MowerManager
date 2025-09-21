@@ -11,6 +11,7 @@ import { Suspense, lazy } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageTransition } from "@/components/ui/page-transitions";
 import { FormLoadingSkeleton } from "@/components/ui/loading-components";
+import { VersionDisplay } from "@/components/VersionDisplay";
 
 // Lazy load large/non-critical pages for better performance
 const MowerDetails = lazy(() => import("@/pages/MowerDetails"));
@@ -107,6 +108,7 @@ export default function App() {
                 </main>
               </div>
             </div>
+            <VersionDisplay />
           </SidebarProvider>
           <Toaster />
         </TooltipProvider>
