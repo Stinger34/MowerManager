@@ -51,7 +51,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Accept ZIP files for backups
       const allowedTypes = [
         'application/zip',
-        'application/x-zip-compressed'
+        'application/x-zip-compressed',
+        'multipart/x-zip'
       ];
       
       if (allowedTypes.includes(file.mimetype) || file.originalname.toLowerCase().endsWith('.zip')) {
@@ -1078,7 +1079,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Validate file type
-      if (req.file.mimetype !== 'application/zip' && !req.file.originalname.toLowerCase().endsWith('.zip')) {
+      const allowedTypes = ['application/zip', 'application/x-zip-compressed', 'multipart/x-zip'];
+      if (!allowedTypes.includes(req.file.mimetype) && !req.file.originalname.toLowerCase().endsWith('.zip')) {
         return res.status(400).json({ error: 'Invalid file type. Please upload a ZIP file.' });
       }
 

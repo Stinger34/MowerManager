@@ -72,15 +72,24 @@ export default function Settings() {
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type === 'application/zip') {
-      setSelectedFile(file);
-    } else {
-      toast({
-        title: "Invalid file type",
-        description: "Please select a ZIP file",
-        variant: "destructive",
-      });
-      event.target.value = '';
+    if (file) {
+      // Accept ZIP files with various MIME types or .zip extension
+      const allowedTypes = [
+        'application/zip',
+        'application/x-zip-compressed',
+        'multipart/x-zip'
+      ];
+      
+      if (allowedTypes.includes(file.type) || file.name.toLowerCase().endsWith('.zip')) {
+        setSelectedFile(file);
+      } else {
+        toast({
+          title: "Invalid file type",
+          description: "Please select a ZIP file",
+          variant: "destructive",
+        });
+        event.target.value = '';
+      }
     }
   };
 
@@ -220,7 +229,7 @@ export default function Settings() {
               <div className="flex items-center gap-4">
                 <Input
                   type="file"
-                  accept=".zip"
+                  accept=".zip,application/zip,application/x-zip-compressed,multipart/x-zip"
                   onChange={handleFileSelect}
                   disabled={isBackingUp || isRestoring}
                   className="flex-1"
