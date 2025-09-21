@@ -28,6 +28,46 @@ This guide provides instructions for running the Mower Management application in
 - **Runtime**: Node.js 20+ required
 - **Network**: Local LAN access only (no internet exposure required)
 
+## 🏷️ Build Version Information
+
+The application includes automated build metadata versioning that displays in the bottom left corner of the UI:
+
+### Version Display Format
+```
+v{version}-{branch} ({commit})
+Built: {date}
+```
+
+**Example**: `v1.0.0-main (a1b2c3d) Built: Sep 21, 2025, 06:23 AM UTC`
+
+### How It Works
+- **Automatic Generation**: Version info is generated at build time via `prebuild` script
+- **Git Integration**: Automatically captures current branch and commit hash
+- **Build Timestamp**: Records exact UTC date/time of build
+- **Semantic Versioning**: Uses version from `package.json`
+
+### Version File Location
+- Generated file: `client/src/version.ts` (auto-generated, do not edit manually)
+- Display component: `client/src/components/VersionDisplay.tsx`
+- Generation script: `scripts/gen-version.js`
+
+### Updating Version
+1. **Semantic Version**: Update `version` field in `package.json`
+2. **Automatic Metadata**: Branch, commit, and build date update automatically on each build
+3. **Build Command**: Run `npm run build` to regenerate version information
+
+### Customizing Version Display
+To modify the version display format, edit the `VersionDisplay` component:
+- **Location**: `client/src/components/VersionDisplay.tsx`
+- **Styling**: Uses Tailwind classes for positioning and appearance
+- **Data Source**: Imports from auto-generated `@/version` module
+
+The version display is positioned fixed in the bottom-left corner and includes:
+- Semi-transparent background with backdrop blur
+- Monospace font for version string
+- Formatted build date with timezone
+- Responsive design that works on all screen sizes
+
 ## Prerequisites
 
 - Proxmox Virtual Environment (PVE) host
