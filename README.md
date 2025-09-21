@@ -28,6 +28,46 @@ This guide provides instructions for running the Mower Management application in
 - **Runtime**: Node.js 20+ required
 - **Network**: Local LAN access only (no internet exposure required)
 
+## 🏷️ Build Version Information
+
+The application includes automated build metadata versioning that displays in the bottom left corner of the UI:
+
+### Version Display Format
+```
+v{version}-{branch} ({commit})
+Built: {date}
+```
+
+**Example**: `v1.0.0-main (a1b2c3d) Built: Sep 21, 2025, 06:23 AM UTC`
+
+### How It Works
+- **Automatic Generation**: Version info is generated at build time via `prebuild` script
+- **Git Integration**: Automatically captures current branch and commit hash
+- **Build Timestamp**: Records exact UTC date/time of build
+- **Semantic Versioning**: Uses version from `package.json`
+
+### Version File Location
+- Generated file: `client/src/version.ts` (auto-generated, do not edit manually)
+- Display component: `client/src/components/VersionDisplay.tsx`
+- Generation script: `scripts/gen-version.js`
+
+### Updating Version
+1. **Semantic Version**: Update `version` field in `package.json`
+2. **Automatic Metadata**: Branch, commit, and build date update automatically on each build
+3. **Build Command**: Run `npm run build` to regenerate version information
+
+### Customizing Version Display
+To modify the version display format, edit the `VersionDisplay` component:
+- **Location**: `client/src/components/VersionDisplay.tsx`
+- **Styling**: Uses Tailwind classes for positioning and appearance
+- **Data Source**: Imports from auto-generated `@/version` module
+
+The version display is positioned fixed in the bottom-left corner and includes:
+- Semi-transparent background with backdrop blur
+- Monospace font for version string
+- Formatted build date with timezone
+- Responsive design that works on all screen sizes
+
 ## Prerequisites
 
 - Proxmox Virtual Environment (PVE) host
@@ -459,6 +499,126 @@ The application uses the following database tables:
 - `service_records` - Service history
 - `attachments` - File attachments (stored as base64)
 - `tasks` - Maintenance tasks
+
+## Backup and Restore
+
+The application includes a comprehensive backup and restore feature that provides complete data protection and migration capabilities. All backup operations are accessible through the Settings page (`/settings`).
+
+### Creating Backups
+
+**Via Settings Page:**
+1. Navigate to the Settings page from the sidebar
+2. Click the "Create Backup" button in the Backup & Restore section
+3. A progress indicator will show backup creation status
+4. A ZIP file will be automatically downloaded with filename: `mower-manager-backup-YYYY-MM-DD.zip`
+
+**What's included in the backup ZIP:**
+- **`manifest.json`** - Backup metadata including:
+  - Version information (backup format v1.0.0)
+  - Creation timestamp
+  - Schema version
+  - Record counts per table for verification
+- **`database.json`** - Complete database dump containing all tables:
+  - `mowers` - Main mower records and configurations
+  - `serviceRecords` - Service history and maintenance logs
+  - `attachments` - File metadata (without binary data)
+  - `tasks` - Maintenance tasks and schedules
+  - `components` - Component definitions and specifications
+  - `parts` - Parts catalog and inventory
+  - `assetParts` - Part allocation to mowers/components
+- **`attachments/`** - Organized file attachments:
+  - `attachments/mowers/{mowerId}/` - Mower-specific files
+  - `attachments/components/{componentId}/` - Component manuals/docs
+  - `attachments/parts/{partId}/` - Part documentation
+  - `attachments/orphaned/` - Unassigned attachments
+  - Files named as: `{attachmentId}_{originalFilename}`
+
+### Restoring from Backup
+
+**Restore Process:**
+1. Navigate to the Settings page
+2. Click "Choose File" and select a backup ZIP file
+3. **⚠️ Important Warning:** Review the overwrite warning - restoration will permanently replace all current data
+4. Click "Restore Backup" to begin the process
+5. Progress indicator shows restoration status
+6. Page automatically refreshes upon successful completion
+7. All restored records are logged with counts for verification
+
+**Restore Behavior:**
+- **Complete data replacement:** All existing data is overwritten
+- **Dependency-aware restoration:** Tables restored in correct order (mowers → parts → components → tasks → service records → attachments → asset parts)
+- **File data restoration:** Attachment files are decoded from base64 and restored to database
+- **Error handling:** Failed records are logged but don't stop the process
+- **Verification:** Total restored record count provided
+
+### Security Considerations and Limitations
+
+**File Format & Size:**
+- **Format:** Standard ZIP archive with maximum compression (zlib level 9)
+- **Upload limit:** 100MB maximum for restore files
+- **Download size:** Varies based on data volume and attachment files
+- **Validation:** ZIP signature verification before processing
+
+**Security Features:**
+- **Access logging:** All backup/restore operations logged with IP address and timestamp
+- **File type validation:** Only ZIP files accepted for restore
+- **Authentication ready:** Framework in place for future auth system integration
+- **Data sanitization:** Attachment file data excluded from JSON dump for security
+
+**Important Limitations:**
+- **No incremental backups:** Each backup contains complete dataset
+- **No encryption:** Backup files are unencrypted ZIP archives
+- **Memory usage:** Large attachments stored as base64 in memory during operations
+- **No transaction rollback:** Failed restore may leave database in partial state
+- **Overwrite behavior:** Restore completely replaces all data without merge options
+
+**Best Practices:**
+- Create backup before restoring to preserve current data
+- Test restore process on development environment first
+- Monitor disk space - backups can be large with many attachments
+- Regular backup schedule recommended for data protection
+- Verify restored record counts against manifest after restore
+
+### API Endpoints for Advanced Users
+
+**Backup Creation:**
+```bash
+POST /api/backup
+Content-Type: application/json
+Authorization: [Currently bypassed - auth system placeholder]
+
+# Response: ZIP file download
+# Content-Type: application/zip
+# Content-Disposition: attachment; filename="mower-manager-backup-YYYY-MM-DD.zip"
+```
+
+**Backup Restoration:**
+```bash
+POST /api/restore
+Content-Type: multipart/form-data
+Authorization: [Currently bypassed - auth system placeholder]
+
+# Form data:
+# backup: [ZIP file, max 100MB]
+
+# Response JSON:
+{
+  "success": true,
+  "stats": {
+    "totalRecords": 150,
+    "manifest": { ... }
+  }
+}
+```
+
+**Error Responses:**
+- `400` - Invalid file type, size exceeded, or malformed ZIP
+- `500` - Server error during backup creation or restore process
+
+**File Size Limits:**
+- Regular attachments: 30MB per file
+- Backup uploads: 100MB total ZIP file
+- Memory storage: All files stored as base64 in database
 
 ## Troubleshooting
 

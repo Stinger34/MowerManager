@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Part, InsertPart } from "@shared/schema";
+import type { Part, InsertPart, InsertAssetPart } from "@shared/schema";
 import AttachmentUploadArea from "./AttachmentUploadArea";
 import { uploadAttachmentsForEntity } from "@/lib/attachmentUpload";
 
@@ -40,6 +40,7 @@ interface PartFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   part?: Part | null;
+  mowerId?: string | null; // New prop for auto-allocation
   onSuccess?: () => void;
 }
 
@@ -47,6 +48,7 @@ export default function PartFormModal({
   isOpen, 
   onClose, 
   part = null,
+  mowerId = null, // New prop for auto-allocation
   onSuccess 
 }: PartFormModalProps) {
   const { toast } = useToast();
@@ -114,13 +116,31 @@ export default function PartFormModal({
         await uploadAttachmentsForEntity('parts', createdPart.id, pendingAttachments);
       }
       
+      // Auto-allocate to mower if mowerId is provided
+      if (mowerId) {
+        const assetPartData: InsertAssetPart = {
+          partId: createdPart.id,
+          mowerId: parseInt(mowerId),
+          componentId: null,
+          quantity: 1, // Default quantity
+          installDate: null,
+          notes: null,
+        };
+        
+        await apiRequest("POST", "/api/asset-parts", assetPartData);
+      }
+      
       return createdPart;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/parts'] });
+      if (mowerId) {
+        // Also invalidate mower parts if auto-allocated
+        queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'parts'] });
+      }
       toast({
         title: "Success",
-        description: `Part created successfully${pendingAttachments.length > 0 ? ` with ${pendingAttachments.length} attachment(s)` : ''}`,
+        description: `Part created successfully${pendingAttachments.length > 0 ? ` with ${pendingAttachments.length} attachment(s)` : ''}${mowerId ? ' and allocated to mower' : ''}`,
       });
       form.reset();
       setPendingAttachments([]);

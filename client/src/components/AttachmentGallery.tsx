@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, Image, Download, Eye, Trash2, Loader2, Star, EllipsisVertical, Edit } from "lucide-react";
+import { Upload, FileText, Image, Download, Eye, Trash2, Loader2, Star, EllipsisVertical, Edit, Archive } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAttachmentThumbnail } from "@/hooks/useAttachmentThumbnails";
 
@@ -36,6 +36,8 @@ const getFileIcon = (fileType: string) => {
       return <FileText className="h-8 w-8 text-red-500" />;
     case "image":
       return <Image className="h-8 w-8 text-blue-500" />;
+    case "zip":
+      return <Archive className="h-8 w-8 text-green-500" />;
     default:
       return <FileText className="h-8 w-8 text-gray-500" />;
   }
@@ -43,14 +45,14 @@ const getFileIcon = (fileType: string) => {
 
 // Thumbnail component for individual attachments
 const AttachmentThumbnail = ({ attachment }: { attachment: Attachment }) => {
-  const { data: thumbnailUrl } = useAttachmentThumbnail(attachment.id, attachment.fileType);
+  const { data: thumbnailUrl } = useAttachmentThumbnail(attachment.id, attachment.fileType, attachment.fileName);
   const [imageError, setImageError] = useState(false);
   
   if (thumbnailUrl && attachment.fileType === 'image' && !imageError) {
     return (
       <div className="w-full h-24 mb-3 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
         <img 
-          src={thumbnailUrl} 
+          src={thumbnailUrl as string} 
           alt={attachment.title || attachment.fileName}
           className="max-w-full max-h-full object-cover"
           onError={() => setImageError(true)}
@@ -65,7 +67,7 @@ const AttachmentThumbnail = ({ attachment }: { attachment: Attachment }) => {
       return (
         <div className="w-full h-24 mb-3 rounded-md overflow-hidden bg-red-50 border border-red-200 flex items-center justify-center">
           <img 
-            src={thumbnailUrl} 
+            src={thumbnailUrl as string} 
             alt={`PDF preview: ${attachment.title || attachment.fileName}`}
             className="max-w-full max-h-full object-contain"
             onError={() => setImageError(true)}
@@ -78,6 +80,56 @@ const AttachmentThumbnail = ({ attachment }: { attachment: Attachment }) => {
           <FileText className="h-8 w-8 text-red-500 mb-1" />
           <span className="text-xs text-red-600 text-center font-medium truncate w-full">
             PDF
+          </span>
+        </div>
+      );
+    }
+  }
+  
+  // For TXT files, show thumbnail if available
+  if (attachment.fileName.toLowerCase().endsWith('.txt')) {
+    if (thumbnailUrl && !imageError) {
+      return (
+        <div className="w-full h-24 mb-3 rounded-md overflow-hidden bg-blue-50 border border-blue-200 flex items-center justify-center">
+          <img 
+            src={thumbnailUrl as string} 
+            alt={`Text preview: ${attachment.title || attachment.fileName}`}
+            className="max-w-full max-h-full object-contain"
+            onError={() => setImageError(true)}
+          />
+        </div>
+      );
+    } else {
+      return (
+        <div className="w-full h-24 mb-3 rounded-md bg-blue-50 border border-blue-200 flex flex-col items-center justify-center p-2">
+          <FileText className="h-8 w-8 text-blue-500 mb-1" />
+          <span className="text-xs text-blue-600 text-center font-medium truncate w-full">
+            TXT
+          </span>
+        </div>
+      );
+    }
+  }
+  
+  // For other document types, show thumbnail if available
+  if (attachment.fileType === 'document') {
+    if (thumbnailUrl && !imageError) {
+      return (
+        <div className="w-full h-24 mb-3 rounded-md overflow-hidden bg-green-50 border border-green-200 flex items-center justify-center">
+          <img 
+            src={thumbnailUrl as string} 
+            alt={`Document preview: ${attachment.title || attachment.fileName}`}
+            className="max-w-full max-h-full object-contain"
+            onError={() => setImageError(true)}
+          />
+        </div>
+      );
+    } else {
+      return (
+        <div className="w-full h-24 mb-3 rounded-md bg-green-50 border border-green-200 flex flex-col items-center justify-center p-2">
+          <FileText className="h-8 w-8 text-green-500 mb-1" />
+          <span className="text-xs text-green-600 text-center font-medium truncate w-full">
+            DOC
           </span>
         </div>
       );

@@ -243,7 +243,7 @@ export default function MowerDetails() {
     onError: (error: Error) => {
       toast({ 
         title: "Upload Failed", 
-        description: error.message.includes('Invalid file type') ? 'Invalid file type. Only PDF, images, and documents are allowed.' : 'Upload failed. Please try again.',
+        description: error.message.includes('Invalid file type') ? 'Invalid file type. Only PDF, images, documents, and ZIP files are allowed.' : 'Upload failed. Please try again.',
         variant: "destructive" 
       });
       
@@ -948,7 +948,13 @@ export default function MowerDetails() {
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
-                                <h4 className="font-medium">{component.name}</h4>
+                                <Button 
+                                  variant="link" 
+                                  className="p-0 h-auto font-medium text-left justify-start"
+                                  onClick={() => setLocation(`/catalog/components/${component.id}`)}
+                                >
+                                  {component.name}
+                                </Button>
                                 <Badge variant="outline" className="text-xs">
                                   {component.status}
                                 </Badge>
@@ -1040,7 +1046,13 @@ export default function MowerDetails() {
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
-                                <h4 className="font-medium">{assetPart.part?.name || `Part ID: ${assetPart.partId}`}</h4>
+                                <Button 
+                                  variant="link" 
+                                  className="p-0 h-auto font-medium text-left justify-start"
+                                  onClick={() => setLocation(`/catalog/parts/${assetPart.partId}`)}
+                                >
+                                  {assetPart.part?.name || `Part ID: ${assetPart.partId}`}
+                                </Button>
                                 <Badge variant="outline" className="text-xs">
                                   {assetPart.part?.category || 'Unknown'}
                                 </Badge>
@@ -1059,7 +1071,18 @@ export default function MowerDetails() {
                               
                               {assetPart.componentId && (
                                 <div className="text-sm text-muted-foreground mt-1">
-                                  <span>Allocated to Component ID: {assetPart.componentId}</span>
+                                  <span>Allocated to Component: </span>
+                                  {assetPart.component ? (
+                                    <Button 
+                                      variant="link" 
+                                      className="p-0 h-auto text-sm text-blue-600 underline"
+                                      onClick={() => setLocation(`/catalog/components/${assetPart.componentId}`)}
+                                    >
+                                      {assetPart.component.name}
+                                    </Button>
+                                  ) : (
+                                    <span>ID: {assetPart.componentId}</span>
+                                  )}
                                 </div>
                               )}
                               
@@ -1219,6 +1242,7 @@ export default function MowerDetails() {
       <PartFormModal
         isOpen={showPartModal}
         onClose={() => setShowPartModal(false)}
+        mowerId={mowerId} // Pass mowerId for auto-allocation
         onSuccess={handleModalSuccess}
       />
 

@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
 import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertAttachmentSchema, insertComponentSchema, insertPartSchema, insertAssetPartSchema } from "@shared/schema";
-import { processPDF, getDocumentPageCount } from "./pdfUtils";
+import { processPDF, getDocumentPageCount, generateTxtThumbnail } from "./pdfUtils";
+import { createBackup, validateBackupFile, restoreFromBackup } from "./backup";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // put application routes here
@@ -16,7 +17,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       fileSize: 30 * 1024 * 1024, // 30MB limit
     },
     fileFilter: (req, file, cb) => {
-      // Accept PDF, images, and common document types
+      // Accept PDF, images, common document types, and ZIP files
       const allowedTypes = [
         'application/pdf',
         'image/jpeg',
@@ -26,13 +27,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'image/webp',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'text/plain'
+        'text/plain',
+        'application/zip',
+        'application/x-zip-compressed',
+        'multipart/x-zip'
       ];
       
-      if (allowedTypes.includes(file.mimetype)) {
+      if (allowedTypes.includes(file.mimetype) || file.originalname.toLowerCase().endsWith('.zip')) {
         cb(null, true);
       } else {
-        cb(new Error('Invalid file type. Only PDF, images, and documents are allowed.'));
+        cb(new Error('Invalid file type. Only PDF, images, documents, and ZIP files are allowed.'));
+      }
+    }
+  });
+
+  // Configure multer for backup uploads (different file types and size limits)
+  const backupUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 100 * 1024 * 1024, // 100MB limit for backups
+    },
+    fileFilter: (req, file, cb) => {
+      // Accept ZIP files for backups
+      const allowedTypes = [
+        'application/zip',
+        'application/x-zip-compressed',
+        'multipart/x-zip'
+      ];
+      
+      if (allowedTypes.includes(file.mimetype) || file.originalname.toLowerCase().endsWith('.zip')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid file type. Only ZIP files are allowed for backup restore.'));
       }
     }
   });
@@ -302,6 +328,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType = 'image';
       } else if (req.file.mimetype === 'application/pdf') {
         fileType = 'pdf';
+      } else if (req.file.mimetype === 'text/plain') {
+        fileType = 'txt';
+      } else if (req.file.mimetype === 'application/zip' || 
+                 req.file.mimetype === 'application/x-zip-compressed' || 
+                 req.file.mimetype === 'multipart/x-zip' ||
+                 req.file.originalname.toLowerCase().endsWith('.zip')) {
+        fileType = 'zip';
       }
 
       // Extract page count for PDFs and documents
@@ -310,7 +343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (fileType === 'pdf') {
           const pdfInfo = await processPDF(req.file.buffer);
           pageCount = pdfInfo.pageCount;
-        } else if (fileType === 'document') {
+        } else if (fileType === 'document' || fileType === 'txt') {
           pageCount = getDocumentPageCount(req.file.buffer, req.file.originalname);
         }
       } catch (error) {
@@ -448,6 +481,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error generating PDF thumbnail:', error);
       res.status(500).json({ error: 'Failed to generate PDF thumbnail' });
+    }
+  });
+
+  // Generate TXT thumbnail
+  app.get('/api/attachments/:id/txt-thumbnail', async (req: Request, res: Response) => {
+    try {
+      console.log('Generating TXT thumbnail for attachment ID:', req.params.id);
+      const attachment = await storage.getAttachment(req.params.id);
+      
+      if (!attachment) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+
+      if (!attachment.fileName.toLowerCase().endsWith('.txt')) {
+        return res.status(400).json({ error: 'Thumbnail generation only supported for TXT files' });
+      }
+
+      // Convert base64 back to buffer
+      const fileBuffer = Buffer.from(attachment.fileData, 'base64');
+      
+      // Generate TXT thumbnail
+      const txtInfo = await generateTxtThumbnail(fileBuffer);
+      
+      if (!txtInfo.thumbnailBuffer) {
+        return res.status(500).json({ error: 'Failed to generate TXT thumbnail' });
+      }
+
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Length', txtInfo.thumbnailBuffer.length);
+      res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+      
+      console.log('Sending TXT thumbnail for:', attachment.fileName, 'Size:', txtInfo.thumbnailBuffer.length);
+      res.send(txtInfo.thumbnailBuffer);
+    } catch (error) {
+      console.error('Error generating TXT thumbnail:', error);
+      res.status(500).json({ error: 'Failed to generate TXT thumbnail' });
     }
   });
 
@@ -692,6 +761,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType = 'image';
       } else if (req.file.mimetype === 'application/pdf') {
         fileType = 'pdf';
+      } else if (req.file.mimetype === 'text/plain') {
+        fileType = 'txt';
+      } else if (req.file.mimetype === 'application/zip' || 
+                 req.file.mimetype === 'application/x-zip-compressed' || 
+                 req.file.mimetype === 'multipart/x-zip' ||
+                 req.file.originalname.toLowerCase().endsWith('.zip')) {
+        fileType = 'zip';
       }
 
       // Extract page count for PDFs and documents
@@ -704,6 +780,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                    (req.file.mimetype === 'application/msword' || 
                     req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
           pageCount = await getDocumentPageCount(req.file.buffer, req.file.mimetype);
+        } else if (fileType === 'txt') {
+          pageCount = getDocumentPageCount(req.file.buffer, req.file.originalname);
         }
       } catch (error) {
         console.warn('Failed to extract page count:', error);
@@ -835,6 +913,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileType = 'image';
       } else if (req.file.mimetype === 'application/pdf') {
         fileType = 'pdf';
+      } else if (req.file.mimetype === 'text/plain') {
+        fileType = 'txt';
+      } else if (req.file.mimetype === 'application/zip' || 
+                 req.file.mimetype === 'application/x-zip-compressed' || 
+                 req.file.mimetype === 'multipart/x-zip' ||
+                 req.file.originalname.toLowerCase().endsWith('.zip')) {
+        fileType = 'zip';
       }
 
       // Extract page count for PDFs and documents
@@ -847,6 +932,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                    (req.file.mimetype === 'application/msword' || 
                     req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
           pageCount = await getDocumentPageCount(req.file.buffer, req.file.mimetype);
+        } else if (fileType === 'txt') {
+          pageCount = getDocumentPageCount(req.file.buffer, req.file.originalname);
         }
       } catch (error) {
         console.warn('Failed to extract page count:', error);
@@ -945,6 +1032,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete asset part allocation' });
+    }
+  });
+
+  // Simple authorization middleware for sensitive operations
+  // This can be replaced with proper authentication when implemented
+  const requireAuth = (req: Request, res: Response, next: Function) => {
+    // For now, always allow access since there's no auth system yet
+    // TODO: Implement proper authentication checks here
+    // Example: Check for valid session, JWT token, API key, etc.
+    
+    // Log access attempt for security audit
+    console.log(`Sensitive operation access attempt: ${req.method} ${req.path} from ${req.ip}`);
+    
+    next();
+  };
+
+  // Backup and Restore endpoints
+  app.post('/api/backup', requireAuth, async (req: Request, res: Response) => {
+    try {
+      console.log('Creating backup...');
+      await createBackup(res);
+    } catch (error) {
+      console.error('Backup endpoint error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ 
+          error: 'Failed to create backup', 
+          details: error instanceof Error ? error.message : String(error) 
+        });
+      }
+    }
+  });
+
+  app.post('/api/restore', requireAuth, backupUpload.single('backup'), async (req: Request, res: Response) => {
+    try {
+      console.log('Restore request received');
+      
+      if (!req.file) {
+        return res.status(400).json({ error: 'No backup file uploaded' });
+      }
+
+      console.log('Backup file details:', {
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      });
+
+      // Validate file type
+      const allowedTypes = ['application/zip', 'application/x-zip-compressed', 'multipart/x-zip'];
+      if (!allowedTypes.includes(req.file.mimetype) && !req.file.originalname.toLowerCase().endsWith('.zip')) {
+        return res.status(400).json({ error: 'Invalid file type. Please upload a ZIP file.' });
+      }
+
+      // Validate file size (limit to 100MB)
+      const maxSize = 100 * 1024 * 1024; // 100MB
+      if (req.file.size > maxSize) {
+        return res.status(400).json({ error: 'File too large. Maximum size is 100MB.' });
+      }
+
+      // Validate backup file structure
+      const validation = await validateBackupFile(req.file.buffer);
+      if (!validation.valid) {
+        return res.status(400).json({ error: validation.error });
+      }
+
+      console.log('Starting restore process...');
+      
+      // Perform restore
+      const result = await restoreFromBackup(req.file.buffer);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      console.log('Restore completed successfully');
+      res.json({ 
+        success: true, 
+        message: 'Backup restored successfully',
+        stats: result.stats
+      });
+    } catch (error) {
+      console.error('Restore endpoint error:', error);
+      res.status(500).json({ 
+        error: 'Failed to restore backup', 
+        details: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
 
