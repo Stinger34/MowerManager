@@ -29,6 +29,7 @@ import ComponentDetails from "@/pages/ComponentDetails";
 import AddComponent from "@/pages/AddComponent";
 import Settings from "@/pages/Settings";
 import Maintenance from "@/pages/Maintenance";
+import MaintenanceHistory from "@/pages/MaintenanceHistory";
 import Reports from "@/pages/Reports";
 import NotFound from "@/pages/not-found";
 
@@ -46,6 +47,7 @@ function Router() {
     <Switch>
       <Route path="/" component={() => <PageTransition><Dashboard /></PageTransition>} />
       <Route path="/mowers" component={() => <PageTransition><MowerList /></PageTransition>} />
+      <Route path="/maintenance/history" component={() => <PageTransition><MaintenanceHistory /></PageTransition>} />
       <Route path="/maintenance" component={() => <PageTransition><Maintenance /></PageTransition>} />
       <Route path="/reports" component={() => <PageTransition><Reports /></PageTransition>} />
       <Route path="/catalog" component={() => <PageTransition><PartsCatalog /></PageTransition>} />

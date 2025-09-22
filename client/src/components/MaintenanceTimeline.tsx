@@ -81,7 +81,7 @@ export default function MaintenanceTimeline({
   };
 
   return (
-    <Card className={`bg-panel border-panel-border shadow-lg flex flex-col h-full ${className}`}>
+    <Card className={`bg-panel border-panel-border shadow-lg flex flex-col ${className}`} style={{ height: '449px' }}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-text-primary">
@@ -126,10 +126,10 @@ export default function MaintenanceTimeline({
           </div>
         ) : (
           <div className="space-y-4">
-            {events.slice(0, 3).map((event, index) => (
+            {events.slice(0, 2).map((event, index) => (
               <div key={event.id} className="relative">
                 {/* Timeline line */}
-                {index < events.slice(0, 3).length - 1 && (
+                {index < events.slice(0, 2).length - 1 && (
                   <div className="absolute left-4 top-10 w-0.5 h-16 bg-medium-gray" />
                 )}
                 
@@ -209,10 +209,15 @@ export default function MaintenanceTimeline({
           </div>
         )}
         
-        {events.length > 3 && (
+        {events.length > 2 && (
           <div className="text-center pt-2 border-t border-medium-gray">
-            <Button variant="ghost" size="sm" className="text-text-muted hover:text-accent-teal">
-              View {events.length - 3} more events
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-text-muted hover:text-accent-teal"
+              onClick={onViewAll}
+            >
+              View more events
             </Button>
           </div>
         )}
