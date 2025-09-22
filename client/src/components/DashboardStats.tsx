@@ -80,7 +80,7 @@ export default function DashboardStats({
           clickable={stat.clickable}
           onClick={stat.clickable ? () => handleStatClick(stat.title) : undefined}
           testId={`card-stat-${stat.title.toLowerCase().replace(/\s+/g, '-')}`}
-          className="h-24"
+          className="h-32"
         />
       ))}
       
@@ -93,7 +93,7 @@ export default function DashboardStats({
           clickable={true}
           onClick={() => setLocation("/mowers?filter=overdue-services")}
           badge={{ text: "Urgent", variant: "destructive" }}
-          className="border-destructive h-24"
+          className="border-destructive h-32"
           testId="card-overdue-services"
         />
       )}
