@@ -13,7 +13,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useMowerThumbnails } from "@/hooks/useThumbnails";
-import type { Mower } from "@shared/schema";
+import type { Mower, ServiceRecord } from "@shared/schema";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -24,6 +24,11 @@ export default function Dashboard() {
 
   const { data: mowers, isLoading, error } = useQuery<Mower[]>({
     queryKey: ['/api/mowers'],
+  });
+
+  // Fetch all service records for Recent Maintenance dashboard card
+  const { data: serviceRecords = [], isLoading: isServiceRecordsLoading } = useQuery<ServiceRecord[]>({
+    queryKey: ['/api/service-records'],
   });
 
   // Fetch thumbnails for all mowers
@@ -154,54 +159,28 @@ export default function Dashboard() {
     },
   ];
 
-  const maintenanceEvents = [
-    {
-      id: "1",
-      mowerId: "1", 
-      mowerName: "John Deere X300",
-      type: "service" as const,
-      title: "Oil Change",
-      description: "Regular oil change and filter replacement",
-      date: "2024-09-20",
-      status: "pending" as const,
-      priority: "medium" as const,
-      notes: "Check hydraulic fluid levels during service",
-    },
-    {
-      id: "2",
-      mowerId: "2",
-      mowerName: "Craftsman DYT4000", 
-      type: "inspection" as const,
-      title: "Weekly Inspection",
-      description: "Routine safety and performance check",
-      date: "2024-09-18",
-      status: "completed" as const,
-      priority: "low" as const,
-    },
-    {
-      id: "3",
-      mowerId: "3",
-      mowerName: "Husqvarna YTH24V48",
-      type: "repair" as const,
-      title: "Blade Replacement",
-      description: "Replace worn cutting blades",
-      date: "2024-09-15",
-      status: "overdue" as const,
-      priority: "high" as const,
-      notes: "Blades severely worn, affects cut quality",
-    },
-    {
-      id: "4",
-      mowerId: "1",
-      mowerName: "John Deere X300",
-      type: "service" as const,
-      title: "Spark Plug Replacement",
-      description: "Replace spark plugs and check ignition system",
-      date: "2024-09-12",
-      status: "completed" as const,
-      priority: "medium" as const,
-    },
-  ];
+  // Transform service records into maintenance events for the Recent Maintenance timeline
+  const maintenanceEvents = serviceRecords
+    .map(record => {
+      const mower = mowers?.find(m => m.id === record.mowerId);
+      if (!mower) return null;
+      
+      return {
+        id: record.id,
+        mowerId: record.mowerId.toString(),
+        mowerName: `${mower.make} ${mower.model}`,
+        type: record.serviceType as 'service' | 'repair' | 'inspection' | 'scheduled',
+        title: record.description,
+        description: record.description,
+        date: new Date(record.serviceDate).toLocaleDateString(),
+        status: 'completed' as const, // Service records are always completed
+        priority: record.serviceType === 'repair' ? 'high' as const : 'medium' as const,
+        notes: record.performedBy ? `Performed by: ${record.performedBy}` : undefined,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => new Date(b!.date).getTime() - new Date(a!.date).getTime()) // Sort by date, newest first
+    .slice(0, 10); // Limit to 10 most recent
 
 
   return (
