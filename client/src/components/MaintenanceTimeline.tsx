@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Wrench, Calendar, ArrowRight, Plus, FileText, Edit3, Trash2 } from "lucide-react";
+import { Clock, Wrench, Calendar, ArrowRight, Plus, Eye } from "lucide-react";
 import { useLocation } from "wouter";
+import ServiceDetailsModal from "./ServiceDetailsModal";
 
 interface MaintenanceEvent {
   id: string;
@@ -15,6 +17,9 @@ interface MaintenanceEvent {
   status: 'completed' | 'pending' | 'overdue';
   priority: 'low' | 'medium' | 'high';
   notes?: string;
+  cost?: string;
+  performedBy?: string;
+  mileage?: number;
 }
 
 interface MaintenanceTimelineProps {
@@ -55,34 +60,31 @@ export default function MaintenanceTimeline({
   className = ""
 }: MaintenanceTimelineProps) {
   const [, setLocation] = useLocation();
+  const [selectedEvent, setSelectedEvent] = useState<MaintenanceEvent | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
-  const handleViewNotes = (eventId: string) => {
-    // Find the event to get the mowerId
-    const event = events.find(e => e.id === eventId);
-    if (event) {
-      // Navigate to the mower's detail page with service-history tab
-      setLocation(`/mowers/${event.mowerId}?tab=service-history`);
-    } else if (onViewNotes) {
-      onViewNotes(eventId);
-    } else {
-      // Default behavior - navigate to maintenance detail
-      setLocation(`/maintenance/${eventId}`);
+  const handleViewDetails = (event: MaintenanceEvent) => {
+    setSelectedEvent(event);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedEvent(null);
+  };
+
+  const handleEditFromModal = (serviceId: string) => {
+    if (selectedEvent) {
+      // Navigate to edit service record page
+      setLocation(`/mowers/${selectedEvent.mowerId}/service/${serviceId}/edit`);
     }
   };
 
-  const handleEditEvent = (eventId: string) => {
-    if (onEditEvent) {
-      onEditEvent(eventId);
-    } else {
-      // Default behavior - navigate to edit form
-      setLocation(`/maintenance/${eventId}/edit`);
-    }
-  };
-
-  const handleDeleteEvent = (eventId: string) => {
+  const handleDeleteFromModal = (serviceId: string) => {
     if (onDeleteEvent) {
-      onDeleteEvent(eventId);
+      onDeleteEvent(serviceId);
     }
+    // Note: Actual deletion logic would be handled by parent component
   };
 
   return (
@@ -177,38 +179,19 @@ export default function MaintenanceTimeline({
                             </div>
                           </div>
                           
-                          {/* Action buttons */}
-                          <div className="flex items-center gap-1">
-                            {event.notes && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleViewNotes(event.id)}
-                                className="h-7 w-7 p-0 text-text-muted hover:text-accent-teal"
-                                title="View notes"
-                              >
-                                <FileText className="h-3 w-3" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditEvent(event.id)}
-                              className="h-7 w-7 p-0 text-text-muted hover:text-accent-teal"
-                              title="Edit maintenance"
-                            >
-                              <Edit3 className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteEvent(event.id)}
-                              className="h-7 w-7 p-0 text-text-muted hover:text-red-600"
-                              title="Delete maintenance"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
+                          {/* Single View button */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewDetails(event);
+                            }}
+                            className="h-7 w-7 p-0 text-text-muted hover:text-accent-teal"
+                            title="View details"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -232,6 +215,30 @@ export default function MaintenanceTimeline({
           </div>
         )}
       </CardContent>
+
+      {/* Service Details Modal */}
+      {selectedEvent && (
+        <ServiceDetailsModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          serviceRecord={{
+            id: selectedEvent.id,
+            mowerId: selectedEvent.mowerId,
+            mowerName: selectedEvent.mowerName,
+            serviceType: selectedEvent.type,
+            description: selectedEvent.description,
+            date: selectedEvent.date,
+            status: selectedEvent.status,
+            priority: selectedEvent.priority,
+            notes: selectedEvent.notes,
+            cost: selectedEvent.cost,
+            performedBy: selectedEvent.performedBy,
+            mileage: selectedEvent.mileage,
+          }}
+          onEdit={handleEditFromModal}
+          onDelete={handleDeleteFromModal}
+        />
+      )}
     </Card>
   );
 }
