@@ -229,7 +229,37 @@ export default function Dashboard() {
         overdueServices={overdueServices}
       />
 
-      {/* Quick Actions Cards - Updated styling */}
+      {/* Recent Maintenance and Notifications - Side by side below stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MaintenanceTimeline 
+          events={maintenanceEvents}
+          onViewAll={() => setLocation('/maintenance')}
+          onAddMaintenance={() => setLocation('/maintenance/new')}
+          onViewNotes={(eventId) => console.log('View notes for event:', eventId)}
+          onEditEvent={(eventId) => {
+            console.log('Edit event:', eventId);
+            setLocation(`/maintenance/${eventId}/edit`);
+          }}
+          onDeleteEvent={(eventId) => {
+            console.log('Delete event:', eventId);
+            // Could show confirmation dialog here
+          }}
+        />
+        
+        <NotificationsPanel 
+          notifications={notifications}
+          onMarkAsRead={(id) => console.log('Mark as read:', id)}
+          onClearAll={() => console.log('Clear all notifications')}
+          onNotificationClick={(notification) => {
+            console.log('Notification clicked:', notification);
+            if (notification.detailUrl) {
+              setLocation(notification.detailUrl);
+            }
+          }}
+        />
+      </div>
+
+      {/* Quick Actions Cards - Middle row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-accent-teal text-white border-accent-teal hover:bg-accent-teal/90 transition-all duration-200 cursor-pointer shadow-lg" onClick={() => setLocation('/mowers/new')}>
           <CardHeader className="pb-3">
@@ -277,85 +307,51 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Main Dashboard Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left side - Asset search and grid */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted h-4 w-4" />
-                <Input
-                  placeholder="Search mowers..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                  data-testid="input-search-mowers"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredMowers.map((mower) => (
-                <AssetCard
-                  key={mower.id}
-                  id={String(mower.id)}
-                  make={mower.make}
-                  model={mower.model}
-                  year={mower.year ?? undefined}
-                  serialNumber={mower.serialNumber ?? undefined}
-                  condition={mower.condition as "excellent" | "good" | "fair" | "poor"}
-                  status={mower.status as "active" | "maintenance" | "retired"}
-                  attachmentCount={0}
-                  thumbnailUrl={thumbnails?.[mower.id.toString()]}
-                  lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
-                  nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
-                  onViewDetails={handleViewDetails}
-                  onEdit={handleEdit}
-                  onAddService={handleAddService}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </div>
-
-            {filteredMowers.length === 0 && searchQuery && (
-              <div className="text-center py-8 text-text-muted">
-                <p>No mowers found matching "{searchQuery}"</p>
-                <p className="text-sm">Try adjusting your search terms</p>
-              </div>
-            )}
+      {/* Mower Asset Quick Views - Bottom section */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-bold tracking-tight text-text-dark">Mower Asset Quick Views</h2>
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted h-4 w-4" />
+            <Input
+              placeholder="Search mowers..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="input-search-mowers"
+            />
           </div>
         </div>
 
-        {/* Right side - Notifications and Timeline */}
-        <div className="space-y-6">
-          <NotificationsPanel 
-            notifications={notifications}
-            onMarkAsRead={(id) => console.log('Mark as read:', id)}
-            onClearAll={() => console.log('Clear all notifications')}
-            onNotificationClick={(notification) => {
-              console.log('Notification clicked:', notification);
-              if (notification.detailUrl) {
-                setLocation(notification.detailUrl);
-              }
-            }}
-          />
-          
-          <MaintenanceTimeline 
-            events={maintenanceEvents}
-            onViewAll={() => setLocation('/maintenance')}
-            onAddMaintenance={() => setLocation('/maintenance/new')}
-            onViewNotes={(eventId) => console.log('View notes for event:', eventId)}
-            onEditEvent={(eventId) => {
-              console.log('Edit event:', eventId);
-              setLocation(`/maintenance/${eventId}/edit`);
-            }}
-            onDeleteEvent={(eventId) => {
-              console.log('Delete event:', eventId);
-              // Could show confirmation dialog here
-            }}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredMowers.map((mower) => (
+            <AssetCard
+              key={mower.id}
+              id={String(mower.id)}
+              make={mower.make}
+              model={mower.model}
+              year={mower.year ?? undefined}
+              serialNumber={mower.serialNumber ?? undefined}
+              condition={mower.condition as "excellent" | "good" | "fair" | "poor"}
+              status={mower.status as "active" | "maintenance" | "retired"}
+              attachmentCount={0}
+              thumbnailUrl={thumbnails?.[mower.id.toString()]}
+              lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
+              nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
+              onViewDetails={handleViewDetails}
+              onEdit={handleEdit}
+              onAddService={handleAddService}
+              onDelete={handleDelete}
+            />
+          ))}
         </div>
+
+        {filteredMowers.length === 0 && searchQuery && (
+          <div className="text-center py-8 text-text-muted">
+            <p>No mowers found matching "{searchQuery}"</p>
+            <p className="text-sm">Try adjusting your search terms</p>
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}
