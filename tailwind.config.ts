@@ -36,6 +36,7 @@ export default {
         "text-primary": "hsl(var(--text-primary) / <alpha-value>)",
         "text-muted": "hsl(var(--text-muted) / <alpha-value>)",
         "text-dark": "hsl(var(--text-dark) / <alpha-value>)",
+        "medium-gray": "hsl(var(--medium-gray) / <alpha-value>)",
         
         // Existing shadcn/ui colors maintained for compatibility
         background: "hsl(var(--background) / <alpha-value>)",

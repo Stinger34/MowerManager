@@ -102,31 +102,55 @@ export default function Dashboard() {
     }
   };
 
-  // Mock data for notifications and maintenance timeline
+  // Enhanced mock data for notifications and maintenance timeline
   const notifications = [
     {
       id: "1",
       type: "warning" as const,
       title: "Service Due",
-      message: "John Deere X300 requires oil change",
+      message: "Oil change and filter replacement required",
       timestamp: "2 hours ago",
       isRead: false,
+      assetId: "JD001",
+      assetName: "John Deere X300",
+      detailUrl: "/mowers/1",
+      priority: "high" as const,
     },
     {
       id: "2", 
       type: "info" as const,
-      title: "Maintenance Scheduled",
-      message: "Weekly inspection scheduled for tomorrow",
+      title: "New Mower Added",
+      message: "Craftsman riding mower added to fleet",
       timestamp: "1 day ago",
       isRead: true,
+      assetId: "CR002",
+      assetName: "Craftsman DYT4000",
+      detailUrl: "/mowers/2",
+      priority: "medium" as const,
     },
     {
       id: "3",
       type: "success" as const,
-      title: "Service Completed",
-      message: "Craftsman DYT4000 service completed successfully",
-      timestamp: "3 days ago",
+      title: "Component Allocated",
+      message: "New blade set allocated to mower",
+      timestamp: "2 days ago",
       isRead: true,
+      assetId: "HV003",
+      assetName: "Husqvarna YTH24V48",
+      detailUrl: "/mowers/3",
+      priority: "low" as const,
+    },
+    {
+      id: "4",
+      type: "error" as const,
+      title: "Maintenance Overdue",
+      message: "Annual inspection is 15 days overdue",
+      timestamp: "3 days ago",
+      isRead: false,
+      assetId: "JD001",
+      assetName: "John Deere X300",
+      detailUrl: "/mowers/1",
+      priority: "high" as const,
     },
   ];
 
@@ -141,6 +165,7 @@ export default function Dashboard() {
       date: "2024-09-20",
       status: "pending" as const,
       priority: "medium" as const,
+      notes: "Check hydraulic fluid levels during service",
     },
     {
       id: "2",
@@ -163,6 +188,18 @@ export default function Dashboard() {
       date: "2024-09-15",
       status: "overdue" as const,
       priority: "high" as const,
+      notes: "Blades severely worn, affects cut quality",
+    },
+    {
+      id: "4",
+      mowerId: "1",
+      mowerName: "John Deere X300",
+      type: "service" as const,
+      title: "Spark Plug Replacement",
+      description: "Replace spark plugs and check ignition system",
+      date: "2024-09-12",
+      status: "completed" as const,
+      priority: "medium" as const,
     },
   ];
 
@@ -192,27 +229,27 @@ export default function Dashboard() {
         overdueServices={overdueServices}
       />
 
-      {/* Quick Actions Cards */}
+      {/* Quick Actions Cards - Updated styling */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-accent-teal text-white border-accent-teal hover:bg-accent-teal/90 transition-colors cursor-pointer" onClick={() => setLocation('/mowers/new')}>
+        <Card className="bg-accent-teal text-white border-accent-teal hover:bg-accent-teal/90 transition-all duration-200 cursor-pointer shadow-lg" onClick={() => setLocation('/mowers/new')}>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-white">
               <Plus className="h-5 w-5" />
               Quick Add
             </CardTitle>
-            <CardDescription className="text-white/80">
+            <CardDescription className="text-white/90">
               Add new mower to your fleet
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-white/90">Click to add a new mower with specs and photos</p>
+            <p className="text-sm text-white/95">Click to add a new mower with specs and photos</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-panel border-panel-border hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setLocation('/maintenance')}>
+        <Card className="bg-white border-medium-gray hover:shadow-lg hover:border-accent-teal transition-all duration-200 cursor-pointer" onClick={() => setLocation('/maintenance')}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-text-primary">
-              <Calendar className="h-5 w-5" />
+              <Calendar className="h-5 w-5 text-accent-teal" />
               Schedule Service
             </CardTitle>
             <CardDescription className="text-text-muted">
@@ -224,10 +261,10 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-panel border-panel-border hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setLocation('/reports')}>
+        <Card className="bg-white border-medium-gray hover:shadow-lg hover:border-accent-teal transition-all duration-200 cursor-pointer" onClick={() => setLocation('/reports')}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-text-primary">
-              <FileText className="h-5 w-5" />
+              <FileText className="h-5 w-5 text-accent-teal" />
               Generate Report
             </CardTitle>
             <CardDescription className="text-text-muted">
@@ -296,12 +333,27 @@ export default function Dashboard() {
             notifications={notifications}
             onMarkAsRead={(id) => console.log('Mark as read:', id)}
             onClearAll={() => console.log('Clear all notifications')}
+            onNotificationClick={(notification) => {
+              console.log('Notification clicked:', notification);
+              if (notification.detailUrl) {
+                setLocation(notification.detailUrl);
+              }
+            }}
           />
           
           <MaintenanceTimeline 
             events={maintenanceEvents}
             onViewAll={() => setLocation('/maintenance')}
             onAddMaintenance={() => setLocation('/maintenance/new')}
+            onViewNotes={(eventId) => console.log('View notes for event:', eventId)}
+            onEditEvent={(eventId) => {
+              console.log('Edit event:', eventId);
+              setLocation(`/maintenance/${eventId}/edit`);
+            }}
+            onDeleteEvent={(eventId) => {
+              console.log('Delete event:', eventId);
+              // Could show confirmation dialog here
+            }}
           />
         </div>
       </div>

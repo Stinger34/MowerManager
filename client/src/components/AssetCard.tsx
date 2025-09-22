@@ -40,13 +40,13 @@ export default function AssetCard({
   onDelete
 }: AssetCardProps) {
   return (
-    <Card className="bg-panel rounded-card shadow-card border border-panel-border hover-elevate cursor-pointer" data-testid={`card-mower-${id}`}>
+    <Card className="bg-white rounded-card shadow-lg border border-medium-gray hover:shadow-xl hover:border-accent-teal transition-all duration-200 cursor-pointer" data-testid={`card-mower-${id}`}>
       {thumbnailUrl && (
-        <div className="w-full h-48 overflow-hidden rounded-t-lg">
+        <div className="w-full h-48 overflow-hidden rounded-t-card">
           <img 
             src={thumbnailUrl}
             alt={`${make} ${model}`}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
             onClick={() => onViewDetails(id)}
             data-testid={`img-thumbnail-${id}`}
           />
@@ -64,18 +64,18 @@ export default function AssetCard({
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" data-testid={`button-menu-${id}`}>
+            <Button variant="ghost" size="icon" className="text-text-muted hover:text-accent-teal" data-testid={`button-menu-${id}`}>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onViewDetails(id)} data-testid={`button-view-${id}`}>
+          <DropdownMenuContent align="end" className="bg-white border-medium-gray shadow-lg">
+            <DropdownMenuItem onClick={() => onViewDetails(id)} className="hover:bg-accent-teal/10" data-testid={`button-view-${id}`}>
               View Details
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit(id)} data-testid={`button-edit-${id}`}>
+            <DropdownMenuItem onClick={() => onEdit(id)} className="hover:bg-accent-teal/10" data-testid={`button-edit-${id}`}>
               Edit
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onAddService(id)} data-testid={`button-add-service-${id}`}>
+            <DropdownMenuItem onClick={() => onAddService(id)} className="hover:bg-accent-teal/10" data-testid={`button-add-service-${id}`}>
               Add Service Record
             </DropdownMenuItem>
             <DropdownMenuItem 
@@ -84,7 +84,7 @@ export default function AssetCard({
                 onDelete(id);
               }} 
               data-testid={`button-delete-${id}`}
-              className="text-destructive focus:text-destructive"
+              className="text-red-600 hover:bg-red-50 focus:text-red-600"
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Delete
@@ -99,21 +99,21 @@ export default function AssetCard({
           <StatusBadge status={status} className="rounded-button" data-testid={`badge-status-${id}`} />
         </div>
         
-        <div className="space-y-2 text-sm">
+        <div className="space-y-3 text-sm">
           {lastService && (
             <div className="flex items-center gap-2 text-text-muted">
-              <Wrench className="h-4 w-4" />
-              <span>Last service: {lastService}</span>
+              <Wrench className="h-4 w-4 text-accent-teal" />
+              <span><strong>Last service:</strong> {lastService}</span>
             </div>
           )}
           {nextService && (
             <div className="flex items-center gap-2 text-text-muted">
-              <Calendar className="h-4 w-4" />
-              <span>Next service: {nextService}</span>
+              <Calendar className="h-4 w-4 text-accent-teal" />
+              <span><strong>Next due:</strong> {nextService}</span>
             </div>
           )}
           <div className="flex items-center gap-2 text-text-muted">
-            <FileText className="h-4 w-4" />
+            <FileText className="h-4 w-4 text-accent-teal" />
             <span>{attachmentCount} attachment{attachmentCount !== 1 ? 's' : ''}</span>
           </div>
         </div>
