@@ -139,17 +139,17 @@ export default function PartsCatalog() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Parts & Components Catalog</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Parts & Components Catalog</h1>
+          <p className="text-text-muted">
             Manage your inventory and component database
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleAddComponent}>
+          <Button variant="outline" onClick={handleAddComponent} className="border-panel-border rounded-button">
             <Wrench className="h-4 w-4 mr-2" />
             Add Component Type
           </Button>
-          <Button onClick={handleAddPart}>
+          <Button onClick={handleAddPart} className="bg-accent-teal text-white hover:bg-accent-teal/90 rounded-button">
             <Plus className="h-4 w-4 mr-2" />
             Add Part
           </Button>
@@ -158,9 +158,9 @@ export default function PartsCatalog() {
 
       {/* Low Stock Alert */}
       {lowStockParts.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-accent-orange/20 bg-accent-orange/10 shadow-card">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-800">
+            <CardTitle className="flex items-center gap-2 text-accent-orange">
               <AlertTriangle className="h-5 w-5" />
               Low Stock Alert ({lowStockParts.length} items)
             </CardTitle>
@@ -169,8 +169,8 @@ export default function PartsCatalog() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
               {lowStockParts.map(part => (
                 <div key={part.id} className="text-sm">
-                  <span className="font-medium">{part.name}</span> - 
-                  <span className="text-amber-700 ml-1">
+                  <span className="font-medium text-text-primary">{part.name}</span> - 
+                  <span className="text-accent-orange ml-1">
                     {part.stockQuantity} left (min: {part.minStockLevel})
                   </span>
                 </div>
@@ -196,7 +196,7 @@ export default function PartsCatalog() {
           {/* Search and Filter Controls */}
           <div className="flex items-center gap-4">
             <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted h-4 w-4" />
               <Input
                 placeholder="Search parts..."
                 value={searchQuery}
