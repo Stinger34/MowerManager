@@ -97,9 +97,9 @@ export async function createBackup(res: Response): Promise<void> {
 
     // Create manifest
     const manifest: BackupManifest = {
-      version: '1.0.0',
+      version: '1.3.1',
       timestamp: new Date().toISOString(),
-      schemaVersion: '1.0.0',
+      schemaVersion: '1.3.1',
       totalRecords: mowers.length + serviceRecords.length + attachments.length + tasks.length + components.length + parts.length + assetParts.length,
       tables: {
         mowers: mowers.length,
