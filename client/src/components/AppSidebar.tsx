@@ -1,6 +1,7 @@
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { Home, Tractor, Settings, Plus, Package, Wrench, BarChart3 } from "lucide-react";
 import { useLocation } from "wouter";
+import { VersionDisplay } from "@/components/VersionDisplay";
 
 const navigationItems = [
   {
@@ -18,16 +19,6 @@ const navigationItems = [
     url: "/maintenance",
     icon: Wrench,
   },
-  {
-    title: "Reports",
-    url: "/reports",
-    icon: BarChart3,
-  },
-  {
-    title: "Settings",
-    url: "/settings",
-    icon: Settings,
-  },
 ];
 
 const quickActions = [
@@ -43,20 +34,36 @@ const quickActions = [
   },
 ];
 
+const footerItems = [
+  {
+    title: "Reports",
+    url: "/reports",
+    icon: BarChart3,
+  },
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Settings,
+  },
+];
+
 export function AppSidebar() {
   const [location] = useLocation();
 
   return (
     <Sidebar>
+      <SidebarHeader>
+        <div className="flex items-center justify-center px-2 py-4">
+          <a href="/" className="flex items-center justify-center">
+            <div className="text-2xl font-bold text-sidebar-foreground">
+              MOWERM8
+            </div>
+          </a>
+        </div>
+      </SidebarHeader>
+
       <SidebarContent>
         <SidebarGroup>
-          <div className="flex justify-center px-2 py-6 mb-6">
-            <img 
-              src="/logo.png" 
-              alt="Mower Manager" 
-              className="h-36 w-36 object-contain"
-            />
-          </div>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -92,6 +99,29 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {footerItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <a href={item.url} data-testid={`footer-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        
+        <div className="px-2 py-2">
+          <VersionDisplay className="relative bottom-auto left-auto bg-transparent border-none shadow-none backdrop-blur-none p-0" />
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }
