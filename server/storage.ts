@@ -29,6 +29,7 @@ export interface IStorage {
   getAllServiceRecords(): Promise<ServiceRecord[]>;
   createServiceRecordWithMowerUpdate(serviceRecord: InsertServiceRecord): Promise<ServiceRecord>;
   updateServiceRecord(id: string, serviceRecord: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined>;
+  deleteServiceRecord(id: string): Promise<boolean>;
   
   // Attachment methods
   getAttachment(id: string): Promise<Attachment | undefined>;
@@ -266,6 +267,10 @@ export class MemStorage implements IStorage {
     };
     this.serviceRecords.set(id, updatedRecord);
     return updatedRecord;
+  }
+
+  async deleteServiceRecord(id: string): Promise<boolean> {
+    return this.serviceRecords.delete(id);
   }
 
   // Attachment methods
@@ -624,6 +629,14 @@ export class DbStorage implements IStorage {
       .where(eq(serviceRecords.id, id))
       .returning();
     return result[0];
+  }
+
+  async deleteServiceRecord(id: string): Promise<boolean> {
+    const result = await db
+      .delete(serviceRecords)
+      .where(eq(serviceRecords.id, id))
+      .returning();
+    return result.length > 0;
   }
 
   // Attachment methods

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Wrench, Calendar, ArrowRight, Plus, Eye } from "lucide-react";
+import { Clock, Wrench, Calendar, ArrowRight, Plus, Eye, Edit, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import ServiceDetailsModal from "./ServiceDetailsModal";
 
@@ -179,19 +179,49 @@ export default function MaintenanceTimeline({
                             </div>
                           </div>
                           
-                          {/* Single View button */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleViewDetails(event);
-                            }}
-                            className="h-7 w-7 p-0 text-text-muted hover:text-accent-teal"
-                            title="View details"
-                          >
-                            <Eye className="h-3 w-3" />
-                          </Button>
+                          {/* Action buttons: View, Edit, Delete */}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewDetails(event);
+                              }}
+                              className="h-7 w-7 p-0 text-text-muted hover:text-accent-teal"
+                              title="View details"
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onEditEvent) {
+                                  onEditEvent(event.id);
+                                }
+                              }}
+                              className="h-7 w-7 p-0 text-text-muted hover:text-blue-600"
+                              title="Edit service record"
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onDeleteEvent) {
+                                  onDeleteEvent(event.id);
+                                }
+                              }}
+                              className="h-7 w-7 p-0 text-text-muted hover:text-red-600"
+                              title="Delete service record"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
