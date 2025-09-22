@@ -243,6 +243,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/service-records', async (req: Request, res: Response) => {
+    try {
+      const serviceRecords = await storage.getAllServiceRecords();
+      res.json(serviceRecords);
+    } catch (error) {
+      console.error('Error fetching all service records:', error);
+      res.status(500).json({ error: 'Failed to fetch service records' });
+    }
+  });
+
   app.post('/api/mowers/:id/service', async (req: Request, res: Response) => {
     try {
       console.log('Service record creation request:', { params: req.params, body: req.body });

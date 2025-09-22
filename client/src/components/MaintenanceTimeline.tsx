@@ -57,7 +57,12 @@ export default function MaintenanceTimeline({
   const [, setLocation] = useLocation();
   
   const handleViewNotes = (eventId: string) => {
-    if (onViewNotes) {
+    // Find the event to get the mowerId
+    const event = events.find(e => e.id === eventId);
+    if (event) {
+      // Navigate to the mower's detail page with service-history tab
+      setLocation(`/mowers/${event.mowerId}?tab=service-history`);
+    } else if (onViewNotes) {
       onViewNotes(eventId);
     } else {
       // Default behavior - navigate to maintenance detail
@@ -139,7 +144,12 @@ export default function MaintenanceTimeline({
                     <Wrench className="h-3 w-3 text-white" />
                   </div>
                   
-                  <div className="flex-1 min-w-0 bg-white rounded-lg border border-medium-gray p-3 shadow-sm">
+                  <div 
+                    className="flex-1 min-w-0 bg-white rounded-lg border border-medium-gray p-3 shadow-sm cursor-pointer hover:shadow-md hover:border-accent-teal transition-all duration-200"
+                    onClick={() => {
+                      setLocation(`/mowers/${event.mowerId}?tab=service-history`);
+                    }}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
