@@ -56,8 +56,8 @@ export default function AddMower() {
         </Button>
         
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Add New Mower</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Add New Mower</h1>
+          <p className="text-text-muted">
             Add a new lawn mower to your fleet
           </p>
         </div>

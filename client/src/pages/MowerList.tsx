@@ -149,7 +149,7 @@ export default function MowerList() {
           </div>
         </div>
         
-        <Button onClick={() => setLocation('/mowers/new')} className="bg-accent-orange text-white hover:bg-accent-orange/90 rounded-button" data-testid="button-add-mower">
+        <Button onClick={() => setLocation('/mowers/new')} className="bg-accent-teal text-white hover:bg-accent-teal/90 rounded-button" data-testid="button-add-mower">
           <Plus className="h-4 w-4 mr-2" />
           Add Mower
         </Button>

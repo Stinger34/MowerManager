@@ -58,7 +58,7 @@ export default function ComponentDetails() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Catalog
           </Button>
-          <h1 className="text-2xl font-bold text-gray-900">Component Not Found</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Component Not Found</h1>
         </div>
         <Card>
           <CardContent className="pt-6">
@@ -85,7 +85,7 @@ export default function ComponentDetails() {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Catalog
         </Button>
-        <h1 className="text-2xl font-bold text-gray-900">{component.name}</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-text-dark">{component.name}</h1>
       </div>
 
       <Tabs defaultValue="details" className="space-y-4">
