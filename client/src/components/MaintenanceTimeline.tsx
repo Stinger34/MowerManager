@@ -124,10 +124,10 @@ export default function MaintenanceTimeline({
           </div>
         ) : (
           <div className="space-y-4">
-            {events.slice(0, 4).map((event, index) => (
+            {events.slice(0, 3).map((event, index) => (
               <div key={event.id} className="relative">
                 {/* Timeline line */}
-                {index < events.slice(0, 4).length - 1 && (
+                {index < events.slice(0, 3).length - 1 && (
                   <div className="absolute left-4 top-10 w-0.5 h-16 bg-medium-gray" />
                 )}
                 
@@ -207,10 +207,10 @@ export default function MaintenanceTimeline({
           </div>
         )}
         
-        {events.length > 4 && (
+        {events.length > 3 && (
           <div className="text-center pt-2 border-t border-medium-gray">
             <Button variant="ghost" size="sm" className="text-text-muted hover:text-accent-teal">
-              View {events.length - 4} more events
+              View {events.length - 3} more events
             </Button>
           </div>
         )}
