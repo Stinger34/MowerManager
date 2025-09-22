@@ -9,7 +9,7 @@
 export const statusColors = {
   // Equipment status colors
   active: {
-    background: "bg-accent-card/20",
+    background: "bg-accent-teal/20",
     text: "text-accent-teal",
     border: "border-accent-teal/20",
   },
@@ -26,14 +26,14 @@ export const statusColors = {
   
   // Equipment condition colors
   excellent: {
-    background: "bg-accent-card/20",
+    background: "bg-accent-teal/20",
     text: "text-accent-teal",
     border: "border-accent-teal/20",
   },
   good: {
-    background: "bg-accent-card/10", 
-    text: "text-text-primary",
-    border: "border-accent-teal/10",
+    background: "bg-accent-teal-light/20", 
+    text: "text-accent-teal-light",
+    border: "border-accent-teal-light/20",
   },
   fair: {
     background: "bg-accent-orange/10",
@@ -68,23 +68,23 @@ export const statusColors = {
 export const statCardColors = {
   totalMowers: {
     icon: "text-accent-teal",
-    background: "bg-accent-card/10",
+    background: "bg-accent-teal/10",
   },
   active: {
     icon: "text-accent-teal", 
-    background: "bg-accent-card/10",
+    background: "bg-accent-teal/10",
   },
   maintenance: {
     icon: "text-accent-orange",
     background: "bg-accent-orange/10", 
   },
   upcomingServices: {
-    icon: "text-accent-teal",
-    background: "bg-calendar-bg",
+    icon: "text-accent-teal-light",
+    background: "bg-accent-teal-light/10",
   },
   overdue: {
-    icon: "text-accent-orange",
-    background: "bg-accent-orange/10",
+    icon: "text-destructive",
+    background: "bg-destructive/10",
   },
 } as const;
 

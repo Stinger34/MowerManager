@@ -1,5 +1,5 @@
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { Home, Tractor, Settings, Plus, Package } from "lucide-react";
+import { Home, Tractor, Settings, Plus, Package, Wrench, BarChart3 } from "lucide-react";
 import { useLocation } from "wouter";
 
 const navigationItems = [
@@ -9,14 +9,24 @@ const navigationItems = [
     icon: Home,
   },
   {
-    title: "Mowers",
+    title: "Assets",
     url: "/mowers",
     icon: Tractor,
   },
   {
-    title: "Parts Catalog",
-    url: "/catalog",
-    icon: Package,
+    title: "Maintenance",
+    url: "/maintenance",
+    icon: Wrench,
+  },
+  {
+    title: "Reports",
+    url: "/reports",
+    icon: BarChart3,
+  },
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Settings,
   },
 ];
 
@@ -27,9 +37,9 @@ const quickActions = [
     icon: Plus,
   },
   {
-    title: "Settings",
-    url: "/settings",
-    icon: Settings,
+    title: "Parts Catalog",
+    url: "/catalog",
+    icon: Package,
   },
 ];
 
