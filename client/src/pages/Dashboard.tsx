@@ -223,7 +223,7 @@ export default function Dashboard() {
       {/* Main dashboard grid layout with notifications taking full height on right */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column - Stats and Recent Maintenance */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 flex flex-col gap-6">
           {/* Dashboard Stats - smaller cards */}
           <DashboardStats
             totalMowers={mowers?.length || 0}
@@ -233,21 +233,24 @@ export default function Dashboard() {
             overdueServices={overdueServices}
           />
           
-          {/* Recent Maintenance Timeline */}
-          <MaintenanceTimeline 
-            events={maintenanceEvents}
-            onViewAll={() => setLocation('/maintenance')}
-            onAddMaintenance={() => setLocation('/maintenance/new')}
-            onViewNotes={(eventId) => console.log('View notes for event:', eventId)}
-            onEditEvent={(eventId) => {
-              console.log('Edit event:', eventId);
-              setLocation(`/maintenance/${eventId}/edit`);
-            }}
-            onDeleteEvent={(eventId) => {
-              console.log('Delete event:', eventId);
-              // Could show confirmation dialog here
-            }}
-          />
+          {/* Recent Maintenance Timeline - flex-grow to match notifications height */}
+          <div className="flex-grow">
+            <MaintenanceTimeline 
+              events={maintenanceEvents}
+              onViewAll={() => setLocation('/maintenance')}
+              onAddMaintenance={() => setLocation('/maintenance/new')}
+              onViewNotes={(eventId) => console.log('View notes for event:', eventId)}
+              onEditEvent={(eventId) => {
+                console.log('Edit event:', eventId);
+                setLocation(`/maintenance/${eventId}/edit`);
+              }}
+              onDeleteEvent={(eventId) => {
+                console.log('Delete event:', eventId);
+                // Could show confirmation dialog here
+              }}
+              className="h-full"
+            />
+          </div>
         </div>
         
         {/* Right column - Notifications taking full height */}

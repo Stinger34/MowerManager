@@ -24,6 +24,7 @@ interface MaintenanceTimelineProps {
   onViewNotes?: (eventId: string) => void;
   onEditEvent?: (eventId: string) => void;
   onDeleteEvent?: (eventId: string) => void;
+  className?: string;
 }
 
 const statusColors = {
@@ -50,7 +51,8 @@ export default function MaintenanceTimeline({
   onAddMaintenance,
   onViewNotes,
   onEditEvent,
-  onDeleteEvent
+  onDeleteEvent,
+  className = ""
 }: MaintenanceTimelineProps) {
   const [, setLocation] = useLocation();
   
@@ -79,7 +81,7 @@ export default function MaintenanceTimeline({
   };
 
   return (
-    <Card className="bg-panel border-panel-border shadow-lg">
+    <Card className={`bg-panel border-panel-border shadow-lg flex flex-col h-full ${className}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-text-primary">
@@ -115,7 +117,7 @@ export default function MaintenanceTimeline({
           Timeline of maintenance activities across all mowers
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 flex-grow flex flex-col">
         {events.length === 0 ? (
           <div className="text-center py-6 text-text-muted">
             <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
