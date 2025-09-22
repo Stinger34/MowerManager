@@ -320,6 +320,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/service/:id', async (req: Request, res: Response) => {
+    try {
+      console.log('Service record deletion request:', { params: req.params });
+      const deleted = await storage.deleteServiceRecord(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Service record not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error('Service record deletion error:', error);
+      res.status(500).json({ error: 'Failed to delete service record' });
+    }
+  });
+
   // Attachment routes
   app.post('/api/mowers/:id/attachments', upload.single('file'), async (req: Request, res: Response) => {
     try {

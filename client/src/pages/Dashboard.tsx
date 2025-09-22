@@ -20,6 +20,8 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [mowerToDelete, setMowerToDelete] = useState<Mower | null>(null);
+  const [showDeleteServiceDialog, setShowDeleteServiceDialog] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: mowers, isLoading, error } = useQuery<Mower[]>({
@@ -54,6 +56,30 @@ export default function Dashboard() {
     },
     onError: (error) => {
       toast({ title: "Error", description: "Failed to delete mower", variant: "destructive" });
+    },
+  });
+
+  // Delete service record mutation
+  const deleteServiceMutation = useMutation({
+    mutationFn: async (serviceId: string) => {
+      const response = await apiRequest('DELETE', `/api/service/${serviceId}`);
+      // Handle 204 No Content responses (empty body)
+      if (response.status === 204) {
+        return { success: true };
+      }
+      // Only parse JSON if there's content
+      const text = await response.text();
+      return text ? JSON.parse(text) : { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/service-records'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers'] }); // Also invalidate mowers to update last service dates
+      toast({ title: "Success", description: "Service record deleted successfully" });
+      setShowDeleteServiceDialog(false);
+      setServiceToDelete(null);
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: "Failed to delete service record", variant: "destructive" });
     },
   });
 
@@ -104,6 +130,12 @@ export default function Dashboard() {
   const confirmDelete = () => {
     if (mowerToDelete) {
       deleteMowerMutation.mutate(String(mowerToDelete.id));
+    }
+  };
+
+  const confirmDeleteService = () => {
+    if (serviceToDelete) {
+      deleteServiceMutation.mutate(serviceToDelete);
     }
   };
 
@@ -223,12 +255,15 @@ export default function Dashboard() {
               onAddMaintenance={() => setLocation('/maintenance/new')}
               onViewNotes={(eventId) => console.log('View notes for event:', eventId)}
               onEditEvent={(eventId) => {
-                console.log('Edit event:', eventId);
-                setLocation(`/maintenance/${eventId}/edit`);
+                // Find the service record to get mowerId
+                const serviceRecord = serviceRecords.find(sr => sr.id === eventId);
+                if (serviceRecord) {
+                  setLocation(`/mowers/${serviceRecord.mowerId}/service/${eventId}/edit`);
+                }
               }}
               onDeleteEvent={(eventId) => {
-                console.log('Delete event:', eventId);
-                // Could show confirmation dialog here
+                setServiceToDelete(eventId);
+                setShowDeleteServiceDialog(true);
               }}
               className="h-full"
             />
@@ -374,6 +409,37 @@ export default function Dashboard() {
                 <Trash2 className="h-4 w-4 mr-2" />
               )}
               Delete Mower
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Service Confirmation Dialog */}
+      <AlertDialog open={showDeleteServiceDialog} onOpenChange={setShowDeleteServiceDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Service Record</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this service record? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              disabled={deleteServiceMutation.isPending}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteService}
+              disabled={deleteServiceMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteServiceMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Delete Service Record
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
