@@ -237,7 +237,7 @@ export default function Dashboard() {
           <div className="flex-grow">
             <MaintenanceTimeline 
               events={maintenanceEvents}
-              onViewAll={() => setLocation('/maintenance')}
+              onViewAll={() => setLocation('/maintenance/history')}
               onAddMaintenance={() => setLocation('/maintenance/new')}
               onViewNotes={(eventId) => console.log('View notes for event:', eventId)}
               onEditEvent={(eventId) => {
