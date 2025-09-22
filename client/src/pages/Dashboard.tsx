@@ -176,6 +176,9 @@ export default function Dashboard() {
         status: 'completed' as const, // Service records are always completed
         priority: record.serviceType === 'repair' ? 'high' as const : 'medium' as const,
         notes: record.performedBy ? `Performed by: ${record.performedBy}` : undefined,
+        cost: record.cost ? record.cost.toString() : undefined,
+        performedBy: record.performedBy || undefined,
+        mileage: record.mileage || undefined,
       };
     })
     .filter(Boolean)
