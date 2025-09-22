@@ -220,43 +220,50 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      {/* Dashboard Stats */}
-      <DashboardStats
-        totalMowers={mowers?.length || 0}
-        activeMowers={mowers?.filter(m => m.status === 'active').length || 0}
-        maintenanceMowers={mowers?.filter(m => m.status === 'maintenance').length || 0}
-        upcomingServices={upcomingServices}
-        overdueServices={overdueServices}
-      />
-
-      {/* Recent Maintenance and Notifications - Side by side below stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <MaintenanceTimeline 
-          events={maintenanceEvents}
-          onViewAll={() => setLocation('/maintenance')}
-          onAddMaintenance={() => setLocation('/maintenance/new')}
-          onViewNotes={(eventId) => console.log('View notes for event:', eventId)}
-          onEditEvent={(eventId) => {
-            console.log('Edit event:', eventId);
-            setLocation(`/maintenance/${eventId}/edit`);
-          }}
-          onDeleteEvent={(eventId) => {
-            console.log('Delete event:', eventId);
-            // Could show confirmation dialog here
-          }}
-        />
+      {/* Main dashboard grid layout with notifications taking full height on right */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left column - Stats and Recent Maintenance */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Dashboard Stats - smaller cards */}
+          <DashboardStats
+            totalMowers={mowers?.length || 0}
+            activeMowers={mowers?.filter(m => m.status === 'active').length || 0}
+            maintenanceMowers={mowers?.filter(m => m.status === 'maintenance').length || 0}
+            upcomingServices={upcomingServices}
+            overdueServices={overdueServices}
+          />
+          
+          {/* Recent Maintenance Timeline */}
+          <MaintenanceTimeline 
+            events={maintenanceEvents}
+            onViewAll={() => setLocation('/maintenance')}
+            onAddMaintenance={() => setLocation('/maintenance/new')}
+            onViewNotes={(eventId) => console.log('View notes for event:', eventId)}
+            onEditEvent={(eventId) => {
+              console.log('Edit event:', eventId);
+              setLocation(`/maintenance/${eventId}/edit`);
+            }}
+            onDeleteEvent={(eventId) => {
+              console.log('Delete event:', eventId);
+              // Could show confirmation dialog here
+            }}
+          />
+        </div>
         
-        <NotificationsPanel 
-          notifications={notifications}
-          onMarkAsRead={(id) => console.log('Mark as read:', id)}
-          onClearAll={() => console.log('Clear all notifications')}
-          onNotificationClick={(notification) => {
-            console.log('Notification clicked:', notification);
-            if (notification.detailUrl) {
-              setLocation(notification.detailUrl);
-            }
-          }}
-        />
+        {/* Right column - Notifications taking full height */}
+        <div className="lg:col-span-1">
+          <NotificationsPanel 
+            notifications={notifications}
+            onMarkAsRead={(id) => console.log('Mark as read:', id)}
+            onClearAll={() => console.log('Clear all notifications')}
+            onNotificationClick={(notification) => {
+              console.log('Notification clicked:', notification);
+              if (notification.detailUrl) {
+                setLocation(notification.detailUrl);
+              }
+            }}
+          />
+        </div>
       </div>
 
       {/* Quick Actions Cards - Middle row */}
