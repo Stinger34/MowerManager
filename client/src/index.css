@@ -14,24 +14,26 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  /* New dashboard design colors */
-  --sidebar: 133 13% 87%;              /* Muted greenish-grey #D9E2DB */
-  --sidebar-foreground: 180 61% 22%;   /* Deep teal-green #165A5A */
-  --sidebar-border: 133 13% 82%;       /* Slightly darker sidebar border */
-  --sidebar-icon: 20 54% 46%;          /* Muted orange #B45F36 */
-  --sidebar-ring: 180 61% 22%;         /* Deep teal-green #165A5A */
+  /* New dashboard design colors - exact hex colors from specifications */
+  --sidebar: 222 19% 25%;              /* Dark grey #393e46 */
+  --sidebar-foreground: 0 0% 100%;     /* White #ffffff */
+  --sidebar-border: 222 19% 20%;       /* Darker grey border */
+  --sidebar-icon: 162 54% 59%;         /* Teal Green #4ecca3 */
+  --sidebar-ring: 162 54% 59%;         /* Teal Green #4ecca3 */
 
-  --panel: 0 0% 100%;                  /* White #FFFFFF */
-  --panel-border: 180 61% 22%;         /* Deep teal-green #165A5A */
+  --panel: 0 0% 100%;                  /* White #ffffff */
+  --panel-border: 218 18% 39%;         /* Blue-Gray #505762 */
 
-  --accent-orange: 19 100% 58%;        /* Bright orange #FF6F2B */
-  --accent-card: 163 34% 72%;          /* Light teal-green #9ECFC1 */
-  --accent-teal: 180 61% 22%;          /* Deep teal-green #165A5A */
-  --calendar-bg: 164 35% 94%;          /* Very light teal #EAF5F2 */
+  --accent-orange: 19 100% 58%;        /* Keep existing orange for alerts */
+  --accent-card: 162 54% 59%;          /* Teal Green #4ecca3 */
+  --accent-teal: 162 54% 59%;          /* Teal Green #4ecca3 */
+  --accent-teal-light: 162 54% 79%;    /* Light teal variation */
+  --calendar-bg: 0 0% 93%;             /* Light Gray #eeeeee */
 
-  --text-primary: 180 61% 22%;         /* Deep teal-green #165A5A */
-  --text-muted: 147 5% 44%;            /* Muted grey #6B7670 */
-  --text-dark: 180 16% 16%;            /* Black #222F2F */
+  --text-primary: 222 19% 25%;         /* Dark Grey #393e46 */
+  --text-muted: 218 18% 39%;           /* Blue-Gray #505762 */
+  --text-dark: 222 19% 25%;            /* Dark Grey #393e46 */
+  --medium-gray: 0 0% 83%;             /* Medium Gray #d4d4d4 */
 
   /* Existing shadcn/ui colors (maintained for compatibility) */
   --background: 0 0% 98%;
@@ -137,23 +139,25 @@
   --elevate-2: rgba(255,255,255, .09);
 
   /* Dark theme adaptations of new colors */
-  --sidebar: 180 16% 12%;               /* Dark teal-grey */
-  --sidebar-foreground: 133 13% 87%;    /* Light greenish for text */
-  --sidebar-border: 180 16% 18%;        /* Darker sidebar border */
-  --sidebar-icon: 20 54% 60%;           /* Lighter orange for visibility */
-  --sidebar-ring: 163 34% 72%;          /* Light teal for focus rings */
+  --sidebar: 222 19% 15%;               /* Very dark grey for dark mode */
+  --sidebar-foreground: 0 0% 100%;      /* White text */
+  --sidebar-border: 222 19% 20%;        /* Darker sidebar border */
+  --sidebar-icon: 162 54% 79%;          /* Light teal for better visibility */
+  --sidebar-ring: 162 54% 79%;          /* Light teal for focus rings */
 
-  --panel: 180 16% 8%;                  /* Very dark teal */
-  --panel-border: 180 61% 30%;          /* Brighter teal border for contrast */
+  --panel: 222 19% 20%;                 /* Dark panel background */
+  --panel-border: 162 54% 59%;          /* Teal Green border for contrast */
 
   --accent-orange: 19 100% 65%;         /* Slightly lighter orange */
-  --accent-card: 180 16% 14%;           /* Dark card background */
-  --accent-teal: 163 34% 72%;           /* Light teal for accents */
-  --calendar-bg: 180 16% 10%;           /* Dark calendar background */
+  --accent-card: 222 19% 20%;           /* Dark card background */
+  --accent-teal: 162 54% 79%;           /* Light teal for dark mode */
+  --accent-teal-light: 162 54% 79%;     /* Light teal for dark mode */
+  --calendar-bg: 222 19% 18%;           /* Dark calendar background */
 
-  --text-primary: 133 13% 87%;          /* Light text on dark */
-  --text-muted: 147 5% 65%;             /* Lighter muted text */
+  --text-primary: 0 0% 100%;            /* White text on dark */
+  --text-muted: 0 0% 75%;               /* Lighter muted text */
   --text-dark: 0 0% 100%;               /* White text for emphasis */
+  --medium-gray: 0 0% 60%;             /* Medium Gray for dark mode */
 
   /* Existing dark theme variables */
   --background: 220 15% 8%;

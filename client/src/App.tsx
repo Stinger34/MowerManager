@@ -28,6 +28,9 @@ import PartDetails from "@/pages/PartDetails";
 import ComponentDetails from "@/pages/ComponentDetails";
 import AddComponent from "@/pages/AddComponent";
 import Settings from "@/pages/Settings";
+import Maintenance from "@/pages/Maintenance";
+import MaintenanceHistory from "@/pages/MaintenanceHistory";
+import Reports from "@/pages/Reports";
 import NotFound from "@/pages/not-found";
 
 // Loading fallback component
@@ -44,6 +47,9 @@ function Router() {
     <Switch>
       <Route path="/" component={() => <PageTransition><Dashboard /></PageTransition>} />
       <Route path="/mowers" component={() => <PageTransition><MowerList /></PageTransition>} />
+      <Route path="/maintenance/history" component={() => <PageTransition><MaintenanceHistory /></PageTransition>} />
+      <Route path="/maintenance" component={() => <PageTransition><Maintenance /></PageTransition>} />
+      <Route path="/reports" component={() => <PageTransition><Reports /></PageTransition>} />
       <Route path="/catalog" component={() => <PageTransition><PartsCatalog /></PageTransition>} />
       <Route path="/catalog/parts/:partId" component={() => <PageTransition><PartDetails /></PageTransition>} />
       <Route path="/catalog/components/new" component={() => <PageTransition><AddComponent /></PageTransition>} />
@@ -101,7 +107,12 @@ export default function App() {
                       <h2 className="text-lg font-semibold text-text-primary">Mower Manager</h2>
                     </div>
                   </div>
-                  <ThemeToggle />
+                  <div className="flex items-center gap-4">
+                    <div className="hidden md:flex items-center gap-2 text-sm text-text-muted">
+                      <span>Welcome back, John Doe</span>
+                    </div>
+                    <ThemeToggle />
+                  </div>
                 </header>
                 <main className="flex-1 overflow-auto p-6 bg-calendar-bg">
                   <Router />

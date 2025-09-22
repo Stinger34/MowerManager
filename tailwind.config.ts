@@ -31,10 +31,12 @@ export default {
         "sidebar-icon": "hsl(var(--sidebar-icon) / <alpha-value>)",
         "accent-card": "hsl(var(--accent-card) / <alpha-value>)",
         "accent-teal": "hsl(var(--accent-teal) / <alpha-value>)",
+        "accent-teal-light": "hsl(var(--accent-teal-light) / <alpha-value>)",
         "calendar-bg": "hsl(var(--calendar-bg) / <alpha-value>)",
         "text-primary": "hsl(var(--text-primary) / <alpha-value>)",
         "text-muted": "hsl(var(--text-muted) / <alpha-value>)",
         "text-dark": "hsl(var(--text-dark) / <alpha-value>)",
+        "medium-gray": "hsl(var(--medium-gray) / <alpha-value>)",
         
         // Existing shadcn/ui colors maintained for compatibility
         background: "hsl(var(--background) / <alpha-value>)",

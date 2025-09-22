@@ -32,10 +32,14 @@ export default function MowerDetails() {
   const mowerId = params?.id;
   const { toast } = useToast();
   
+  // Check for tab parameter in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const tabParam = urlParams.get('tab');
+  
   const [notes, setNotes] = useState("");
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState("notes");
+  const [activeTab, setActiveTab] = useState(tabParam || "notes");
   
   // File upload state
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -648,7 +652,7 @@ export default function MowerDetails() {
       </div>
 
       <motion.div 
-        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, staggerChildren: 0.1 }}

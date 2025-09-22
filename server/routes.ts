@@ -243,6 +243,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/service-records', async (req: Request, res: Response) => {
+    try {
+      const serviceRecords = await storage.getAllServiceRecords();
+      res.json(serviceRecords);
+    } catch (error) {
+      console.error('Error fetching all service records:', error);
+      res.status(500).json({ error: 'Failed to fetch service records' });
+    }
+  });
+
   app.post('/api/mowers/:id/service', async (req: Request, res: Response) => {
     try {
       console.log('Service record creation request:', { params: req.params, body: req.body });
@@ -307,6 +317,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Service record update error:', error);
       res.status(400).json({ error: 'Invalid service record data' });
+    }
+  });
+
+  app.delete('/api/service/:id', async (req: Request, res: Response) => {
+    try {
+      console.log('Service record deletion request:', { params: req.params });
+      const deleted = await storage.deleteServiceRecord(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Service record not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error('Service record deletion error:', error);
+      res.status(500).json({ error: 'Failed to delete service record' });
     }
   });
 

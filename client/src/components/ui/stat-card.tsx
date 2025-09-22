@@ -61,7 +61,7 @@ export function StatCard({
       )}
       onClick={clickable ? onClick : undefined}
     >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-4 px-6">
         <CardTitle className="text-sm font-medium text-text-muted">
           {title}
         </CardTitle>
@@ -69,7 +69,7 @@ export function StatCard({
           <Icon className={cn("h-4 w-4", colors.icon)} />
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pb-4 pt-2 px-6">
         <div className="flex items-center gap-2">
           <div 
             className="text-2xl font-bold text-text-dark" 

@@ -29,6 +29,7 @@ export interface IStorage {
   getAllServiceRecords(): Promise<ServiceRecord[]>;
   createServiceRecordWithMowerUpdate(serviceRecord: InsertServiceRecord): Promise<ServiceRecord>;
   updateServiceRecord(id: string, serviceRecord: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined>;
+  deleteServiceRecord(id: string): Promise<boolean>;
   
   // Attachment methods
   getAttachment(id: string): Promise<Attachment | undefined>;
@@ -68,6 +69,7 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private mowers: Map<string, Mower>;
   private tasks: Map<string, Task>;
+  private serviceRecords: Map<string, ServiceRecord>;
   private attachments: Map<string, Attachment>;
   private components: Map<string, Component>;
   private parts: Map<string, Part>;
@@ -76,6 +78,7 @@ export class MemStorage implements IStorage {
   constructor() {
     this.mowers = new Map();
     this.tasks = new Map();
+    this.serviceRecords = new Map();
     this.attachments = new Map();
     this.components = new Map();
     this.parts = new Map();
@@ -207,17 +210,15 @@ export class MemStorage implements IStorage {
 
   // Service Record methods
   async getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]> {
-    // Mock implementation for MemStorage - return empty array
-    return [];
+    return Array.from(this.serviceRecords.values()).filter(record => record.mowerId === parseInt(mowerId));
   }
 
   async getAllServiceRecords(): Promise<ServiceRecord[]> {
-    // Mock implementation for MemStorage - return empty array
-    return [];
+    return Array.from(this.serviceRecords.values());
   }
 
   async createServiceRecordWithMowerUpdate(insertServiceRecord: InsertServiceRecord): Promise<ServiceRecord> {
-    // Create service record (mock implementation for MemStorage)
+    // Create service record
     const id = randomUUID();
     const now = new Date();
     const serviceRecord: ServiceRecord = {
@@ -229,6 +230,9 @@ export class MemStorage implements IStorage {
       mileage: insertServiceRecord.mileage || null,
       createdAt: now,
     };
+
+    // Store the service record
+    this.serviceRecords.set(id, serviceRecord);
 
     // Update mower's service dates
     const mowerId = insertServiceRecord.mowerId.toString();
@@ -250,8 +254,23 @@ export class MemStorage implements IStorage {
   }
 
   async updateServiceRecord(id: string, updateData: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined> {
-    // Mock implementation for MemStorage - return undefined since no actual storage
-    return undefined;
+    const existingRecord = this.serviceRecords.get(id);
+    if (!existingRecord) return undefined;
+    
+    const updatedRecord: ServiceRecord = {
+      ...existingRecord,
+      ...updateData,
+      cost: updateData.cost !== undefined ? updateData.cost || null : existingRecord.cost,
+      performedBy: updateData.performedBy !== undefined ? updateData.performedBy || null : existingRecord.performedBy,
+      nextServiceDue: updateData.nextServiceDue !== undefined ? updateData.nextServiceDue || null : existingRecord.nextServiceDue,
+      mileage: updateData.mileage !== undefined ? updateData.mileage || null : existingRecord.mileage,
+    };
+    this.serviceRecords.set(id, updatedRecord);
+    return updatedRecord;
+  }
+
+  async deleteServiceRecord(id: string): Promise<boolean> {
+    return this.serviceRecords.delete(id);
   }
 
   // Attachment methods
@@ -610,6 +629,14 @@ export class DbStorage implements IStorage {
       .where(eq(serviceRecords.id, id))
       .returning();
     return result[0];
+  }
+
+  async deleteServiceRecord(id: string): Promise<boolean> {
+    const result = await db
+      .delete(serviceRecords)
+      .where(eq(serviceRecords.id, id))
+      .returning();
+    return result.length > 0;
   }
 
   // Attachment methods
