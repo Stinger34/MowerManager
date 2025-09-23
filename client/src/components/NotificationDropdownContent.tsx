@@ -1,14 +1,11 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Bell, AlertTriangle, Clock, CheckCircle, Info, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
-import { useNotifications } from "@/contexts/NotificationContext";
 import type { Notification } from "@shared/schema";
 
-interface NotificationsPanelProps {
-  // Remove notifications prop since we'll get them from context
+interface NotificationDropdownContentProps {
+  notifications: Notification[];
   onMarkAsRead?: (id: string) => void;
   onClearAll?: () => void;
   onNotificationClick?: (notification: Notification) => void;
@@ -21,12 +18,11 @@ const notificationIcons = {
   error: AlertTriangle,
 };
 
-// Updated color scheme to match red/yellow/green specification 
 const notificationColors = {
-  warning: "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-50", // Yellow for warnings
-  info: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-50",           // Blue for info
-  success: "bg-green-100 text-green-800 border-green-200 hover:bg-green-50",    // Green for success
-  error: "bg-red-100 text-red-800 border-red-200 hover:bg-red-50",              // Red for errors
+  warning: "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-50",
+  info: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-50",
+  success: "bg-green-100 text-green-800 border-green-200 hover:bg-green-50",
+  error: "bg-red-100 text-red-800 border-red-200 hover:bg-red-50",
 };
 
 const priorityColors = {
@@ -35,34 +31,18 @@ const priorityColors = {
   low: "border-l-4 border-l-green-500",
 };
 
-export default function NotificationsPanel({ 
+export default function NotificationDropdownContent({ 
+  notifications, 
   onMarkAsRead, 
   onClearAll,
   onNotificationClick
-}: NotificationsPanelProps) {
+}: NotificationDropdownContentProps) {
   const [, setLocation] = useLocation();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
-
-  const handleMarkAsRead = (id: string) => {
-    if (onMarkAsRead) {
-      onMarkAsRead(id);
-    } else {
-      markAsRead(id);
-    }
-  };
-
-  const handleClearAll = () => {
-    if (onClearAll) {
-      onClearAll();
-    } else {
-      markAllAsRead();
-    }
-  };
 
   const handleNotificationClick = (notification: Notification) => {
     // Mark as read when clicked
-    if (!notification.isRead) {
-      handleMarkAsRead(notification.id);
+    if (!notification.isRead && onMarkAsRead) {
+      onMarkAsRead(notification.id);
     }
     
     // Custom click handler or default navigation
@@ -83,42 +63,16 @@ export default function NotificationsPanel({
   };
 
   return (
-    <Card className="bg-panel border-panel-border shadow-lg">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-text-primary">
-            <Bell className="h-5 w-5 text-accent-teal" />
-            Notifications
-            {unreadCount > 0 && (
-              <Badge variant="destructive" className="ml-2 bg-red-500 text-white">
-                {unreadCount}
-              </Badge>
-            )}
-          </CardTitle>
-          {notifications.length > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleClearAll}
-              className="text-text-muted hover:text-text-primary"
-            >
-              Clear All
-            </Button>
-          )}
+    <div className="py-2">
+      {notifications.length === 0 ? (
+        <div className="text-center py-8 px-4 text-gray-500">
+          <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No notifications</p>
+          <p className="text-xs">You're all caught up!</p>
         </div>
-        <CardDescription className="text-text-muted">
-          Service alerts, new mowers, and component updates
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {notifications.length === 0 ? (
-          <div className="text-center py-6 text-text-muted">
-            <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No notifications</p>
-            <p className="text-sm">You're all caught up!</p>
-          </div>
-        ) : (
-          notifications.slice(0, 5).map((notification) => {
+      ) : (
+        <div className="space-y-1">
+          {notifications.slice(0, 5).map((notification) => {
             const Icon = notificationIcons[notification.type];
             const priorityClass = notification.priority ? priorityColors[notification.priority] : '';
             
@@ -126,8 +80,8 @@ export default function NotificationsPanel({
               <div
                 key={notification.id}
                 onClick={() => handleNotificationClick(notification)}
-                className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${notificationColors[notification.type]} ${priorityClass} ${
-                  !notification.isRead ? 'shadow-md' : 'opacity-75'
+                className={`mx-2 p-3 rounded-lg border cursor-pointer transition-all duration-200 ${notificationColors[notification.type]} ${priorityClass} ${
+                  !notification.isRead ? 'shadow-sm' : 'opacity-75'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -138,7 +92,7 @@ export default function NotificationsPanel({
                         <p className="font-medium text-sm">{notification.title}</p>
                         {notification.entityId && notification.entityName && (
                           <p className="text-xs font-mono text-current opacity-75">
-                            Asset ID: {notification.entityId} - {notification.entityName}
+                            {notification.entityName}
                           </p>
                         )}
                         <p className="text-xs mt-1 opacity-90">{notification.message}</p>
@@ -159,16 +113,28 @@ export default function NotificationsPanel({
                 </div>
               </div>
             );
-          })
-        )}
-        {notifications.length > 5 && (
-          <div className="text-center pt-2">
-            <Button variant="ghost" size="sm" className="text-text-muted hover:text-accent-teal">
-              View all {notifications.length} notifications
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          })}
+          {notifications.length > 5 && (
+            <div className="text-center pt-2 pb-1">
+              <Button variant="ghost" size="sm" className="text-gray-500 hover:text-blue-600 text-xs">
+                View all {notifications.length} notifications
+              </Button>
+            </div>
+          )}
+          {notifications.length > 0 && (
+            <div className="border-t mt-2 pt-2 px-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={onClearAll}
+                className="w-full text-gray-500 hover:text-gray-700 text-xs"
+              >
+                Mark all as read
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

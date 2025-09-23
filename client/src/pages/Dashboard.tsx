@@ -1,7 +1,6 @@
 import { useState } from "react";
 import DashboardStats from "@/components/DashboardStats";
 import AssetCard from "@/components/AssetCard";
-import NotificationsPanel from "@/components/NotificationsPanel";
 import MaintenanceTimeline from "@/components/MaintenanceTimeline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -139,57 +138,7 @@ export default function Dashboard() {
     }
   };
 
-  // Enhanced mock data for notifications and maintenance timeline
-  const notifications = [
-    {
-      id: "1",
-      type: "warning" as const,
-      title: "Service Due",
-      message: "Oil change and filter replacement required",
-      timestamp: "2 hours ago",
-      isRead: false,
-      assetId: "JD001",
-      assetName: "John Deere X300",
-      detailUrl: "/mowers/1",
-      priority: "high" as const,
-    },
-    {
-      id: "2", 
-      type: "info" as const,
-      title: "New Mower Added",
-      message: "Craftsman riding mower added to fleet",
-      timestamp: "1 day ago",
-      isRead: true,
-      assetId: "CR002",
-      assetName: "Craftsman DYT4000",
-      detailUrl: "/mowers/2",
-      priority: "medium" as const,
-    },
-    {
-      id: "3",
-      type: "success" as const,
-      title: "Component Allocated",
-      message: "New blade set allocated to mower",
-      timestamp: "2 days ago",
-      isRead: true,
-      assetId: "HV003",
-      assetName: "Husqvarna YTH24V48",
-      detailUrl: "/mowers/3",
-      priority: "low" as const,
-    },
-    {
-      id: "4",
-      type: "error" as const,
-      title: "Maintenance Overdue",
-      message: "Annual inspection is 15 days overdue",
-      timestamp: "3 days ago",
-      isRead: false,
-      assetId: "JD001",
-      assetName: "John Deere X300",
-      detailUrl: "/mowers/1",
-      priority: "high" as const,
-    },
-  ];
+  // Enhanced mock data for maintenance timeline
 
   // Transform service records into maintenance events for the Recent Maintenance timeline
   const maintenanceEvents = serviceRecords
@@ -234,55 +183,62 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      {/* Main dashboard grid layout with notifications taking full height on right */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column - Stats and Recent Maintenance */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          {/* Dashboard Stats - smaller cards */}
-          <DashboardStats
-            totalMowers={mowers?.length || 0}
-            activeMowers={mowers?.filter(m => m.status === 'active').length || 0}
-            maintenanceMowers={mowers?.filter(m => m.status === 'maintenance').length || 0}
-            upcomingServices={upcomingServices}
-            overdueServices={overdueServices}
-          />
-          
-          {/* Recent Maintenance Timeline - flex-grow to match notifications height */}
-          <div className="flex-grow">
-            <MaintenanceTimeline 
-              events={maintenanceEvents}
-              onViewAll={() => setLocation('/maintenance/history')}
-              onAddMaintenance={() => setLocation('/maintenance/new')}
-              onViewNotes={(eventId) => console.log('View notes for event:', eventId)}
-              onEditEvent={(eventId) => {
-                // Find the service record to get mowerId
-                const serviceRecord = serviceRecords.find(sr => sr.id === eventId);
-                if (serviceRecord) {
-                  setLocation(`/mowers/${serviceRecord.mowerId}/service/${eventId}/edit`);
-                }
-              }}
-              onDeleteEvent={(eventId) => {
-                setServiceToDelete(eventId);
-                setShowDeleteServiceDialog(true);
-              }}
-              className="h-full"
-            />
-          </div>
-        </div>
+      {/* Main dashboard grid layout */}
+      <div className="grid grid-cols-1 gap-6">
+        {/* Dashboard Stats */}
+        <DashboardStats
+          totalMowers={mowers?.length || 0}
+          activeMowers={mowers?.filter(m => m.status === 'active').length || 0}
+          maintenanceMowers={mowers?.filter(m => m.status === 'maintenance').length || 0}
+          upcomingServices={upcomingServices}
+          overdueServices={overdueServices}
+        />
         
-        {/* Right column - Notifications taking full height */}
-        <div className="lg:col-span-1">
-          <NotificationsPanel 
-            notifications={notifications}
-            onMarkAsRead={(id) => console.log('Mark as read:', id)}
-            onClearAll={() => console.log('Clear all notifications')}
-            onNotificationClick={(notification) => {
-              console.log('Notification clicked:', notification);
-              if (notification.detailUrl) {
-                setLocation(notification.detailUrl);
-              }
-            }}
-          />
+        {/* Mower Asset Quick Views - Second row (moved from bottom) */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-bold tracking-tight text-text-dark">Mower Asset Quick Views</h2>
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted h-4 w-4" />
+              <Input
+                placeholder="Search mowers..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-mowers"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filteredMowers.map((mower) => (
+              <AssetCard
+                key={mower.id}
+                id={String(mower.id)}
+                make={mower.make}
+                model={mower.model}
+                year={mower.year ?? undefined}
+                serialNumber={mower.serialNumber ?? undefined}
+                condition={mower.condition as "excellent" | "good" | "fair" | "poor"}
+                status={mower.status as "active" | "maintenance" | "retired"}
+                attachmentCount={0}
+                thumbnailUrl={thumbnails?.[mower.id.toString()]}
+                lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
+                nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
+                onViewDetails={handleViewDetails}
+                onEdit={handleEdit}
+                onAddService={handleAddService}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+
+          {filteredMowers.length === 0 && searchQuery && (
+            <div className="text-center py-8 text-text-muted">
+              <p>No mowers found matching "{searchQuery}"</p>
+              <p className="text-sm">Try adjusting your search terms</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -334,52 +290,25 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Mower Asset Quick Views - Bottom section */}
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-bold tracking-tight text-text-dark">Mower Asset Quick Views</h2>
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted h-4 w-4" />
-            <Input
-              placeholder="Search mowers..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-              data-testid="input-search-mowers"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {filteredMowers.map((mower) => (
-            <AssetCard
-              key={mower.id}
-              id={String(mower.id)}
-              make={mower.make}
-              model={mower.model}
-              year={mower.year ?? undefined}
-              serialNumber={mower.serialNumber ?? undefined}
-              condition={mower.condition as "excellent" | "good" | "fair" | "poor"}
-              status={mower.status as "active" | "maintenance" | "retired"}
-              attachmentCount={0}
-              thumbnailUrl={thumbnails?.[mower.id.toString()]}
-              lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
-              nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
-              onViewDetails={handleViewDetails}
-              onEdit={handleEdit}
-              onAddService={handleAddService}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-
-        {filteredMowers.length === 0 && searchQuery && (
-          <div className="text-center py-8 text-text-muted">
-            <p>No mowers found matching "{searchQuery}"</p>
-            <p className="text-sm">Try adjusting your search terms</p>
-          </div>
-        )}
-      </div>
+      {/* Recent Maintenance Timeline - Bottom section (moved from second row) */}
+      <MaintenanceTimeline 
+        events={maintenanceEvents}
+        onViewAll={() => setLocation('/maintenance/history')}
+        onAddMaintenance={() => setLocation('/maintenance/new')}
+        onViewNotes={(eventId) => console.log('View notes for event:', eventId)}
+        onEditEvent={(eventId) => {
+          // Find the service record to get mowerId
+          const serviceRecord = serviceRecords.find(sr => sr.id === eventId);
+          if (serviceRecord) {
+            setLocation(`/mowers/${serviceRecord.mowerId}/service/${eventId}/edit`);
+          }
+        }}
+        onDeleteEvent={(eventId) => {
+          setServiceToDelete(eventId);
+          setShowDeleteServiceDialog(true);
+        }}
+        className="h-full"
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
