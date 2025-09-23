@@ -8,7 +8,7 @@ import NotificationDropdownContent from "./NotificationDropdownContent";
 
 export function NotificationDropdown() {
   const [open, setOpen] = useState(false);
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, dismissAll } = useNotifications();
 
   const handleMarkAsRead = (id: string) => {
     markAsRead(id);
@@ -16,6 +16,14 @@ export function NotificationDropdown() {
 
   const handleClearAll = () => {
     markAllAsRead();
+  };
+
+  const handleDismiss = (id: string) => {
+    deleteNotification(id);
+  };
+
+  const handleDismissAll = () => {
+    dismissAll();
   };
 
   const handleNotificationClick = (notification: any) => {
@@ -69,6 +77,8 @@ export function NotificationDropdown() {
             notifications={notifications}
             onMarkAsRead={handleMarkAsRead}
             onClearAll={handleClearAll}
+            onDismiss={handleDismiss}
+            onDismissAll={handleDismissAll}
             onNotificationClick={handleNotificationClick}
           />
         </div>

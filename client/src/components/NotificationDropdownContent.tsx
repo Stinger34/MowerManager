@@ -1,4 +1,4 @@
-import { Bell, AlertTriangle, Clock, CheckCircle, Info, ExternalLink } from "lucide-react";
+import { Bell, AlertTriangle, Clock, CheckCircle, Info, ExternalLink, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
@@ -8,6 +8,8 @@ interface NotificationDropdownContentProps {
   notifications: Notification[];
   onMarkAsRead?: (id: string) => void;
   onClearAll?: () => void;
+  onDismiss?: (id: string) => void;
+  onDismissAll?: () => void;
   onNotificationClick?: (notification: Notification) => void;
 }
 
@@ -35,6 +37,8 @@ export default function NotificationDropdownContent({
   notifications, 
   onMarkAsRead, 
   onClearAll,
+  onDismiss,
+  onDismissAll,
   onNotificationClick
 }: NotificationDropdownContentProps) {
   const [, setLocation] = useLocation();
@@ -52,13 +56,28 @@ export default function NotificationDropdownContent({
       setLocation(notification.detailUrl);
     } else if (notification.entityId && notification.entityType) {
       // Generate default URL based on entity type
-      if (notification.entityType === 'mower') {
-        setLocation(`/mowers/${notification.entityId}`);
-      } else if (notification.entityType === 'part') {
-        setLocation(`/catalog/parts/${notification.entityId}`);
-      } else if (notification.entityType === 'component') {
-        setLocation(`/catalog/components/${notification.entityId}`);
+      // Skip navigation for deleted/sold items (check notification title/message for indicators)
+      const isDeletedOrSold = notification.title.toLowerCase().includes('deleted') || 
+                             notification.title.toLowerCase().includes('sold') ||
+                             notification.message.toLowerCase().includes('deleted') ||
+                             notification.message.toLowerCase().includes('sold');
+      
+      if (!isDeletedOrSold) {
+        if (notification.entityType === 'mower') {
+          setLocation(`/mowers/${notification.entityId}`);
+        } else if (notification.entityType === 'part') {
+          setLocation(`/catalog/parts/${notification.entityId}`);
+        } else if (notification.entityType === 'component') {
+          setLocation(`/catalog/components/${notification.entityId}`);
+        }
       }
+    }
+  };
+
+  const handleDismiss = (e: React.MouseEvent, notificationId: string) => {
+    e.stopPropagation(); // Prevent notification click
+    if (onDismiss) {
+      onDismiss(notificationId);
     }
   };
 
@@ -76,11 +95,16 @@ export default function NotificationDropdownContent({
             const Icon = notificationIcons[notification.type];
             const priorityClass = notification.priority ? priorityColors[notification.priority] : '';
             
+            // Check if this notification is for a deleted or sold item
+            const isDeletedOrSold = notification.title.toLowerCase().includes('deleted') || 
+                                   notification.title.toLowerCase().includes('sold') ||
+                                   notification.message.toLowerCase().includes('deleted') ||
+                                   notification.message.toLowerCase().includes('sold');
+            
             return (
               <div
                 key={notification.id}
-                onClick={() => handleNotificationClick(notification)}
-                className={`mx-2 p-3 rounded-lg border cursor-pointer transition-all duration-200 ${notificationColors[notification.type]} ${priorityClass} ${
+                className={`mx-2 p-3 rounded-lg border transition-all duration-200 ${notificationColors[notification.type]} ${priorityClass} ${
                   !notification.isRead ? 'shadow-sm' : 'opacity-75'
                 }`}
               >
@@ -88,7 +112,10 @@ export default function NotificationDropdownContent({
                   <Icon className="h-4 w-4 mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
+                      <div 
+                        className={`flex-1 ${!isDeletedOrSold ? 'cursor-pointer' : ''}`}
+                        onClick={!isDeletedOrSold ? () => handleNotificationClick(notification) : undefined}
+                      >
                         <p className="font-medium text-sm">{notification.title}</p>
                         {notification.entityId && notification.entityName && (
                           <p className="text-xs font-mono text-current opacity-75">
@@ -97,7 +124,24 @@ export default function NotificationDropdownContent({
                         )}
                         <p className="text-xs mt-1 opacity-90">{notification.message}</p>
                       </div>
-                      <ExternalLink className="h-3 w-3 opacity-50 flex-shrink-0" />
+                      <div className="flex items-center gap-1">
+                        {!isDeletedOrSold && (
+                          <button
+                            onClick={() => handleNotificationClick(notification)}
+                            className="opacity-50 hover:opacity-75 flex-shrink-0"
+                            title="Open details"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => handleDismiss(e, notification.id)}
+                          className="opacity-50 hover:opacity-75 flex-shrink-0 ml-1"
+                          title="Dismiss notification"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="flex items-center justify-between mt-2">
@@ -122,7 +166,7 @@ export default function NotificationDropdownContent({
             </div>
           )}
           {notifications.length > 0 && (
-            <div className="border-t mt-2 pt-2 px-2">
+            <div className="border-t mt-2 pt-2 px-2 space-y-2">
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -131,6 +175,16 @@ export default function NotificationDropdownContent({
               >
                 Mark all as read
               </Button>
+              {onDismissAll && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={onDismissAll}
+                  className="w-full text-gray-500 hover:text-red-600 text-xs"
+                >
+                  Dismiss all
+                </Button>
+              )}
             </div>
           )}
         </div>

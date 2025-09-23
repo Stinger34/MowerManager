@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Bell, AlertTriangle, Clock, CheckCircle, Info, ExternalLink } from "lucide-react";
+import { Bell, AlertTriangle, Clock, CheckCircle, Info, ExternalLink, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -11,6 +11,8 @@ interface NotificationsPanelProps {
   // Remove notifications prop since we'll get them from context
   onMarkAsRead?: (id: string) => void;
   onClearAll?: () => void;
+  onDismiss?: (id: string) => void;
+  onDismissAll?: () => void;
   onNotificationClick?: (notification: Notification) => void;
 }
 
@@ -38,10 +40,12 @@ const priorityColors: Record<string, string> = {
 export default function NotificationsPanel({ 
   onMarkAsRead, 
   onClearAll,
+  onDismiss,
+  onDismissAll,
   onNotificationClick
 }: NotificationsPanelProps) {
   const [, setLocation] = useLocation();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, dismissAll } = useNotifications();
 
   const handleMarkAsRead = (id: string) => {
     if (onMarkAsRead) {
@@ -59,6 +63,22 @@ export default function NotificationsPanel({
     }
   };
 
+  const handleDismiss = (id: string) => {
+    if (onDismiss) {
+      onDismiss(id);
+    } else {
+      deleteNotification(id);
+    }
+  };
+
+  const handleDismissAll = () => {
+    if (onDismissAll) {
+      onDismissAll();
+    } else {
+      dismissAll();
+    }
+  };
+
   const handleNotificationClick = (notification: Notification) => {
     // Mark as read when clicked
     if (!notification.isRead) {
@@ -72,14 +92,27 @@ export default function NotificationsPanel({
       setLocation(notification.detailUrl);
     } else if (notification.entityId && notification.entityType) {
       // Generate default URL based on entity type
-      if (notification.entityType === 'mower') {
-        setLocation(`/mowers/${notification.entityId}`);
-      } else if (notification.entityType === 'part') {
-        setLocation(`/catalog/parts/${notification.entityId}`);
-      } else if (notification.entityType === 'component') {
-        setLocation(`/catalog/components/${notification.entityId}`);
+      // Skip navigation for deleted/sold items (check notification title/message for indicators)
+      const isDeletedOrSold = notification.title.toLowerCase().includes('deleted') || 
+                             notification.title.toLowerCase().includes('sold') ||
+                             notification.message.toLowerCase().includes('deleted') ||
+                             notification.message.toLowerCase().includes('sold');
+      
+      if (!isDeletedOrSold) {
+        if (notification.entityType === 'mower') {
+          setLocation(`/mowers/${notification.entityId}`);
+        } else if (notification.entityType === 'part') {
+          setLocation(`/catalog/parts/${notification.entityId}`);
+        } else if (notification.entityType === 'component') {
+          setLocation(`/catalog/components/${notification.entityId}`);
+        }
       }
     }
+  };
+
+  const handleDismissClick = (e: React.MouseEvent, notificationId: string) => {
+    e.stopPropagation(); // Prevent notification click
+    handleDismiss(notificationId);
   };
 
   return (
@@ -96,14 +129,24 @@ export default function NotificationsPanel({
             )}
           </CardTitle>
           {notifications.length > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleClearAll}
-              className="text-text-muted hover:text-text-primary"
-            >
-              Clear All
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleClearAll}
+                className="text-text-muted hover:text-text-primary text-xs"
+              >
+                Read All
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleDismissAll}
+                className="text-text-muted hover:text-red-600 text-xs"
+              >
+                Dismiss All
+              </Button>
+            </div>
           )}
         </div>
         <CardDescription className="text-text-muted">
@@ -122,11 +165,16 @@ export default function NotificationsPanel({
             const Icon = notificationIcons[notification.type];
             const priorityClass = notification.priority ? priorityColors[notification.priority] : '';
             
+            // Check if this notification is for a deleted or sold item
+            const isDeletedOrSold = notification.title.toLowerCase().includes('deleted') || 
+                                   notification.title.toLowerCase().includes('sold') ||
+                                   notification.message.toLowerCase().includes('deleted') ||
+                                   notification.message.toLowerCase().includes('sold');
+            
             return (
               <div
                 key={notification.id}
-                onClick={() => handleNotificationClick(notification)}
-                className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${notificationColors[notification.type]} ${priorityClass} ${
+                className={`p-3 rounded-lg border transition-all duration-200 ${notificationColors[notification.type]} ${priorityClass} ${
                   !notification.isRead ? 'shadow-md' : 'opacity-75'
                 }`}
               >
@@ -134,7 +182,10 @@ export default function NotificationsPanel({
                   <Icon className="h-4 w-4 mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
+                      <div 
+                        className={`flex-1 ${!isDeletedOrSold ? 'cursor-pointer' : ''}`}
+                        onClick={!isDeletedOrSold ? () => handleNotificationClick(notification) : undefined}
+                      >
                         <p className="font-medium text-sm">{notification.title}</p>
                         {notification.entityId && notification.entityName && (
                           <p className="text-xs font-mono text-current opacity-75">
@@ -143,7 +194,24 @@ export default function NotificationsPanel({
                         )}
                         <p className="text-xs mt-1 opacity-90">{notification.message}</p>
                       </div>
-                      <ExternalLink className="h-3 w-3 opacity-50 flex-shrink-0" />
+                      <div className="flex items-center gap-1">
+                        {!isDeletedOrSold && (
+                          <button
+                            onClick={() => handleNotificationClick(notification)}
+                            className="opacity-50 hover:opacity-75 flex-shrink-0"
+                            title="Open details"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => handleDismissClick(e, notification.id)}
+                          className="opacity-50 hover:opacity-75 flex-shrink-0 ml-1"
+                          title="Dismiss notification"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
                     
                     <div className="flex items-center justify-between mt-2">
