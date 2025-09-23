@@ -22,26 +22,36 @@ export default function MaintenanceHistory() {
   // Fetch all mowers to get mower names
   const { data: mowers } = useQuery<Mower[]>({
     queryKey: ["/api/mowers"],
-    queryFn: () => apiRequest("/api/mowers"),
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/mowers");
+      return response.json();
+    },
   });
 
   // Fetch all service records from all mowers
-  const { data: allServiceRecords, isLoading } = useQuery<ServiceRecord[]>({
+  const { data: allServiceRecords, isLoading } = useQuery<(ServiceRecord & { mowerName: string; technician?: string })[]>({
     queryKey: ["/api/service-records"],
     queryFn: async () => {
       if (!mowers || mowers.length === 0) return [];
       
       // Fetch service records for all mowers
-      const recordPromises = mowers.map(mower => 
-        apiRequest(`/api/mowers/${mower.id}/service-records`).catch(() => [])
-      );
+      const recordPromises = mowers.map(async (mower: Mower) => {
+        try {
+          const response = await apiRequest("GET", `/api/mowers/${mower.id}/service-records`);
+          if (!response.ok) return [];
+          return response.json();
+        } catch {
+          return [];
+        }
+      });
       
       const allRecords = await Promise.all(recordPromises);
       
       // Flatten and add mower info to each record
-      return allRecords.flat().map(record => ({
+      return allRecords.flat().map((record: ServiceRecord) => ({
         ...record,
-        mowerName: mowers.find(m => m.id === record.mowerId)?.make + " " + mowers.find(m => m.id === record.mowerId)?.model || "Unknown Mower"
+        mowerName: mowers.find((m: Mower) => m.id === record.mowerId)?.make + " " + mowers.find((m: Mower) => m.id === record.mowerId)?.model || "Unknown Mower",
+        technician: record.performedBy || undefined // Map performedBy to technician for compatibility
       }));
     },
     enabled: !!mowers && mowers.length > 0,
@@ -51,7 +61,7 @@ export default function MaintenanceHistory() {
   const filteredAndSortedRecords = useMemo(() => {
     if (!allServiceRecords) return [];
 
-    let filtered = allServiceRecords.filter(record => {
+    let filtered = allServiceRecords.filter((record: ServiceRecord & { mowerName: string; technician?: string }) => {
       const matchesSearch = 
         searchQuery === "" ||
         record.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -70,7 +80,7 @@ export default function MaintenanceHistory() {
     });
 
     // Sort by service date (newest first)
-    return filtered.sort((a, b) => 
+    return filtered.sort((a: ServiceRecord & { mowerName: string; technician?: string }, b: ServiceRecord & { mowerName: string; technician?: string }) => 
       new Date(b.serviceDate || 0).getTime() - new Date(a.serviceDate || 0).getTime()
     );
   }, [allServiceRecords, searchQuery, statusFilter, typeFilter]);
@@ -195,7 +205,7 @@ export default function MaintenanceHistory() {
             </div>
           ) : (
             <div className="space-y-4">
-              {paginatedRecords.map((record) => (
+              {paginatedRecords.map((record: ServiceRecord & { mowerName: string; technician?: string }) => (
                 <div 
                   key={record.id} 
                   className="flex items-center justify-between p-4 border border-panel-border rounded-lg hover:bg-accent-card transition-colors"

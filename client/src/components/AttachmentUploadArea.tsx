@@ -200,9 +200,10 @@ export default function AttachmentUploadArea({
 
       {showMetadataDialog && pendingFile && (
         <AttachmentMetadataDialog
-          isOpen={showMetadataDialog}
-          onClose={handleMetadataCancel}
+          open={showMetadataDialog}
+          onOpenChange={setShowMetadataDialog}
           onSubmit={handleMetadataSubmit}
+          onCancel={handleMetadataCancel}
           fileName={pendingFile.name}
         />
       )}

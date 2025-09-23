@@ -30,7 +30,7 @@ export function useAttachmentThumbnail(attachmentId: string, fileType: string, f
       return null;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: fileType.startsWith('image') || fileType === 'pdf' || (fileName && fileName.toLowerCase().endsWith('.txt')),
+    enabled: Boolean(fileType.startsWith('image') || fileType === 'pdf' || (fileName && fileName.toLowerCase().endsWith('.txt'))),
   });
 }
 

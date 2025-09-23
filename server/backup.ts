@@ -328,7 +328,7 @@ export async function restoreFromBackup(buffer: Buffer): Promise<{success: boole
                 try {
                   // Find the corresponding file data
                   let fileData = '';
-                  for (const [fileName, fileBuffer] of attachmentFiles.entries()) {
+                  for (const [fileName, fileBuffer] of Array.from(attachmentFiles.entries())) {
                     if (fileName.includes(attachmentData.id)) {
                       fileData = fileBuffer.toString('base64');
                       break;

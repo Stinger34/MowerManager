@@ -162,7 +162,7 @@ export default function Dashboard() {
         mileage: record.mileage || undefined,
       };
     })
-    .filter(Boolean)
+    .filter((event): event is NonNullable<typeof event> => event !== null)
     .sort((a, b) => new Date(b!.date).getTime() - new Date(a!.date).getTime()) // Sort by date, newest first
     .slice(0, 10); // Limit to 10 most recent
 

@@ -954,7 +954,7 @@ export default function MowerDetails() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <Button 
-                                  variant="link" 
+                                  variant="ghost" 
                                   className="p-0 h-auto font-medium text-left justify-start"
                                   onClick={() => setLocation(`/catalog/components/${component.id}`)}
                                 >
@@ -1052,7 +1052,7 @@ export default function MowerDetails() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <Button 
-                                  variant="link" 
+                                  variant="ghost" 
                                   className="p-0 h-auto font-medium text-left justify-start"
                                   onClick={() => setLocation(`/catalog/parts/${assetPart.partId}`)}
                                 >
@@ -1079,7 +1079,7 @@ export default function MowerDetails() {
                                   <span>Allocated to Component: </span>
                                   {assetPart.component ? (
                                     <Button 
-                                      variant="link" 
+                                      variant="ghost" 
                                       className="p-0 h-auto text-sm text-blue-600 underline"
                                       onClick={() => setLocation(`/catalog/components/${assetPart.componentId}`)}
                                     >
@@ -1190,19 +1190,20 @@ export default function MowerDetails() {
       {/* Attachment Metadata Dialog */}
       {showMetadataDialog && pendingFiles[currentFileIndex] && (
         <AttachmentMetadataDialog
-          isOpen={showMetadataDialog}
-          onClose={handleMetadataCancel}
+          open={showMetadataDialog}
+          onOpenChange={setShowMetadataDialog}
           onSubmit={handleMetadataSubmit}
+          onCancel={handleMetadataCancel}
           fileName={pendingFiles[currentFileIndex].name}
         />
       )}
 
       {/* Edit Attachment Dialog */}
       <EditAttachmentDialog
-        isOpen={showEditAttachmentDialog}
-        onClose={() => {
-          setShowEditAttachmentDialog(false);
-          setEditingAttachment(null);
+        open={showEditAttachmentDialog}
+        onOpenChange={(open) => {
+          setShowEditAttachmentDialog(open);
+          if (!open) setEditingAttachment(null);
         }}
         onSubmit={handleEditAttachmentSubmit}
         attachment={editingAttachment}

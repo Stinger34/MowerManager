@@ -89,29 +89,57 @@ AnimatedDrawerContent.displayName = "AnimatedDrawerContent"
 const AnimatedDrawerHeader = ({
   className,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <motion.div
-    className={cn("grid gap-1.5 p-4 text-center sm:text-left", className)}
-    initial={{ opacity: 0, y: -10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: 0.2, duration: 0.2 }}
-    {...props}
-  />
-)
+}: React.HTMLAttributes<HTMLDivElement>) => {
+  // Filter out all HTML event handlers that conflict with Framer Motion
+  const {
+    onAnimationStart,
+    onAnimationEnd,
+    onAnimationIteration,
+    onTransitionEnd,
+    onDragStart,
+    onDrag,
+    onDragEnd,
+    ...htmlProps
+  } = props;
+  
+  return (
+    <motion.div
+      className={cn("grid gap-1.5 p-4 text-center sm:text-left", className)}
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2, duration: 0.2 }}
+      {...htmlProps}
+    />
+  );
+};
 AnimatedDrawerHeader.displayName = "AnimatedDrawerHeader"
 
 const AnimatedDrawerFooter = ({
   className,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <motion.div
-    className={cn("mt-auto flex flex-col gap-2 p-4", className)}
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: 0.2, duration: 0.2 }}
-    {...props}
-  />
-)
+}: React.HTMLAttributes<HTMLDivElement>) => {
+  // Filter out all HTML event handlers that conflict with Framer Motion
+  const {
+    onAnimationStart,
+    onAnimationEnd,
+    onAnimationIteration,
+    onTransitionEnd,
+    onDragStart,
+    onDrag,
+    onDragEnd,
+    ...htmlProps
+  } = props;
+  
+  return (
+    <motion.div
+      className={cn("mt-auto flex flex-col gap-2 p-4", className)}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2, duration: 0.2 }}
+      {...htmlProps}
+    />
+  );
+};
 AnimatedDrawerFooter.displayName = "AnimatedDrawerFooter"
 
 const AnimatedDrawerTitle = React.forwardRef<
