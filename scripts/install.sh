@@ -95,14 +95,13 @@ fi
 USER_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'")
 if [ "$USER_EXISTS" != "1" ]; then
   sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';"
+else
+  sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';"
 fi
 
 # Grant privileges and set CREATEDB
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};"
 sudo -u postgres psql -c "ALTER USER ${DB_USER} CREATEDB;"
-
-# Grant schema permissions (PostgreSQL 15+ and best practice)
-sudo -u postgres psql -d "${DB_NAME}" -c "GRANT ALL ON SCHEMA public TO ${DB_USER};"
 
 # Configure PostgreSQL to accept local connections with MD5 (password)
 PG_VERSION=$(psql --version | grep -oE '[0-9]+' | head -1)
