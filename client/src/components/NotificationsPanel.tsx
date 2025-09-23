@@ -14,7 +14,7 @@ interface NotificationsPanelProps {
   onNotificationClick?: (notification: Notification) => void;
 }
 
-const notificationIcons = {
+const notificationIcons: Record<string, any> = {
   warning: AlertTriangle,
   info: Info,
   success: CheckCircle,
@@ -22,14 +22,14 @@ const notificationIcons = {
 };
 
 // Updated color scheme to match red/yellow/green specification 
-const notificationColors = {
+const notificationColors: Record<string, string> = {
   warning: "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-50", // Yellow for warnings
   info: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-50",           // Blue for info
   success: "bg-green-100 text-green-800 border-green-200 hover:bg-green-50",    // Green for success
   error: "bg-red-100 text-red-800 border-red-200 hover:bg-red-50",              // Red for errors
 };
 
-const priorityColors = {
+const priorityColors: Record<string, string> = {
   high: "border-l-4 border-l-red-500",
   medium: "border-l-4 border-l-yellow-500", 
   low: "border-l-4 border-l-green-500",

@@ -314,6 +314,9 @@ export class MemStorage implements IStorage {
       description: insertAttachment.description || null,
       pageCount: insertAttachment.pageCount ?? null,
       uploadedAt: now,
+      mowerId: insertAttachment.mowerId ?? null,
+      componentId: insertAttachment.componentId ?? null,
+      partId: insertAttachment.partId ?? null,
     };
     this.attachments.set(id, attachment);
     return attachment;

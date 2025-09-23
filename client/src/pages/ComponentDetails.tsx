@@ -220,7 +220,7 @@ export default function ComponentDetails() {
                   <div>
                     <label className="text-sm font-medium text-gray-600">Associated Mower</label>
                     <Button 
-                      variant="link" 
+                      variant="ghost" 
                       className="p-0 h-auto text-blue-600 mt-1"
                       onClick={() => setLocation(`/mowers/${component.mowerId}`)}
                     >

@@ -173,7 +173,7 @@ export default function GenericAttachmentGallery({
             window.open(`/api/attachments/${id}/download?inline=1`, '_blank');
           }
         }}
-        onDownload={(id, fileName) => {
+        onDownload={(id: string, fileName: string) => {
           const link = document.createElement('a');
           link.href = `/api/attachments/${id}/download`;
           link.download = fileName;
@@ -188,7 +188,6 @@ export default function GenericAttachmentGallery({
         }}
         onSetThumbnail={onSetThumbnail}
         thumbnailAttachmentId={thumbnailAttachmentId}
-        isLoading={isLoading}
         isUploading={uploadAttachmentMutation.isPending}
         isDeleting={false}
       />
