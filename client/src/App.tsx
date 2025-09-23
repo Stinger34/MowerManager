@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationDropdown } from "@/components/NotificationDropdown";
 import { Suspense, lazy } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageTransition } from "@/components/ui/page-transitions";
@@ -111,6 +112,7 @@ export default function App() {
                     <div className="hidden md:flex items-center gap-2 text-sm text-text-muted">
                       <span>Welcome back, John Doe</span>
                     </div>
+                    <NotificationDropdown />
                     <ThemeToggle />
                   </div>
                 </header>
