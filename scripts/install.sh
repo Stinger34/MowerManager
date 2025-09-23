@@ -66,12 +66,11 @@ fi
 
 echo
 echo "==== [Step 4: PostgreSQL Database Config] ===="
-
-# Prompt for database name and user, with defaults
-read -p "Enter database name [mower_db]: " DB_NAME
+echo "Press Enter to accept the default, or enter a custom value."
+read -p "Database name [mower_db]: " DB_NAME
 DB_NAME=${DB_NAME:-mower_db}
 
-read -p "Enter database user [mower_user]: " DB_USER
+read -p "Database user [mower_user]: " DB_USER
 DB_USER=${DB_USER:-mower_user}
 
 # Generate a secure random password for the database user
