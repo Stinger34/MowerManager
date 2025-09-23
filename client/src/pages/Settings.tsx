@@ -289,7 +289,7 @@ export default function Settings() {
               <li>Component information</li>
             </ul>
             <p className="mt-4 text-text-primary"><strong>File format:</strong> ZIP archive with JSON database dump and attachments</p>
-            <p className="text-text-primary"><strong>Compatibility:</strong> Works with all versions of Mower Manager</p>
+            <p className="text-text-primary"><strong>Compatibility:</strong> Works with all versions of MowerM8</p>
           </div>
         </CardContent>
       </Card>
