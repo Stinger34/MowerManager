@@ -13,6 +13,8 @@ import { format, addMonths } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import AttachmentUploadArea from "@/components/AttachmentUploadArea";
+import ThumbnailSelector from "@/components/ThumbnailSelector";
 import type { InsertMower } from "@shared/schema";
 
 const mowerFormSchema = z.object({
@@ -31,9 +33,22 @@ const mowerFormSchema = z.object({
 
 type MowerFormData = z.infer<typeof mowerFormSchema>;
 
+interface AttachmentFile {
+  file: File;
+  metadata: {
+    title: string;
+    description: string;
+  };
+}
+
+interface ThumbnailFile {
+  file: File;
+  previewUrl: string;
+}
+
 interface MowerFormProps {
   initialData?: Partial<MowerFormData>;
-  onSubmit: (data: InsertMower) => void;
+  onSubmit: (data: InsertMower, attachments?: AttachmentFile[], thumbnail?: ThumbnailFile) => void;
   onCancel: () => void;
   isEditing?: boolean;
 }
@@ -45,6 +60,8 @@ export default function MowerForm({
   isEditing = false 
 }: MowerFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [thumbnail, setThumbnail] = useState<ThumbnailFile | null>(null);
 
   const form = useForm<MowerFormData>({
     resolver: zodResolver(mowerFormSchema),
@@ -86,7 +103,7 @@ export default function MowerForm({
       nextServiceDate: data.nextServiceDate ? format(data.nextServiceDate, 'yyyy-MM-dd') : null,
     };
     
-    onSubmit(apiData as any);
+    onSubmit(apiData as any, attachments, thumbnail || undefined);
     setIsSubmitting(false);
   };
 
@@ -383,6 +400,34 @@ export default function MowerForm({
                 </FormItem>
               )}
             />
+
+            {/* Attachment and Thumbnail Section - Only show for new mowers */}
+            {!isEditing && (
+              <div className="border-t pt-6 space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Optional Attachments</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    You can add attachments and set a thumbnail for this mower. These are optional and can also be added later.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <AttachmentUploadArea
+                      onAttachmentsChange={setAttachments}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  
+                  <div>
+                    <ThumbnailSelector
+                      onThumbnailChange={setThumbnail}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-4 justify-end">
               <Button 
