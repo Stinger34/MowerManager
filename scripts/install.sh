@@ -85,24 +85,21 @@ systemctl enable postgresql
 
 echo
 echo "Creating database and user (if not exists)..."
-sudo -u postgres psql <<EOF
-DO \$\$
-BEGIN
-   IF NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}') THEN
-      CREATE DATABASE ${DB_NAME};
-   END IF;
-END
-\$\$;
-DO \$\$
-BEGIN
-   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${DB_USER}') THEN
-      CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';
-   END IF;
-END
-\$\$;
-GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};
-ALTER USER ${DB_USER} CREATEDB;
-EOF
+# Check if database exists, if not, create it
+DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'")
+if [ "$DB_EXISTS" != "1" ]; then
+  sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME};"
+fi
+
+# Check if user exists, if not, create it
+USER_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'")
+if [ "$USER_EXISTS" != "1" ]; then
+  sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';"
+fi
+
+# Grant privileges and set CREATEDB
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};"
+sudo -u postgres psql -c "ALTER USER ${DB_USER} CREATEDB;"
 
 # Grant schema permissions (PostgreSQL 15+ and best practice)
 sudo -u postgres psql -d "${DB_NAME}" -c "GRANT ALL ON SCHEMA public TO ${DB_USER};"
