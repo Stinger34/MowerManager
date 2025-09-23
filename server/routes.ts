@@ -2,9 +2,10 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
-import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertAttachmentSchema, insertComponentSchema, insertPartSchema, insertAssetPartSchema } from "@shared/schema";
+import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertAttachmentSchema, insertComponentSchema, insertPartSchema, insertAssetPartSchema, insertNotificationSchema } from "@shared/schema";
 import { processPDF, getDocumentPageCount, generateTxtThumbnail } from "./pdfUtils";
 import { createBackup, validateBackupFile, restoreFromBackup } from "./backup";
+import { NotificationService } from "./notificationService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // put application routes here
@@ -107,6 +108,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertMowerSchema.parse(transformedData);
       console.log('Validated data:', validatedData);
       const mower = await storage.createMower(validatedData);
+      
+      // Create notification for new mower
+      const mowerDisplayName = `${mower.make} ${mower.model}`;
+      await NotificationService.createMowerNotification('added', mowerDisplayName, mower.id.toString());
+      
       res.status(201).json(mower);
     } catch (error) {
       console.error('Mower creation error:', error);
@@ -145,10 +151,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/mowers/:id', async (req: Request, res: Response) => {
     try {
+      // Get mower details before deletion for notification
+      const mower = await storage.getMower(req.params.id);
+      
       const deleted = await storage.deleteMower(req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: 'Mower not found' });
       }
+      
+      // Create notification for deleted mower
+      if (mower) {
+        const mowerDisplayName = `${mower.make} ${mower.model}`;
+        await NotificationService.createMowerNotification('deleted', mowerDisplayName, mower.id.toString());
+      }
+      
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete mower' });
@@ -707,6 +723,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertComponentSchema.parse(componentData);
       const component = await storage.createComponent(validatedData);
 
+      // Create notification for new component
+      await NotificationService.createComponentNotification('created', component.name, component.id.toString());
+
       res.status(201).json(component);
     } catch (error) {
       console.error('Component creation error:', error);
@@ -731,6 +750,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       const validatedData = insertComponentSchema.parse(componentData);
       const component = await storage.createComponent(validatedData);
+      
+      // Get mower details for notification
+      const mower = await storage.getMower(req.params.mowerId);
+      const mowerDisplayName = mower ? `${mower.make} ${mower.model}` : undefined;
+      
+      // Create notification for new component allocated to mower
+      await NotificationService.createComponentNotification('allocated', component.name, component.id.toString(), mowerDisplayName, req.params.mowerId);
+      
       res.status(201).json(component);
     } catch (error) {
       res.status(400).json({ error: 'Invalid component data', details: error instanceof Error ? error.message : String(error) });
@@ -751,10 +778,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/components/:id', async (req: Request, res: Response) => {
     try {
+      // Get component details before deletion for notification
+      const component = await storage.getComponent(req.params.id);
+      
       const deleted = await storage.deleteComponent(req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: 'Component not found' });
       }
+      
+      // Create notification for deleted component
+      if (component) {
+        await NotificationService.createComponentNotification('deleted', component.name, component.id.toString());
+      }
+      
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete component' });
@@ -883,6 +919,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertPartSchema.parse(req.body);
       const part = await storage.createPart(validatedData);
+      
+      // Create notification for new part
+      await NotificationService.createPartNotification('created', part.name, part.id.toString());
+      
       res.status(201).json(part);
     } catch (error) {
       res.status(400).json({ error: 'Invalid part data', details: error instanceof Error ? error.message : String(error) });
@@ -903,10 +943,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/parts/:id', async (req: Request, res: Response) => {
     try {
+      // Get part details before deletion for notification
+      const part = await storage.getPart(req.params.id);
+      
       const deleted = await storage.deletePart(req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: 'Part not found' });
       }
+      
+      // Create notification for deleted part
+      if (part) {
+        await NotificationService.createPartNotification('deleted', part.name, part.id.toString());
+      }
+      
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete part' });
@@ -1029,6 +1078,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertAssetPartSchema.parse(req.body);
       const assetPart = await storage.createAssetPart(validatedData);
+      
+      // Get related data for notification
+      const part = await storage.getPart(assetPart.partId.toString());
+      let mowerDisplayName: string | undefined;
+      let mowerId: string | undefined;
+      
+      if (assetPart.mowerId) {
+        const mower = await storage.getMower(assetPart.mowerId.toString());
+        if (mower) {
+          mowerDisplayName = `${mower.make} ${mower.model}`;
+          mowerId = mower.id.toString();
+        }
+      }
+      
+      // Create notification for part allocation
+      if (part) {
+        await NotificationService.createPartNotification('allocated', part.name, part.id.toString(), mowerDisplayName, mowerId);
+      }
+      
       res.status(201).json(assetPart);
     } catch (error) {
       res.status(400).json({ error: 'Invalid asset part data', details: error instanceof Error ? error.message : String(error) });
@@ -1141,6 +1209,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: 'Failed to restore backup', 
         details: error instanceof Error ? error.message : String(error) 
       });
+    }
+  });
+
+  // Notification routes
+  app.get('/api/notifications', async (_req: Request, res: Response) => {
+    try {
+      const notifications = await storage.getNotifications();
+      res.json(notifications);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      res.status(500).json({ error: 'Failed to fetch notifications' });
+    }
+  });
+
+  app.get('/api/notifications/unread', async (_req: Request, res: Response) => {
+    try {
+      const notifications = await storage.getUnreadNotifications();
+      res.json(notifications);
+    } catch (error) {
+      console.error('Error fetching unread notifications:', error);
+      res.status(500).json({ error: 'Failed to fetch unread notifications' });
+    }
+  });
+
+  app.post('/api/notifications', async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertNotificationSchema.parse(req.body);
+      const notification = await storage.createNotification(validatedData);
+      res.status(201).json(notification);
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      res.status(400).json({ error: 'Invalid notification data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.patch('/api/notifications/:id/read', async (req: Request, res: Response) => {
+    try {
+      const success = await storage.markNotificationAsRead(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: 'Notification not found' });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      res.status(500).json({ error: 'Failed to mark notification as read' });
+    }
+  });
+
+  app.patch('/api/notifications/read-all', async (_req: Request, res: Response) => {
+    try {
+      const success = await storage.markAllNotificationsAsRead();
+      res.json({ success });
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      res.status(500).json({ error: 'Failed to mark all notifications as read' });
+    }
+  });
+
+  app.delete('/api/notifications/:id', async (req: Request, res: Response) => {
+    try {
+      const success = await storage.deleteNotification(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: 'Notification not found' });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      res.status(500).json({ error: 'Failed to delete notification' });
     }
   });
 
