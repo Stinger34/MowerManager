@@ -58,7 +58,7 @@ export function AppSidebar() {
             <img 
               src="/logo.png" 
               alt="Mower Manager" 
-              className="h-16 w-16 object-contain rounded-md"
+              className="h-16 w-16 object-contain"
             />
           </a>
         </div>
