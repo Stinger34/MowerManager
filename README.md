@@ -1,3 +1,10 @@
+## Quick Install Script (Canary Branch)
+
+```sh
+wget https://raw.githubusercontent.com/Stinger34/MowerManager/canary/scripts/install.sh -O install.sh
+sudo bash install.sh
+```
+
 # Automated Proxmox LXC Deployment - NOT WORKING CURRENTRLY
 
 You can deploy MowerManager_LXC automatically on your Proxmox host with a single command:
