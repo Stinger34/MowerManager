@@ -2,7 +2,7 @@
 
 set -e
 
-echo "==== [MowerManager Automated Install: Ubuntu 24.04+] ===="
+echo "==== [MowerM8 Automated Install: Ubuntu 24.04+] ===="
 
 # Ensure script is run as root
 if [ "$EUID" -ne 0 ]; then
