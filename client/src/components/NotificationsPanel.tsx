@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Bell, AlertTriangle, Clock, CheckCircle, Info, ExternalLink, X } from "lucide-react";
+import { Bell, AlertTriangle, Clock, CheckCircle, Info, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -176,16 +176,14 @@ export default function NotificationsPanel({
                 key={notification.id}
                 className={`p-3 rounded-lg border transition-all duration-200 ${notificationColors[notification.type]} ${priorityClass} ${
                   !notification.isRead ? 'shadow-md' : 'opacity-75'
-                }`}
+                } ${!isDeletedOrSold ? 'cursor-pointer hover:shadow-lg' : ''}`}
+                onClick={!isDeletedOrSold ? () => handleNotificationClick(notification) : undefined}
               >
                 <div className="flex items-start gap-3">
                   <Icon className="h-4 w-4 mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <div 
-                        className={`flex-1 ${!isDeletedOrSold ? 'cursor-pointer' : ''}`}
-                        onClick={!isDeletedOrSold ? () => handleNotificationClick(notification) : undefined}
-                      >
+                      <div className="flex-1">
                         <p className="font-medium text-sm">{notification.title}</p>
                         {notification.entityId && notification.entityName && (
                           <p className="text-xs font-mono text-current opacity-75">
@@ -195,18 +193,9 @@ export default function NotificationsPanel({
                         <p className="text-xs mt-1 opacity-90">{notification.message}</p>
                       </div>
                       <div className="flex items-center gap-1">
-                        {!isDeletedOrSold && (
-                          <button
-                            onClick={() => handleNotificationClick(notification)}
-                            className="opacity-50 hover:opacity-75 flex-shrink-0"
-                            title="Open details"
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                          </button>
-                        )}
                         <button
                           onClick={(e) => handleDismissClick(e, notification.id)}
-                          className="opacity-50 hover:opacity-75 flex-shrink-0 ml-1"
+                          className="opacity-50 hover:opacity-75 flex-shrink-0"
                           title="Dismiss notification"
                         >
                           <X className="h-3 w-3" />
