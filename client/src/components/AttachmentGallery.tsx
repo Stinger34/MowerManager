@@ -19,9 +19,9 @@ interface Attachment {
 
 interface AttachmentGalleryProps {
   attachments: Attachment[];
-  onUpload: () => void;
+  onUpload: (files: FileList) => void;
   onView: (id: string) => void;
-  onDownload: (id: string) => void;
+  onDownload: (id: string, fileName: string) => void;
   onDelete: (id: string) => void;
   onEdit?: (id: string) => void;
   onSetThumbnail?: (id: string) => void;
@@ -164,6 +164,20 @@ export default function AttachmentGallery({
   isUploading = false,
   isDeleting = false
 }: AttachmentGalleryProps) {
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      onUpload(files);
+    }
+    // Reset input value to allow uploading the same file again
+    event.target.value = '';
+  };
+
+  const triggerFileInput = () => {
+    const fileInput = document.getElementById('attachment-file-input') as HTMLInputElement;
+    fileInput?.click();
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -172,18 +186,28 @@ export default function AttachmentGallery({
             <Upload className="h-5 w-5" />
             Attachments ({attachments.length})
           </CardTitle>
-          <Button 
-            onClick={onUpload} 
-            disabled={isUploading}
-            data-testid="button-upload-attachment"
-          >
-            {isUploading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4 mr-2" />
-            )}
-            {isUploading ? 'Uploading...' : 'Upload Files'}
-          </Button>
+          <div>
+            <input
+              id="attachment-file-input"
+              type="file"
+              multiple
+              style={{ display: 'none' }}
+              accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.txt,.zip,.rar"
+              onChange={handleFileInputChange}
+            />
+            <Button 
+              onClick={triggerFileInput} 
+              disabled={isUploading}
+              data-testid="button-upload-attachment"
+            >
+              {isUploading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4 mr-2" />
+              )}
+              {isUploading ? 'Uploading...' : 'Upload Files'}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -255,7 +279,7 @@ export default function AttachmentGallery({
                         <DropdownMenuItem 
                           onClick={(e) => {
                             e.stopPropagation();
-                            onDownload(attachment.id);
+                            onDownload(attachment.id, attachment.fileName);
                           }}
                           data-testid={`button-download-attachment-${attachment.id}`}
                         >

@@ -1280,6 +1280,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/notifications', async (_req: Request, res: Response) => {
+    try {
+      const success = await storage.deleteAllNotifications();
+      res.json({ success });
+    } catch (error) {
+      console.error('Error deleting all notifications:', error);
+      res.status(500).json({ error: 'Failed to delete all notifications' });
+    }
+  });
+
   // Catch-all for undefined API routes to always return JSON, never HTML
   app.use('/api', (req: Request, res: Response) => {
     res.status(404).json({ error: 'API route not found' });

@@ -13,17 +13,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
 interface AttachmentMetadataDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSubmit: (metadata: { title: string; description: string }) => void;
+  onCancel: () => void;
   fileName: string;
+  fileIndex?: number;
+  totalFiles?: number;
 }
 
 export default function AttachmentMetadataDialog({
-  isOpen,
-  onClose,
+  open,
+  onOpenChange,
   onSubmit,
+  onCancel,
   fileName,
+  fileIndex,
+  totalFiles,
 }: AttachmentMetadataDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -36,22 +42,28 @@ export default function AttachmentMetadataDialog({
     // Reset form
     setTitle("");
     setDescription("");
-    onClose();
+    onOpenChange(false);
   };
 
   const handleCancel = () => {
     setTitle("");
     setDescription("");
-    onClose();
+    onCancel();
+    onOpenChange(false);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add Attachment Details</DialogTitle>
           <DialogDescription>
             Provide a title and description for "{fileName}". The filename will be used as the title if left blank.
+            {fileIndex && totalFiles && (
+              <span className="block mt-1 text-sm text-muted-foreground">
+                File {fileIndex} of {totalFiles}
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">

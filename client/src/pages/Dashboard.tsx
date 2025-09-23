@@ -2,6 +2,7 @@ import { useState } from "react";
 import DashboardStats from "@/components/DashboardStats";
 import AssetCard from "@/components/AssetCard";
 import MaintenanceTimeline from "@/components/MaintenanceTimeline";
+import RemindersCard from "@/components/RemindersCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -162,7 +163,7 @@ export default function Dashboard() {
         mileage: record.mileage || undefined,
       };
     })
-    .filter(Boolean)
+    .filter((event): event is NonNullable<typeof event> => event !== null)
     .sort((a, b) => new Date(b!.date).getTime() - new Date(a!.date).getTime()) // Sort by date, newest first
     .slice(0, 10); // Limit to 10 most recent
 
@@ -194,51 +195,59 @@ export default function Dashboard() {
           overdueServices={overdueServices}
         />
         
-        {/* Mower Asset Quick Views - Second row (moved from bottom) */}
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold tracking-tight text-text-dark">Mower Asset Quick Views</h2>
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted h-4 w-4" />
-              <Input
-                placeholder="Search mowers..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-                data-testid="input-search-mowers"
-              />
+        {/* Mower Asset Quick Views and Reminders - Second row */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Mower Assets Section - Takes 3 columns */}
+          <div className="lg:col-span-3 space-y-6">
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-bold tracking-tight text-text-dark">Mower Asset Quick Views</h2>
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted h-4 w-4" />
+                <Input
+                  placeholder="Search mowers..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                  data-testid="input-search-mowers"
+                />
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredMowers.map((mower) => (
+                <AssetCard
+                  key={mower.id}
+                  id={String(mower.id)}
+                  make={mower.make}
+                  model={mower.model}
+                  year={mower.year ?? undefined}
+                  serialNumber={mower.serialNumber ?? undefined}
+                  condition={mower.condition as "excellent" | "good" | "fair" | "poor"}
+                  status={mower.status as "active" | "maintenance" | "retired"}
+                  attachmentCount={0}
+                  thumbnailUrl={thumbnails?.[mower.id.toString()]}
+                  lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
+                  nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
+                  onViewDetails={handleViewDetails}
+                  onEdit={handleEdit}
+                  onAddService={handleAddService}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+
+            {filteredMowers.length === 0 && searchQuery && (
+              <div className="text-center py-8 text-text-muted">
+                <p>No mowers found matching "{searchQuery}"</p>
+                <p className="text-sm">Try adjusting your search terms</p>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {filteredMowers.map((mower) => (
-              <AssetCard
-                key={mower.id}
-                id={String(mower.id)}
-                make={mower.make}
-                model={mower.model}
-                year={mower.year ?? undefined}
-                serialNumber={mower.serialNumber ?? undefined}
-                condition={mower.condition as "excellent" | "good" | "fair" | "poor"}
-                status={mower.status as "active" | "maintenance" | "retired"}
-                attachmentCount={0}
-                thumbnailUrl={thumbnails?.[mower.id.toString()]}
-                lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
-                nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
-                onViewDetails={handleViewDetails}
-                onEdit={handleEdit}
-                onAddService={handleAddService}
-                onDelete={handleDelete}
-              />
-            ))}
+          {/* Reminders Section - Takes 1 column */}
+          <div className="lg:col-span-1">
+            <RemindersCard />
           </div>
-
-          {filteredMowers.length === 0 && searchQuery && (
-            <div className="text-center py-8 text-text-muted">
-              <p>No mowers found matching "{searchQuery}"</p>
-              <p className="text-sm">Try adjusting your search terms</p>
-            </div>
-          )}
         </div>
       </div>
 

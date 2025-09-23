@@ -66,19 +66,20 @@ export default function AttachmentGalleryExample() {
       
       <AttachmentGallery
         attachments={mockAttachments}
-        onUpload={() => setShowDialog(true)}
+        onUpload={(files) => setShowDialog(true)}
         onView={(id) => console.log('View attachment:', id)}
-        onDownload={(id) => console.log('Download attachment:', id)}
+        onDownload={(id, fileName) => console.log('Download attachment:', id, fileName)}
         onDelete={(id) => console.log('Delete attachment:', id)}
       />
       
       <AttachmentMetadataDialog
-        isOpen={showDialog}
-        onClose={() => setShowDialog(false)}
+        open={showDialog}
+        onOpenChange={setShowDialog}
         onSubmit={(metadata) => {
           console.log('Upload metadata:', metadata);
           setShowDialog(false);
         }}
+        onCancel={() => setShowDialog(false)}
         fileName="example_file.jpg"
       />
     </div>

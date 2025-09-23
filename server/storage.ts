@@ -1,7 +1,7 @@
 import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, type Component, type InsertComponent, type Part, type InsertPart, type AssetPart, type InsertAssetPart, type AssetPartWithDetails, type Notification, type InsertNotification, mowers, tasks, serviceRecords, attachments, components, parts, assetParts, notifications } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -72,6 +72,7 @@ export interface IStorage {
   markNotificationAsRead(id: string): Promise<boolean>;
   markAllNotificationsAsRead(): Promise<boolean>;
   deleteNotification(id: string): Promise<boolean>;
+  deleteAllNotifications(): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -314,6 +315,9 @@ export class MemStorage implements IStorage {
       description: insertAttachment.description || null,
       pageCount: insertAttachment.pageCount ?? null,
       uploadedAt: now,
+      mowerId: insertAttachment.mowerId ?? null,
+      componentId: insertAttachment.componentId ?? null,
+      partId: insertAttachment.partId ?? null,
     };
     this.attachments.set(id, attachment);
     return attachment;
@@ -553,6 +557,11 @@ export class MemStorage implements IStorage {
 
   async deleteNotification(id: string): Promise<boolean> {
     return this.notifications.delete(id);
+  }
+
+  async deleteAllNotifications(): Promise<boolean> {
+    this.notifications.clear();
+    return true;
   }
 }
 
@@ -873,11 +882,11 @@ export class DbStorage implements IStorage {
 
   // Notification methods
   async getNotifications(): Promise<Notification[]> {
-    return await db.select().from(notifications).orderBy(notifications.createdAt);
+    return await db.select().from(notifications).orderBy(desc(notifications.createdAt));
   }
 
   async getUnreadNotifications(): Promise<Notification[]> {
-    return await db.select().from(notifications).where(eq(notifications.isRead, false)).orderBy(notifications.createdAt);
+    return await db.select().from(notifications).where(eq(notifications.isRead, false)).orderBy(desc(notifications.createdAt));
   }
 
   async createNotification(insertNotification: InsertNotification): Promise<Notification> {
@@ -907,6 +916,11 @@ export class DbStorage implements IStorage {
 
   async deleteNotification(id: string): Promise<boolean> {
     const result = await db.delete(notifications).where(eq(notifications.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async deleteAllNotifications(): Promise<boolean> {
+    const result = await db.delete(notifications);
     return (result.rowCount ?? 0) > 0;
   }
 }
