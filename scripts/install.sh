@@ -57,7 +57,7 @@ apt install -y postgresql postgresql-contrib postgresql-client
 
 echo
 echo "Verifying PostgreSQL installation..."
-if sudo -u postgres psql -c "SELECT version();" 2>/dev/null; then
+if sudo -u postgres psql -c "SELECT version();" < /dev/null 2>/dev/null; then
     echo "PostgreSQL service is running."
 else
     echo "ERROR: PostgreSQL is not responding correctly."
