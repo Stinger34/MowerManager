@@ -57,8 +57,8 @@ export function AppSidebar() {
           <a href="/" className="flex items-center justify-center">
             <img 
               src="/logo.png" 
-              alt="Mower Manager" 
-              className="h-16 w-16 object-contain rounded-md"
+              alt="MowerM8" 
+              className="h-40 w-40 object-contain rounded-md"
             />
           </a>
         </div>
