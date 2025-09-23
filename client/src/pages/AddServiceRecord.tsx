@@ -112,8 +112,8 @@ export default function AddServiceRecord() {
         </Button>
         
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Add Service Record</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Add Service Record</h1>
+          <p className="text-text-muted">
             Add a new service record for {mower.make} {mower.model}
           </p>
         </div>

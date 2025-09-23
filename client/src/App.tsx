@@ -104,7 +104,7 @@ export default function App() {
                   <div className="flex items-center gap-4">
                     <SidebarTrigger data-testid="button-sidebar-toggle" />
                     <div className="hidden md:block">
-                      <h2 className="text-lg font-semibold text-text-primary">Mower Manager</h2>
+                      <h2 className="text-lg font-semibold text-text-primary">MowerM8</h2>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">

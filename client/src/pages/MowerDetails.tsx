@@ -591,10 +591,10 @@ export default function MowerDetails() {
             </div>
           )}
           <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-3xl font-bold tracking-tight text-text-dark">
               {mower.make} {mower.model}
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-text-muted">
               {mower.year} • Serial: {mower.serialNumber}
             </p>
           </div>
@@ -603,6 +603,7 @@ export default function MowerDetails() {
         <div className="flex gap-2">
           <Button
             onClick={() => setLocation(`/mowers/${mowerId}/edit`)}
+            className="bg-accent-teal text-white hover:bg-accent-teal/90 rounded-button"
             data-testid="button-edit-mower"
           >
             <Edit className="h-4 w-4 mr-2" />

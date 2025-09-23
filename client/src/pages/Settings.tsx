@@ -160,19 +160,23 @@ export default function Settings() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <SettingsIcon className="h-8 w-8 text-primary" />
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Settings</h1>
+          <p className="text-text-muted">
+            Manage your application settings and data backups
+          </p>
+        </div>
       </div>
 
       {/* Backup & Restore Section */}
-      <Card>
+      <Card className="bg-white border-panel-border shadow-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-text-primary">
+            <Database className="h-5 w-5 text-accent-teal" />
             Backup & Restore
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-text-muted">
             Create backups of your mower data or restore from a previous backup. 
             Backups include all mowers, service records, attachments, and tasks.
           </CardDescription>
@@ -182,15 +186,15 @@ export default function Settings() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold">Create Backup</h3>
-                <p className="text-sm text-gray-600">
+                <h3 className="text-lg font-semibold text-text-primary">Create Backup</h3>
+                <p className="text-sm text-text-muted">
                   Download a complete backup of all your data as a ZIP file
                 </p>
               </div>
               <Button 
                 onClick={handleBackup} 
                 disabled={isBackingUp || isRestoring}
-                className="flex items-center gap-2"
+                className="bg-accent-teal text-white hover:bg-accent-teal/90 rounded-button flex items-center gap-2"
               >
                 <Download className="h-4 w-4" />
                 {isBackingUp ? 'Creating Backup...' : 'Create Backup'}
@@ -199,7 +203,7 @@ export default function Settings() {
             
             {isBackingUp && (
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-sm text-text-muted">
                   <span>Creating backup...</span>
                   <span>{backupProgress}%</span>
                 </div>
@@ -208,19 +212,19 @@ export default function Settings() {
             )}
           </div>
 
-          <div className="border-t pt-6">
+          <div className="border-t border-panel-border pt-6">
             {/* Restore Section */}
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-semibold">Restore from Backup</h3>
-                <p className="text-sm text-gray-600">
+                <h3 className="text-lg font-semibold text-text-primary">Restore from Backup</h3>
+                <p className="text-sm text-text-muted">
                   Upload a backup file to restore your data. This will replace all current data.
                 </p>
               </div>
 
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
+              <Alert className="border-accent-orange/20 bg-accent-orange/10">
+                <AlertCircle className="h-4 w-4 text-accent-orange" />
+                <AlertDescription className="text-text-primary">
                   <strong>Warning:</strong> Restoring from a backup will permanently replace all current data. 
                   Consider creating a backup first.
                 </AlertDescription>
@@ -238,7 +242,7 @@ export default function Settings() {
                   onClick={handleRestore}
                   disabled={!selectedFile || isBackingUp || isRestoring}
                   variant="destructive"
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 rounded-button"
                 >
                   <Upload className="h-4 w-4" />
                   {isRestoring ? 'Restoring...' : 'Restore Backup'}
@@ -246,14 +250,14 @@ export default function Settings() {
               </div>
 
               {selectedFile && (
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-text-muted">
                   Selected file: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
                 </div>
               )}
 
               {isRestoring && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-sm text-text-muted">
                     <span>Restoring backup...</span>
                     <span>{restoreProgress}%</span>
                   </div>
@@ -266,17 +270,17 @@ export default function Settings() {
       </Card>
 
       {/* Backup Information */}
-      <Card>
+      <Card className="bg-white border-panel-border shadow-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-text-primary">
+            <CheckCircle className="h-5 w-5 text-accent-teal" />
             Backup Information
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2 text-sm">
-            <p><strong>What's included in backups:</strong></p>
-            <ul className="list-disc list-inside space-y-1 text-gray-600">
+            <p className="text-text-primary"><strong>What's included in backups:</strong></p>
+            <ul className="list-disc list-inside space-y-1 text-text-muted">
               <li>All mower records and details</li>
               <li>Service history and maintenance records</li>
               <li>File attachments (images, PDFs, documents)</li>
@@ -284,8 +288,8 @@ export default function Settings() {
               <li>Parts catalog and inventory</li>
               <li>Component information</li>
             </ul>
-            <p className="mt-4"><strong>File format:</strong> ZIP archive with JSON database dump and attachments</p>
-            <p><strong>Compatibility:</strong> Works with all versions of Mower Manager</p>
+            <p className="mt-4 text-text-primary"><strong>File format:</strong> ZIP archive with JSON database dump and attachments</p>
+            <p className="text-text-primary"><strong>Compatibility:</strong> Works with all versions of MowerM8</p>
           </div>
         </CardContent>
       </Card>

@@ -142,21 +142,21 @@ export default function EditServiceRecord() {
         </Button>
         
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Edit Service Record</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Edit Service Record</h1>
+          <p className="text-text-muted">
             Edit service record for {mower.make} {mower.model}
           </p>
         </div>
       </div>
 
       <div className="max-w-2xl">
-        <Card>
+        <Card className="bg-white border-panel-border shadow-card">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-text-primary">
+              <Wrench className="h-5 w-5 text-accent-teal" />
               Service Record Details
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-text-muted">
               Update maintenance, repair, or inspection details for this mower
             </CardDescription>
           </CardHeader>

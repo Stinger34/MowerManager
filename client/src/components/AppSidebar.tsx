@@ -55,9 +55,11 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center justify-center px-2 py-4">
           <a href="/" className="flex items-center justify-center">
-            <div className="text-2xl font-bold text-sidebar-foreground">
-              MOWERM8
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="MowerM8" 
+              className="h-40 w-40 object-contain rounded-md"
+            />
           </a>
         </div>
       </SidebarHeader>
