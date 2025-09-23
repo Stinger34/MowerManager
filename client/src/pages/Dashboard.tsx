@@ -6,6 +6,7 @@ import RemindersCard from "@/components/RemindersCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Search, Plus, Trash2, Loader2, Zap, Calendar, FileText } from "lucide-react";
 import { useLocation } from "wouter";
@@ -197,55 +198,63 @@ export default function Dashboard() {
         
         {/* Mower Asset Quick Views and Reminders - Second row */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Mower Assets Section - Takes 3 columns */}
-          <div className="lg:col-span-3 space-y-6">
-            <div className="flex items-center gap-4">
-              <h2 className="text-2xl font-bold tracking-tight text-text-dark">Mower Asset Quick Views</h2>
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted h-4 w-4" />
-                <Input
-                  placeholder="Search mowers..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                  data-testid="input-search-mowers"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredMowers.map((mower) => (
-                <AssetCard
-                  key={mower.id}
-                  id={String(mower.id)}
-                  make={mower.make}
-                  model={mower.model}
-                  year={mower.year ?? undefined}
-                  serialNumber={mower.serialNumber ?? undefined}
-                  condition={mower.condition as "excellent" | "good" | "fair" | "poor"}
-                  status={mower.status as "active" | "maintenance" | "retired"}
-                  attachmentCount={0}
-                  thumbnailUrl={thumbnails?.[mower.id.toString()]}
-                  lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
-                  nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
-                  onViewDetails={handleViewDetails}
-                  onEdit={handleEdit}
-                  onAddService={handleAddService}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </div>
-
-            {filteredMowers.length === 0 && searchQuery && (
-              <div className="text-center py-8 text-text-muted">
-                <p>No mowers found matching "{searchQuery}"</p>
-                <p className="text-sm">Try adjusting your search terms</p>
-              </div>
-            )}
+          {/* Mower Assets Section - Takes 2 columns */}
+          <div className="lg:col-span-2 space-y-6">
+            <h2 className="text-2xl font-bold tracking-tight text-text-dark">Mower Asset Quick Views</h2>
+            
+            <Card className="bg-panel border-panel-border shadow-card">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold text-text-primary">Quick Mower Assets</CardTitle>
+                <CardDescription className="text-text-muted">
+                  View and manage your mower fleet
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {filteredMowers.length === 0 ? (
+                  <div className="text-center py-8 text-text-muted">
+                    <Zap className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No mowers in your fleet</p>
+                    <p className="text-sm">Add your first mower to get started</p>
+                  </div>
+                ) : (
+                  <Carousel className="w-full">
+                    <CarouselContent className="-ml-4">
+                      {filteredMowers.map((mower) => (
+                        <CarouselItem key={mower.id} className="pl-4 basis-full">
+                          <AssetCard
+                            id={String(mower.id)}
+                            make={mower.make}
+                            model={mower.model}
+                            year={mower.year ?? undefined}
+                            serialNumber={mower.serialNumber ?? undefined}
+                            condition={mower.condition as "excellent" | "good" | "fair" | "poor"}
+                            status={mower.status as "active" | "maintenance" | "retired"}
+                            attachmentCount={0}
+                            thumbnailUrl={thumbnails?.[mower.id.toString()]}
+                            lastService={mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : "No service recorded"}
+                            nextService={mower.nextServiceDate ? new Date(mower.nextServiceDate).toLocaleDateString() : "Not scheduled"}
+                            onViewDetails={handleViewDetails}
+                            onEdit={handleEdit}
+                            onAddService={handleAddService}
+                            onDelete={handleDelete}
+                          />
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    {filteredMowers.length > 1 && (
+                      <>
+                        <CarouselPrevious className="left-2" />
+                        <CarouselNext className="right-2" />
+                      </>
+                    )}
+                  </Carousel>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Reminders Section - Takes 1 column */}
-          <div className="lg:col-span-1">
+          {/* Reminders Section - Takes 2 columns */}
+          <div className="lg:col-span-2">
             <RemindersCard />
           </div>
         </div>
