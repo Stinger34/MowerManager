@@ -110,6 +110,20 @@ export const assetParts = pgTable("asset_parts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: text("type").notNull(), // 'warning' | 'info' | 'success' | 'error'
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  priority: text("priority").notNull().default("medium"), // 'high' | 'medium' | 'low'
+  entityType: text("entity_type"), // 'mower' | 'part' | 'component' | 'asset_part'
+  entityId: text("entity_id"), // ID of the related entity
+  entityName: text("entity_name"), // Display name of the related entity
+  detailUrl: text("detail_url"), // URL to navigate to for more details
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Relations
 export const mowersRelations = relations(mowers, ({ many, one }) => ({
   serviceRecords: many(serviceRecords),
@@ -186,6 +200,10 @@ export const assetPartsRelations = relations(assetParts, ({ one }) => ({
   }),
 }));
 
+export const notificationsRelations = relations(notifications, ({ }) => ({
+  // Notifications don't need direct relations since they use generic entityId
+}));
+
 // Insert schemas
 export const insertMowerSchema = createInsertSchema(mowers).omit({
   id: true,
@@ -224,6 +242,11 @@ export const insertAssetPartSchema = createInsertSchema(assetParts).omit({
   createdAt: true,
 });
 
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertMower = z.infer<typeof insertMowerSchema>;
 export type Mower = typeof mowers.$inferSelect;
@@ -245,6 +268,9 @@ export type Part = typeof parts.$inferSelect;
 
 export type InsertAssetPart = z.infer<typeof insertAssetPartSchema>;
 export type AssetPart = typeof assetParts.$inferSelect;
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
 
 // Combined types for API responses
 export type MowerWithDetails = Mower & {

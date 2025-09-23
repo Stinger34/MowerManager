@@ -1,4 +1,4 @@
-import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, type Component, type InsertComponent, type Part, type InsertPart, type AssetPart, type InsertAssetPart, type AssetPartWithDetails, mowers, tasks, serviceRecords, attachments, components, parts, assetParts } from "@shared/schema";
+import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, type Component, type InsertComponent, type Part, type InsertPart, type AssetPart, type InsertAssetPart, type AssetPartWithDetails, type Notification, type InsertNotification, mowers, tasks, serviceRecords, attachments, components, parts, assetParts, notifications } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -64,6 +64,14 @@ export interface IStorage {
   createAssetPart(assetPart: InsertAssetPart): Promise<AssetPart>;
   updateAssetPart(id: string, assetPart: Partial<InsertAssetPart>): Promise<AssetPart | undefined>;
   deleteAssetPart(id: string): Promise<boolean>;
+
+  // Notification methods
+  getNotifications(): Promise<Notification[]>;
+  getUnreadNotifications(): Promise<Notification[]>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: string): Promise<boolean>;
+  markAllNotificationsAsRead(): Promise<boolean>;
+  deleteNotification(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -74,6 +82,7 @@ export class MemStorage implements IStorage {
   private components: Map<string, Component>;
   private parts: Map<string, Part>;
   private assetParts: Map<string, AssetPart>;
+  private notifications: Map<string, Notification>;
 
   constructor() {
     this.mowers = new Map();
@@ -83,6 +92,7 @@ export class MemStorage implements IStorage {
     this.components = new Map();
     this.parts = new Map();
     this.assetParts = new Map();
+    this.notifications = new Map();
   }
 
   async getMower(id: string): Promise<Mower | undefined> {
@@ -493,6 +503,57 @@ export class MemStorage implements IStorage {
   async deleteAssetPart(id: string): Promise<boolean> {
     return this.assetParts.delete(id);
   }
+
+  // Notification methods
+  async getNotifications(): Promise<Notification[]> {
+    const notificationsList = Array.from(this.notifications.values());
+    return notificationsList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getUnreadNotifications(): Promise<Notification[]> {
+    const notificationsList = Array.from(this.notifications.values()).filter(n => !n.isRead);
+    return notificationsList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const id = randomUUID();
+    const now = new Date();
+    const notification: Notification = {
+      ...insertNotification,
+      id,
+      isRead: insertNotification.isRead || false,
+      priority: insertNotification.priority || "medium",
+      entityType: insertNotification.entityType || null,
+      entityId: insertNotification.entityId || null,
+      entityName: insertNotification.entityName || null,
+      detailUrl: insertNotification.detailUrl || null,
+      createdAt: now,
+    };
+    this.notifications.set(id, notification);
+    return notification;
+  }
+
+  async markNotificationAsRead(id: string): Promise<boolean> {
+    const notification = this.notifications.get(id);
+    if (!notification) return false;
+    
+    const updatedNotification: Notification = { ...notification, isRead: true };
+    this.notifications.set(id, updatedNotification);
+    return true;
+  }
+
+  async markAllNotificationsAsRead(): Promise<boolean> {
+    this.notifications.forEach((notification, id) => {
+      if (!notification.isRead) {
+        this.notifications.set(id, { ...notification, isRead: true });
+      }
+    });
+    return true;
+  }
+
+  async deleteNotification(id: string): Promise<boolean> {
+    return this.notifications.delete(id);
+  }
 }
 
 export class DbStorage implements IStorage {
@@ -807,6 +868,45 @@ export class DbStorage implements IStorage {
 
   async deleteAssetPart(id: string): Promise<boolean> {
     const result = await db.delete(assetParts).where(eq(assetParts.id, parseInt(id)));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Notification methods
+  async getNotifications(): Promise<Notification[]> {
+    return await db.select().from(notifications).orderBy(notifications.createdAt);
+  }
+
+  async getUnreadNotifications(): Promise<Notification[]> {
+    return await db.select().from(notifications).where(eq(notifications.isRead, false)).orderBy(notifications.createdAt);
+  }
+
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const notificationData: typeof notifications.$inferInsert = {
+      ...insertNotification,
+      id: randomUUID(),
+      createdAt: new Date(),
+    };
+    
+    const result = await db.insert(notifications).values(notificationData).returning();
+    return result[0];
+  }
+
+  async markNotificationAsRead(id: string): Promise<boolean> {
+    const result = await db.update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async markAllNotificationsAsRead(): Promise<boolean> {
+    const result = await db.update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.isRead, false));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async deleteNotification(id: string): Promise<boolean> {
+    const result = await db.delete(notifications).where(eq(notifications.id, id));
     return (result.rowCount ?? 0) > 0;
   }
 }

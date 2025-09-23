@@ -3,22 +3,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Bell, AlertTriangle, Clock, CheckCircle, Info, ExternalLink } from "lucide-react";
 import { useLocation } from "wouter";
-
-interface Notification {
-  id: string;
-  type: 'warning' | 'info' | 'success' | 'error';
-  title: string;
-  message: string;
-  timestamp: string;
-  isRead?: boolean;
-  assetId?: string;
-  assetName?: string;
-  detailUrl?: string;
-  priority?: 'high' | 'medium' | 'low';
-}
+import { formatDistanceToNow } from "date-fns";
+import { useNotifications } from "@/contexts/NotificationContext";
+import type { Notification } from "@shared/schema";
 
 interface NotificationsPanelProps {
-  notifications: Notification[];
+  // Remove notifications prop since we'll get them from context
   onMarkAsRead?: (id: string) => void;
   onClearAll?: () => void;
   onNotificationClick?: (notification: Notification) => void;
@@ -46,18 +36,33 @@ const priorityColors = {
 };
 
 export default function NotificationsPanel({ 
-  notifications, 
   onMarkAsRead, 
   onClearAll,
   onNotificationClick
 }: NotificationsPanelProps) {
   const [, setLocation] = useLocation();
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+
+  const handleMarkAsRead = (id: string) => {
+    if (onMarkAsRead) {
+      onMarkAsRead(id);
+    } else {
+      markAsRead(id);
+    }
+  };
+
+  const handleClearAll = () => {
+    if (onClearAll) {
+      onClearAll();
+    } else {
+      markAllAsRead();
+    }
+  };
 
   const handleNotificationClick = (notification: Notification) => {
     // Mark as read when clicked
-    if (!notification.isRead && onMarkAsRead) {
-      onMarkAsRead(notification.id);
+    if (!notification.isRead) {
+      handleMarkAsRead(notification.id);
     }
     
     // Custom click handler or default navigation
@@ -65,8 +70,15 @@ export default function NotificationsPanel({
       onNotificationClick(notification);
     } else if (notification.detailUrl) {
       setLocation(notification.detailUrl);
-    } else if (notification.assetId) {
-      setLocation(`/mowers/${notification.assetId}`);
+    } else if (notification.entityId && notification.entityType) {
+      // Generate default URL based on entity type
+      if (notification.entityType === 'mower') {
+        setLocation(`/mowers/${notification.entityId}`);
+      } else if (notification.entityType === 'part') {
+        setLocation(`/catalog/parts/${notification.entityId}`);
+      } else if (notification.entityType === 'component') {
+        setLocation(`/catalog/components/${notification.entityId}`);
+      }
     }
   };
 
@@ -87,7 +99,7 @@ export default function NotificationsPanel({
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={onClearAll}
+              onClick={handleClearAll}
               className="text-text-muted hover:text-text-primary"
             >
               Clear All
@@ -124,9 +136,9 @@ export default function NotificationsPanel({
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
                         <p className="font-medium text-sm">{notification.title}</p>
-                        {notification.assetId && notification.assetName && (
+                        {notification.entityId && notification.entityName && (
                           <p className="text-xs font-mono text-current opacity-75">
-                            Asset ID: {notification.assetId} - {notification.assetName}
+                            Asset ID: {notification.entityId} - {notification.entityName}
                           </p>
                         )}
                         <p className="text-xs mt-1 opacity-90">{notification.message}</p>
@@ -137,7 +149,7 @@ export default function NotificationsPanel({
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-xs opacity-75 flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {notification.timestamp}
+                        {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                       </span>
                       {!notification.isRead && (
                         <div className="w-2 h-2 bg-current rounded-full opacity-75"></div>

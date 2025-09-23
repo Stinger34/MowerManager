@@ -1,19 +1,8 @@
 import { Bell, AlertTriangle, Clock, CheckCircle, Info, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-
-interface Notification {
-  id: string;
-  type: 'warning' | 'info' | 'success' | 'error';
-  title: string;
-  message: string;
-  timestamp: string;
-  isRead?: boolean;
-  assetId?: string;
-  assetName?: string;
-  detailUrl?: string;
-  priority?: 'high' | 'medium' | 'low';
-}
+import { formatDistanceToNow } from "date-fns";
+import type { Notification } from "@shared/schema";
 
 interface NotificationDropdownContentProps {
   notifications: Notification[];
@@ -61,8 +50,15 @@ export default function NotificationDropdownContent({
       onNotificationClick(notification);
     } else if (notification.detailUrl) {
       setLocation(notification.detailUrl);
-    } else if (notification.assetId) {
-      setLocation(`/mowers/${notification.assetId}`);
+    } else if (notification.entityId && notification.entityType) {
+      // Generate default URL based on entity type
+      if (notification.entityType === 'mower') {
+        setLocation(`/mowers/${notification.entityId}`);
+      } else if (notification.entityType === 'part') {
+        setLocation(`/catalog/parts/${notification.entityId}`);
+      } else if (notification.entityType === 'component') {
+        setLocation(`/catalog/components/${notification.entityId}`);
+      }
     }
   };
 
@@ -94,9 +90,9 @@ export default function NotificationDropdownContent({
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
                         <p className="font-medium text-sm">{notification.title}</p>
-                        {notification.assetId && notification.assetName && (
+                        {notification.entityId && notification.entityName && (
                           <p className="text-xs font-mono text-current opacity-75">
-                            {notification.assetName}
+                            {notification.entityName}
                           </p>
                         )}
                         <p className="text-xs mt-1 opacity-90">{notification.message}</p>
@@ -107,7 +103,7 @@ export default function NotificationDropdownContent({
                     <div className="flex items-center justify-between mt-2">
                       <span className="text-xs opacity-75 flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {notification.timestamp}
+                        {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                       </span>
                       {!notification.isRead && (
                         <div className="w-2 h-2 bg-current rounded-full opacity-75"></div>

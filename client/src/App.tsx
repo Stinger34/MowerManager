@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { Suspense, lazy } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageTransition } from "@/components/ui/page-transitions";
@@ -96,35 +97,37 @@ export default function App() {
   return (
     <ThemeProvider defaultTheme="light" storageKey="mower-tracker-theme">
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <SidebarProvider style={style as React.CSSProperties}>
-            <div className="flex h-screen w-full bg-panel">
-              <AppSidebar />
-              <div className="flex flex-col flex-1">
-                <header className="flex items-center justify-between p-4 border-b border-panel-border bg-panel shadow-card">
-                  <div className="flex items-center gap-4">
-                    <SidebarTrigger data-testid="button-sidebar-toggle" />
-                    <div className="hidden md:block">
-                      <h2 className="text-lg font-semibold text-text-primary">MowerM8</h2>
+        <NotificationProvider>
+          <TooltipProvider>
+            <SidebarProvider style={style as React.CSSProperties}>
+              <div className="flex h-screen w-full bg-panel">
+                <AppSidebar />
+                <div className="flex flex-col flex-1">
+                  <header className="flex items-center justify-between p-4 border-b border-panel-border bg-panel shadow-card">
+                    <div className="flex items-center gap-4">
+                      <SidebarTrigger data-testid="button-sidebar-toggle" />
+                      <div className="hidden md:block">
+                        <h2 className="text-lg font-semibold text-text-primary">MowerM8</h2>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="hidden md:flex items-center gap-2 text-sm text-text-muted">
-                      <span>Welcome back, John Doe</span>
+                    <div className="flex items-center gap-4">
+                      <div className="hidden md:flex items-center gap-2 text-sm text-text-muted">
+                        <span>Welcome back, John Doe</span>
+                      </div>
+                      <NotificationDropdown />
+                      <ThemeToggle />
                     </div>
-                    <NotificationDropdown />
-                    <ThemeToggle />
-                  </div>
-                </header>
-                <main className="flex-1 overflow-auto p-6 bg-calendar-bg">
-                  <Router />
-                </main>
+                  </header>
+                  <main className="flex-1 overflow-auto p-6 bg-calendar-bg">
+                    <Router />
+                  </main>
+                </div>
               </div>
-            </div>
-            <VersionDisplay />
-          </SidebarProvider>
-          <Toaster />
-        </TooltipProvider>
+              <VersionDisplay />
+            </SidebarProvider>
+            <Toaster />
+          </TooltipProvider>
+        </NotificationProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );
