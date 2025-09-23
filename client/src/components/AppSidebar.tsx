@@ -1,5 +1,5 @@
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { Home, Tractor, Settings, Plus, Package, Wrench, BarChart3 } from "lucide-react";
+import { Home, Tractor, Settings, Plus, Package, Wrench, BarChart3, Bell } from "lucide-react";
 import { useLocation } from "wouter";
 import { VersionDisplay } from "@/components/VersionDisplay";
 
@@ -18,6 +18,11 @@ const navigationItems = [
     title: "Maintenance",
     url: "/maintenance",
     icon: Wrench,
+  },
+  {
+    title: "Reminders",
+    url: "/reminders",
+    icon: Bell,
   },
 ];
 
