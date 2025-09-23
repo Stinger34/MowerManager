@@ -9,6 +9,7 @@ interface NotificationContextType {
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
+  dismissAll: () => Promise<void>;
   refreshNotifications: () => void;
 }
 
@@ -69,6 +70,15 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
   };
 
+  const dismissAll = async () => {
+    try {
+      await apiRequest('DELETE', '/api/notifications');
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+    } catch (error) {
+      console.error('Failed to dismiss all notifications:', error);
+    }
+  };
+
   const refreshNotifications = () => {
     refetch();
   };
@@ -79,6 +89,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    dismissAll,
     refreshNotifications,
   };
 
