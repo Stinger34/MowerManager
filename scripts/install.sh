@@ -157,7 +157,7 @@ fi
 echo
 echo "Creating swap space for npm install (prevents 'Killed' errors)..."
 if ! swapon --show | grep -q '/swapfile'; then
-  fallocate -l 2G /swapfile
+  dd if=/dev/zero of=/swapfile bs=1M count=2048 status=progress
   chmod 600 /swapfile
   mkswap /swapfile
   swapon /swapfile
