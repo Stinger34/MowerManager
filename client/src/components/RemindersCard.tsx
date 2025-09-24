@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bell, Calendar, Package, ArrowRight, AlertTriangle, Clock } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -23,6 +23,18 @@ interface StockReminder {
   minimumThreshold: number;
   category: string;
   priority: 'low' | 'medium' | 'high';
+}
+
+// Unified reminder interface
+interface UnifiedReminder {
+  id: string;
+  type: 'service' | 'stock';
+  title: string;
+  subtitle: string;
+  daysUntilDue?: number;
+  priority: 'low' | 'medium' | 'high';
+  icon: typeof Calendar | typeof Package;
+  onClick: () => void;
 }
 
 interface RemindersCardProps {
@@ -126,7 +138,49 @@ export default function RemindersCard({ className = "" }: RemindersCardProps) {
   const upcomingServices = mockServiceReminders.filter(r => r.daysUntilDue <= 30);
   const lowStockItems = mockStockReminders.filter(r => r.currentStock <= r.minimumThreshold);
   
-  const totalReminders = upcomingServices.length + lowStockItems.length;
+  // Create unified reminders list
+  const unifiedReminders: UnifiedReminder[] = [
+    // Service reminders
+    ...upcomingServices.map((reminder): UnifiedReminder => ({
+      id: `service-${reminder.id}`,
+      type: 'service',
+      title: reminder.serviceType,
+      subtitle: reminder.mowerName,
+      daysUntilDue: reminder.daysUntilDue,
+      priority: reminder.priority,
+      icon: Calendar,
+      onClick: () => handleServiceReminderClick(reminder),
+    })),
+    // Stock reminders
+    ...lowStockItems.map((item): UnifiedReminder => ({
+      id: `stock-${item.id}`,
+      type: 'stock',
+      title: item.itemName,
+      subtitle: `${item.category} - ${item.currentStock} left (min: ${item.minimumThreshold})`,
+      priority: item.priority,
+      icon: Package,
+      onClick: () => setLocation('/catalog'),
+    })),
+  ];
+
+  // Sort by priority and days until due (for service items)
+  const sortedReminders = unifiedReminders.sort((a, b) => {
+    // First sort by priority: high > medium > low
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+    if (priorityDiff !== 0) return priorityDiff;
+    
+    // Then sort by days until due (service items first, then by days)
+    if (a.daysUntilDue !== undefined && b.daysUntilDue !== undefined) {
+      return a.daysUntilDue - b.daysUntilDue;
+    }
+    if (a.daysUntilDue !== undefined) return -1;
+    if (b.daysUntilDue !== undefined) return 1;
+    
+    return 0;
+  });
+
+  const totalReminders = sortedReminders.length;
 
   return (
     <Card className={`bg-panel border-panel-border shadow-lg flex flex-col ${className}`} style={{ height: '449px' }}>
@@ -163,118 +217,57 @@ export default function RemindersCard({ className = "" }: RemindersCardProps) {
             <p className="text-sm">All services are up to date</p>
           </div>
         ) : (
-          <div className="space-y-4 flex-grow">
-            {/* Service Reminders Section */}
-            {upcomingServices.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="h-4 w-4 text-accent-teal" />
-                  <h4 className="text-sm font-medium text-text-primary">Upcoming Services</h4>
-                </div>
-                <Carousel className="w-full">
-                  <CarouselContent className="-ml-4">
-                    {upcomingServices.map((reminder) => (
-                      <CarouselItem key={reminder.id} className="pl-4 basis-full">
-                        <div
-                          className="p-3 rounded-lg border border-medium-gray bg-white hover:border-accent-teal transition-all duration-200 cursor-pointer"
-                          onClick={() => handleServiceReminderClick(reminder)}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="font-medium text-sm text-text-primary truncate">
-                                  {reminder.serviceType}
-                                </p>
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-xs ${priorityColors[reminder.priority]}`}
-                                >
-                                  {reminder.priority}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-text-muted truncate">{reminder.mowerName}</p>
-                              <div className="flex items-center gap-1 mt-1">
-                                {reminder.daysUntilDue <= 7 ? (
-                                  <AlertTriangle className="h-3 w-3 text-red-500" />
-                                ) : (
-                                  <Clock className="h-3 w-3 text-text-muted" />
-                                )}
-                                <span className={`text-xs ${
-                                  reminder.daysUntilDue <= 7 ? 'text-red-600 font-medium' : 'text-text-muted'
-                                }`}>
-                                  {reminder.daysUntilDue <= 0 
-                                    ? `${Math.abs(reminder.daysUntilDue)} days overdue`
-                                    : `${reminder.daysUntilDue} days`
-                                  }
-                                </span>
-                              </div>
-                            </div>
+          <ScrollArea className="flex-grow h-[300px]">
+            <div className="space-y-3 pr-4">
+              {sortedReminders.map((reminder) => {
+                const IconComponent = reminder.icon;
+                return (
+                  <div
+                    key={reminder.id}
+                    className="p-3 rounded-lg border border-medium-gray bg-white hover:border-accent-teal transition-all duration-200 cursor-pointer"
+                    onClick={reminder.onClick}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2 flex-1 min-w-0">
+                        <IconComponent className="h-4 w-4 text-accent-teal mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium text-sm text-text-primary truncate">
+                              {reminder.title}
+                            </p>
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${priorityColors[reminder.priority]} flex-shrink-0`}
+                            >
+                              {reminder.priority}
+                            </Badge>
                           </div>
-                        </div>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  {upcomingServices.length > 1 && (
-                    <>
-                      <CarouselPrevious className="left-2" />
-                      <CarouselNext className="right-2" />
-                    </>
-                  )}
-                </Carousel>
-              </div>
-            )}
-
-            {/* Stock Level Reminders Section */}
-            {lowStockItems.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Package className="h-4 w-4 text-accent-teal" />
-                  <h4 className="text-sm font-medium text-text-primary">Low Stock Alerts</h4>
-                </div>
-                <Carousel className="w-full">
-                  <CarouselContent className="-ml-4">
-                    {lowStockItems.map((item) => (
-                      <CarouselItem key={item.id} className="pl-4 basis-full">
-                        <div
-                          className="p-3 rounded-lg border border-medium-gray bg-white hover:border-accent-teal transition-all duration-200 cursor-pointer"
-                          onClick={() => setLocation('/catalog')}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="font-medium text-sm text-text-primary truncate">
-                                  {item.itemName}
-                                </p>
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-xs ${priorityColors[item.priority]}`}
-                                >
-                                  {item.priority}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-text-muted">{item.category}</p>
-                              <div className="flex items-center gap-1 mt-1">
-                                <AlertTriangle className="h-3 w-3 text-orange-500" />
-                                <span className="text-xs text-orange-600 font-medium">
-                                  {item.currentStock} left (min: {item.minimumThreshold})
-                                </span>
-                              </div>
+                          <p className="text-xs text-text-muted truncate">{reminder.subtitle}</p>
+                          {reminder.daysUntilDue !== undefined && (
+                            <div className="flex items-center gap-1 mt-1">
+                              {reminder.daysUntilDue <= 7 ? (
+                                <AlertTriangle className="h-3 w-3 text-red-500" />
+                              ) : (
+                                <Clock className="h-3 w-3 text-text-muted" />
+                              )}
+                              <span className={`text-xs ${
+                                reminder.daysUntilDue <= 7 ? 'text-red-600 font-medium' : 'text-text-muted'
+                              }`}>
+                                {reminder.daysUntilDue <= 0 
+                                  ? `${Math.abs(reminder.daysUntilDue)} days overdue`
+                                  : `${reminder.daysUntilDue} days`
+                                }
+                              </span>
                             </div>
-                          </div>
+                          )}
                         </div>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  {lowStockItems.length > 1 && (
-                    <>
-                      <CarouselPrevious className="left-2" />
-                      <CarouselNext className="right-2" />
-                    </>
-                  )}
-                </Carousel>
-              </div>
-            )}
-          </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
         )}
       </CardContent>
     </Card>
