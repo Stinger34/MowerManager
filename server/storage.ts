@@ -486,6 +486,28 @@ export class MemStorage implements IStorage {
   async createAssetPart(insertAssetPart: InsertAssetPart): Promise<AssetPart> {
     const id = (this.assetParts.size + 1).toString();
     const now = new Date();
+    
+    // Get the part to reduce its stock
+    const part = this.parts.get(insertAssetPart.partId.toString());
+    if (!part) {
+      throw new Error('Part not found');
+    }
+    
+    const quantityToReduce = insertAssetPart.quantity || 1;
+    
+    // Check if we have enough stock
+    if (part.stockQuantity < quantityToReduce) {
+      throw new Error(`Insufficient stock. Available: ${part.stockQuantity}, Required: ${quantityToReduce}`);
+    }
+    
+    // Reduce stock quantity
+    const updatedPart = {
+      ...part,
+      stockQuantity: part.stockQuantity - quantityToReduce,
+      updatedAt: now
+    };
+    this.parts.set(insertAssetPart.partId.toString(), updatedPart);
+    
     const assetPart: AssetPart = {
       ...insertAssetPart,
       id: parseInt(id),
@@ -505,6 +527,29 @@ export class MemStorage implements IStorage {
     const assetPart = this.assetParts.get(id);
     if (!assetPart) return undefined;
     
+    // Check if quantity is being updated
+    if (updateData.quantity !== undefined && updateData.quantity !== assetPart.quantity) {
+      const part = this.parts.get(assetPart.partId.toString());
+      if (!part) {
+        throw new Error('Part not found');
+      }
+      
+      const quantityDifference = updateData.quantity - assetPart.quantity;
+      
+      // Check if we have enough stock when increasing quantity
+      if (quantityDifference > 0 && part.stockQuantity < quantityDifference) {
+        throw new Error(`Insufficient stock. Available: ${part.stockQuantity}, Required: ${quantityDifference}`);
+      }
+      
+      // Update stock quantity (reduce if quantity increased, increase if quantity decreased)
+      const updatedPart = {
+        ...part,
+        stockQuantity: part.stockQuantity - quantityDifference,
+        updatedAt: new Date()
+      };
+      this.parts.set(assetPart.partId.toString(), updatedPart);
+    }
+    
     const updatedAssetPart: AssetPart = {
       ...assetPart,
       ...updateData,
@@ -514,6 +559,21 @@ export class MemStorage implements IStorage {
   }
 
   async deleteAssetPart(id: string): Promise<boolean> {
+    const assetPart = this.assetParts.get(id);
+    if (!assetPart) return false;
+    
+    // Get the part to restore its stock
+    const part = this.parts.get(assetPart.partId.toString());
+    if (part) {
+      // Restore stock quantity
+      const updatedPart = {
+        ...part,
+        stockQuantity: part.stockQuantity + assetPart.quantity,
+        updatedAt: new Date()
+      };
+      this.parts.set(assetPart.partId.toString(), updatedPart);
+    }
+    
     return this.assetParts.delete(id);
   }
 
