@@ -156,16 +156,19 @@ fi
 
 echo
 echo "Creating swap space for npm install (prevents 'Killed' errors)..."
-if ! swapon --show | grep -q '/swapfile'; then
-  if [ -f /swapfile ]; then
-    sudo swapoff /swapfile || true
-    sudo rm -f /swapfile
+SWAPFILE="/swapfile"
+if ! swapon --show | grep -q "${SWAPFILE}"; then
+  # Remove old swapfile if it exists
+  if [ -f "${SWAPFILE}" ]; then
+    swapoff "${SWAPFILE}" 2>/dev/null || true
+    rm -f "${SWAPFILE}"
   fi
-  sudo dd if=/dev/zero of=/swapfile bs=1M count=2048 status=progress
-  sudo chmod 600 /swapfile
-  sudo mkswap /swapfile
-  sudo swapon /swapfile
-  echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+  # Create new swapfile with dd, no holes!
+  dd if=/dev/zero of="${SWAPFILE}" bs=1M count=2048 status=progress
+  chmod 600 "${SWAPFILE}"
+  mkswap "${SWAPFILE}"
+  swapon "${SWAPFILE}"
+  grep -q "${SWAPFILE}" /etc/fstab || echo "${SWAPFILE} none swap sw 0 0" >> /etc/fstab
 else
   echo "Swap file already exists and is active."
 fi
