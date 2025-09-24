@@ -13,11 +13,8 @@ interface AttachmentFile {
     title: string;
     description: string;
   };
-}
-
-interface ThumbnailFile {
-  file: File;
-  previewUrl: string;
+  previewUrl?: string;
+  isThumbnail?: boolean;
 }
 
 export default function AddMower() {
@@ -32,7 +29,7 @@ export default function AddMower() {
     }: { 
       mowerData: InsertMower; 
       attachments?: AttachmentFile[]; 
-      thumbnail?: ThumbnailFile;
+      thumbnail?: AttachmentFile;
     }) => {
       console.log('Adding new mower:', mowerData);
       
@@ -80,8 +77,8 @@ export default function AddMower() {
           // Upload thumbnail as attachment
           const formData = new FormData();
           formData.append('file', thumbnail.file);
-          formData.append('title', 'Mower Thumbnail');
-          formData.append('description', 'Main thumbnail image for this mower');
+          formData.append('title', thumbnail.metadata?.title || 'Mower Thumbnail');
+          formData.append('description', thumbnail.metadata?.description || 'Main thumbnail image for this mower');
           
           const response = await fetch(`/api/mowers/${mower.id}/attachments`, {
             method: 'POST',
@@ -133,7 +130,7 @@ export default function AddMower() {
     },
   });
 
-  const handleSubmit = (mowerData: InsertMower, attachments?: AttachmentFile[], thumbnail?: ThumbnailFile) => {
+  const handleSubmit = (mowerData: InsertMower, attachments?: AttachmentFile[], thumbnail?: AttachmentFile) => {
     createMowerMutation.mutate({ mowerData, attachments, thumbnail });
   };
 

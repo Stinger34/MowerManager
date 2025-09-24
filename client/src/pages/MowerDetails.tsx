@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import ServiceHistoryTable from "@/components/ServiceHistoryTable";
 import MaintenanceOverview from "@/components/MaintenanceOverview";
 import AttachmentGallery from "@/components/AttachmentGallery";
+import UnifiedFileUploadArea from "@/components/UnifiedFileUploadArea";
 import AttachmentMetadataDialog from "@/components/AttachmentMetadataDialog";
 import EditAttachmentDialog from "@/components/EditAttachmentDialog";
 import TaskList from "@/components/TaskList";
@@ -26,6 +27,16 @@ import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Component, Par
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
 import { motion } from "framer-motion";
+
+interface AttachmentFile {
+  file: File;
+  metadata: {
+    title: string;
+    description: string;
+  };
+  previewUrl?: string;
+  isThumbnail?: boolean;
+}
 
 export default function MowerDetails() {
   const [, params] = useRoute("/mowers/:id");
@@ -46,6 +57,10 @@ export default function MowerDetails() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [showMetadataDialog, setShowMetadataDialog] = useState(false);
+  
+  // Unified upload state
+  const [unifiedAttachments, setUnifiedAttachments] = useState<AttachmentFile[]>([]);
+  const [unifiedThumbnail, setUnifiedThumbnail] = useState<AttachmentFile | null>(null);
   
   // Edit attachment state
   const [showEditAttachmentDialog, setShowEditAttachmentDialog] = useState(false);
@@ -421,6 +436,42 @@ export default function MowerDetails() {
     };
     
     fileInput.click();
+  };
+
+  // Handle unified attachment uploads
+  const handleUnifiedAttachmentsUpload = async (attachments: AttachmentFile[]) => {
+    if (attachments.length === 0) return;
+    
+    // Upload each attachment sequentially
+    for (const attachment of attachments) {
+      try {
+        await uploadAttachmentMutation.mutateAsync({
+          file: attachment.file,
+          metadata: attachment.metadata
+        });
+      } catch (error) {
+        console.error('Failed to upload attachment:', error);
+        break; // Stop uploading on first error
+      }
+    }
+    
+    // Clear the unified attachments after successful upload
+    setUnifiedAttachments([]);
+    setUnifiedThumbnail(null);
+  };
+
+  // Handle unified thumbnail change
+  const handleUnifiedThumbnailChange = (thumbnail: AttachmentFile | null) => {
+    setUnifiedThumbnail(thumbnail);
+    
+    // If a thumbnail is set and we have a mower, update the server
+    if (thumbnail && mower) {
+      // First upload the thumbnail attachment, then set it as thumbnail
+      uploadAttachmentMutation.mutate({
+        file: thumbnail.file,
+        metadata: thumbnail.metadata
+      });
+    }
   };
 
   // Wrapper for AttachmentGallery onUpload callback
@@ -803,53 +854,23 @@ export default function MowerDetails() {
               <Plus className="h-4 w-4 mr-2" />
               Add Service Record
             </Button>
-            {isMobile ? (
-              // Mobile: Show camera and gallery options
-              <div className="flex gap-2 w-full">
-                <Button 
-                  className="flex-1 justify-start" 
-                  variant="outline"
-                  onClick={handleCameraCapture}
-                  disabled={uploadAttachmentMutation.isPending}
-                  data-testid="button-camera-capture"
-                >
-                  <ButtonLoading 
-                    isLoading={uploadAttachmentMutation.isPending} 
-                    loadingText="Uploading..."
-                  >
-                    <Camera className="h-4 w-4 mr-2" />
-                    Take Photo
-                  </ButtonLoading>
-                </Button>
-                <Button 
-                  className="flex-1 justify-start" 
-                  variant="outline"
-                  onClick={handleGallerySelect}
-                  disabled={uploadAttachmentMutation.isPending}
-                  data-testid="button-gallery-select"
-                >
-                  <FolderOpen className="h-4 w-4 mr-2" />
-                  Files
-                </Button>
-              </div>
-            ) : (
-              // Desktop: Show single upload button
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                onClick={handleFileUpload}
+            
+            {/* Unified Upload Component */}
+            <div className="pt-2">
+              <UnifiedFileUploadArea
+                onAttachmentsChange={(attachments) => {
+                  setUnifiedAttachments(attachments);
+                  // Auto-upload when attachments are added
+                  if (attachments.length > 0) {
+                    handleUnifiedAttachmentsUpload(attachments);
+                  }
+                }}
+                onThumbnailChange={handleUnifiedThumbnailChange}
                 disabled={uploadAttachmentMutation.isPending}
-                data-testid="button-upload-attachment"
-              >
-                <ButtonLoading 
-                  isLoading={uploadAttachmentMutation.isPending} 
-                  loadingText="Uploading..."
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Upload Attachment
-                </ButtonLoading>
-              </Button>
-            )}
+                showThumbnailSelection={true}
+                mode="details"
+              />
+            </div>
           </CardContent>
         </Card>
         </motion.div>

@@ -13,8 +13,7 @@ import { format, addMonths } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import AttachmentUploadArea from "@/components/AttachmentUploadArea";
-import ThumbnailSelector from "@/components/ThumbnailSelector";
+import UnifiedFileUploadArea from "@/components/UnifiedFileUploadArea";
 import type { InsertMower } from "@shared/schema";
 
 const mowerFormSchema = z.object({
@@ -39,16 +38,13 @@ interface AttachmentFile {
     title: string;
     description: string;
   };
-}
-
-interface ThumbnailFile {
-  file: File;
-  previewUrl: string;
+  previewUrl?: string;
+  isThumbnail?: boolean;
 }
 
 interface MowerFormProps {
   initialData?: Partial<MowerFormData>;
-  onSubmit: (data: InsertMower, attachments?: AttachmentFile[], thumbnail?: ThumbnailFile) => void;
+  onSubmit: (data: InsertMower, attachments?: AttachmentFile[], thumbnail?: AttachmentFile) => void;
   onCancel: () => void;
   isEditing?: boolean;
 }
@@ -61,7 +57,7 @@ export default function MowerForm({
 }: MowerFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
-  const [thumbnail, setThumbnail] = useState<ThumbnailFile | null>(null);
+  const [thumbnail, setThumbnail] = useState<AttachmentFile | null>(null);
 
   const form = useForm<MowerFormData>({
     resolver: zodResolver(mowerFormSchema),
@@ -401,31 +397,23 @@ export default function MowerForm({
               )}
             />
 
-            {/* Attachment and Thumbnail Section - Only show for new mowers */}
+            {/* Files & Thumbnail Section - Only show for new mowers */}
             {!isEditing && (
               <div className="border-t pt-6 space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold mb-2">Optional Attachments</h3>
+                  <h3 className="text-lg font-semibold mb-2">Optional Files & Thumbnail</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    You can add attachments and set a thumbnail for this mower. These are optional and can also be added later.
+                    You can add files and set a thumbnail for this mower. These are optional and can also be added later.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div>
-                    <AttachmentUploadArea
-                      onAttachmentsChange={setAttachments}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                  
-                  <div>
-                    <ThumbnailSelector
-                      onThumbnailChange={setThumbnail}
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                </div>
+                <UnifiedFileUploadArea
+                  onAttachmentsChange={setAttachments}
+                  onThumbnailChange={setThumbnail}
+                  disabled={isSubmitting}
+                  showThumbnailSelection={true}
+                  mode="creation"
+                />
               </div>
             )}
 
