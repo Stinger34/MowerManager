@@ -23,6 +23,7 @@ import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMowerThumbnail } from "@/hooks/useThumbnails";
 import { useCameraCapture } from "@/hooks/useCameraCapture";
+import { useWebSocketAutoRefresh } from "@/hooks/useWebSocket";
 import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Component, Part, AssetPart, AssetPartWithDetails } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
@@ -47,6 +48,9 @@ export default function MowerDetails() {
   // Check for tab parameter in URL
   const urlParams = new URLSearchParams(window.location.search);
   const tabParam = urlParams.get('tab');
+  
+  // Initialize WebSocket for auto-refresh
+  const { isConnected: wsConnected, error: wsError } = useWebSocketAutoRefresh();
   
   const [notes, setNotes] = useState("");
   const [isEditingNotes, setIsEditingNotes] = useState(false);

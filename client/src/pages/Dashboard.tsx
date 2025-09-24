@@ -14,6 +14,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useMowerThumbnails } from "@/hooks/useThumbnails";
+import { useWebSocketAutoRefresh } from "@/hooks/useWebSocket";
 import type { Mower, ServiceRecord } from "@shared/schema";
 
 export default function Dashboard() {
@@ -24,6 +25,9 @@ export default function Dashboard() {
   const [showDeleteServiceDialog, setShowDeleteServiceDialog] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Initialize WebSocket for auto-refresh
+  const { isConnected: wsConnected, error: wsError } = useWebSocketAutoRefresh();
 
   const { data: mowers, isLoading, error } = useQuery<Mower[]>({
     queryKey: ['/api/mowers'],
