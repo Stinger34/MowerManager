@@ -132,22 +132,22 @@ export default function PartsCatalog() {
   };
 
   const handleViewComponentDetails = (componentId: number) => {
-    setLocation(`/catalog/components/${componentId}`);
+    setLocation(`/catalog/engines/${componentId}`);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Parts & Components Catalog</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Parts & Engine Catalog</h1>
           <p className="text-text-muted">
-            Manage your inventory and component database
+            Manage your inventory and engine database
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleAddComponent} className="border-panel-border rounded-button">
             <Wrench className="h-4 w-4 mr-2" />
-            Add Component Type
+            Add Engine Type
           </Button>
           <Button onClick={handleAddPart} className="bg-accent-teal text-white hover:bg-accent-teal/90 rounded-button">
             <Plus className="h-4 w-4 mr-2" />
@@ -186,9 +186,9 @@ export default function PartsCatalog() {
             <Package className="h-4 w-4 mr-2" />
             Parts Inventory ({parts.length})
           </TabsTrigger>
-          <TabsTrigger value="components">
+          <TabsTrigger value="engines">
             <Wrench className="h-4 w-4 mr-2" />
-            Component Types ({allComponents.length})
+            Engine Types ({allComponents.length})
           </TabsTrigger>
         </TabsList>
 
@@ -315,7 +315,7 @@ export default function PartsCatalog() {
           )}
         </TabsContent>
 
-        <TabsContent value="components" className="space-y-4">
+        <TabsContent value="engines" className="space-y-4">
           {/* Components Grid */}
           {isComponentsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -407,8 +407,8 @@ export default function PartsCatalog() {
           {allComponents.length === 0 && !isComponentsLoading && (
             <div className="text-center py-8 text-muted-foreground">
               <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No component types defined yet</p>
-              <p className="text-sm">Add component types to organize your mower components</p>
+              <p>No engine types defined yet</p>
+              <p className="text-sm">Add engine types to organize your mower engines</p>
             </div>
           )}
         </TabsContent>
@@ -472,9 +472,9 @@ export default function PartsCatalog() {
       <AlertDialog open={showDeleteComponentDialog} onOpenChange={setShowDeleteComponentDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Component</AlertDialogTitle>
+            <AlertDialogTitle>Delete Engine</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the component "{componentToDelete?.name}"? This action cannot be undone and will also remove any allocations of this component.
+              Are you sure you want to delete the engine "{componentToDelete?.name}"? This action cannot be undone and will also remove any allocations of this engine.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -489,7 +489,7 @@ export default function PartsCatalog() {
               disabled={deleteComponentMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteComponentMutation.isPending ? "Deleting..." : "Delete Component"}
+              {deleteComponentMutation.isPending ? "Deleting..." : "Delete Engine"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

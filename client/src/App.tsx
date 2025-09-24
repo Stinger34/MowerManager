@@ -56,8 +56,8 @@ function Router() {
       <Route path="/reports" component={() => <PageTransition><Reports /></PageTransition>} />
       <Route path="/catalog" component={() => <PageTransition><PartsCatalog /></PageTransition>} />
       <Route path="/catalog/parts/:partId" component={() => <PageTransition><PartDetails /></PageTransition>} />
-      <Route path="/catalog/components/new" component={() => <PageTransition><AddComponent /></PageTransition>} />
-      <Route path="/catalog/components/:componentId" component={() => <PageTransition><ComponentDetails /></PageTransition>} />
+      <Route path="/catalog/engines/new" component={() => <PageTransition><AddComponent /></PageTransition>} />
+      <Route path="/catalog/engines/:componentId" component={() => <PageTransition><ComponentDetails /></PageTransition>} />
       <Route path="/settings" component={() => <PageTransition><Settings /></PageTransition>} />
       <Route path="/mowers/new" component={() => <PageTransition><AddMower /></PageTransition>} />
       <Route path="/mowers/:id/edit" component={() => <PageTransition><EditMower /></PageTransition>} />

@@ -277,7 +277,7 @@ export default function AllocatePartModal({
                 name="componentId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Allocate to Component (Optional)</FormLabel>
+                    <FormLabel>Allocate to Engine (Optional)</FormLabel>
                     <Select 
                       onValueChange={(value) => {
                         if (value === "none") {

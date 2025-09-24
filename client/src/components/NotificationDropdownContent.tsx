@@ -68,7 +68,7 @@ export default function NotificationDropdownContent({
         } else if (notification.entityType === 'part') {
           setLocation(`/catalog/parts/${notification.entityId}`);
         } else if (notification.entityType === 'component') {
-          setLocation(`/catalog/components/${notification.entityId}`);
+          setLocation(`/catalog/engines/${notification.entityId}`);
         }
       }
     }
