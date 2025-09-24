@@ -1338,6 +1338,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reminders routes
+  app.get('/api/reminders/low-stock', async (_req: Request, res: Response) => {
+    try {
+      const lowStockParts = await storage.getLowStockParts();
+      res.json(lowStockParts);
+    } catch (error) {
+      console.error('Error fetching low-stock parts:', error);
+      res.status(500).json({ error: 'Failed to fetch low-stock parts' });
+    }
+  });
+
+  app.get('/api/reminders/upcoming-services', async (_req: Request, res: Response) => {
+    try {
+      const upcomingServices = await storage.getUpcomingServiceReminders();
+      res.json(upcomingServices);
+    } catch (error) {
+      console.error('Error fetching upcoming service reminders:', error);
+      res.status(500).json({ error: 'Failed to fetch upcoming service reminders' });
+    }
+  });
+
+  app.get('/api/reminders', async (_req: Request, res: Response) => {
+    try {
+      const [lowStockParts, upcomingServices] = await Promise.all([
+        storage.getLowStockParts(),
+        storage.getUpcomingServiceReminders()
+      ]);
+
+      // Transform to unified reminder format
+      const stockReminders = lowStockParts.map(part => ({
+        id: `stock-${part.id}`,
+        type: 'stock' as const,
+        title: part.name,
+        subtitle: `${part.category} - ${part.stockQuantity} left (min: ${part.minStockLevel})`,
+        priority: part.stockQuantity === 0 ? 'high' as const : 'medium' as const,
+        partId: part.id,
+        currentStock: part.stockQuantity,
+        minStock: part.minStockLevel
+      }));
+
+      const serviceReminders = upcomingServices.map(service => ({
+        id: `service-${service.mower.id}-${service.dueDate.getTime()}`,
+        type: 'service' as const,
+        title: service.serviceType,
+        subtitle: `${service.mower.make} ${service.mower.model}`,
+        daysUntilDue: service.daysUntilDue,
+        priority: service.daysUntilDue <= 7 ? 'high' as const : 
+                 service.daysUntilDue <= 14 ? 'medium' as const : 'low' as const,
+        mowerId: service.mower.id,
+        dueDate: service.dueDate
+      }));
+
+      // Combine and sort by priority and urgency
+      const allReminders = [...stockReminders, ...serviceReminders].sort((a, b) => {
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+        if (priorityDiff !== 0) return priorityDiff;
+        
+        // Secondary sort by days until due for service items
+        if (a.type === 'service' && b.type === 'service') {
+          return a.daysUntilDue - b.daysUntilDue;
+        }
+        
+        return 0;
+      });
+
+      res.json(allReminders);
+    } catch (error) {
+      console.error('Error fetching reminders:', error);
+      res.status(500).json({ error: 'Failed to fetch reminders' });
+    }
+  });
+
   // Catch-all for undefined API routes to always return JSON, never HTML
   app.use('/api', (req: Request, res: Response) => {
     res.status(404).json({ error: 'API route not found' });

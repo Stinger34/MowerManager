@@ -4,25 +4,29 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bell, Calendar, Package, ArrowRight, AlertTriangle, Clock } from "lucide-react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 
-// Mock data interfaces
+// Live data interfaces (matching API response)
 interface ServiceReminder {
   id: string;
-  mowerId: string;
-  mowerName: string;
-  serviceType: string;
-  dueDate: string;
+  type: 'service';
+  title: string;
+  subtitle: string;
   daysUntilDue: number;
   priority: 'low' | 'medium' | 'high';
+  mowerId: number;
+  dueDate: string;
 }
 
 interface StockReminder {
   id: string;
-  itemName: string;
-  currentStock: number;
-  minimumThreshold: number;
-  category: string;
+  type: 'stock';
+  title: string;
+  subtitle: string;
   priority: 'low' | 'medium' | 'high';
+  partId: number;
+  currentStock: number;
+  minStock: number;
 }
 
 // Unified reminder interface
@@ -41,83 +45,6 @@ interface RemindersCardProps {
   className?: string;
 }
 
-// Mock data - easily replaceable with API calls
-const mockServiceReminders: ServiceReminder[] = [
-  {
-    id: "1",
-    mowerId: "101",
-    mowerName: "John Deere X350",
-    serviceType: "Oil Change",
-    dueDate: "2025-01-15",
-    daysUntilDue: 5,
-    priority: 'medium'
-  },
-  {
-    id: "2", 
-    mowerId: "102",
-    mowerName: "Cub Cadet XT1",
-    serviceType: "Blade Sharpening",
-    dueDate: "2025-01-12",
-    daysUntilDue: 2,
-    priority: 'high'
-  },
-  {
-    id: "3",
-    mowerId: "103", 
-    mowerName: "Troy-Bilt TB30R",
-    serviceType: "Air Filter",
-    dueDate: "2025-01-25",
-    daysUntilDue: 15,
-    priority: 'low'
-  },
-  {
-    id: "4",
-    mowerId: "104", 
-    mowerName: "Husqvarna YTH24V48",
-    serviceType: "Spark Plug",
-    dueDate: "2025-02-01",
-    daysUntilDue: 22,
-    priority: 'medium'
-  },
-  {
-    id: "5",
-    mowerId: "105", 
-    mowerName: "Craftsman T240",
-    serviceType: "Belt Check",
-    dueDate: "2025-02-10",
-    daysUntilDue: 31,
-    priority: 'low'
-  },
-  {
-    id: "6",
-    mowerId: "106", 
-    mowerName: "Ariens IKON-X 52",
-    serviceType: "Deck Cleaning",
-    dueDate: "2025-02-15",
-    daysUntilDue: 36,
-    priority: 'low'
-  }
-];
-
-const mockStockReminders: StockReminder[] = [
-  {
-    id: "1",
-    itemName: "Engine Oil (5W-30)",
-    currentStock: 2,
-    minimumThreshold: 5,
-    category: "Fluids",
-    priority: 'high'
-  },
-  {
-    id: "2",
-    itemName: "Air Filters",
-    currentStock: 3,
-    minimumThreshold: 8,
-    category: "Filters",
-    priority: 'medium'
-  }
-];
-
 const priorityColors = {
   low: "text-green-600 bg-green-100 border-green-200",
   medium: "text-yellow-600 bg-yellow-100 border-yellow-200", 
@@ -127,60 +54,94 @@ const priorityColors = {
 export default function RemindersCard({ className = "" }: RemindersCardProps) {
   const [, setLocation] = useLocation();
 
+  // Fetch live reminders data
+  const { data: reminders = [], isLoading, error } = useQuery<(ServiceReminder | StockReminder)[]>({
+    queryKey: ['/api/reminders'],
+  });
+
   const handleViewAllReminders = () => {
     setLocation('/reminders');
   };
 
-  const handleServiceReminderClick = (reminder: ServiceReminder) => {
-    setLocation(`/mowers/${reminder.mowerId}`);
+  const handleServiceReminderClick = (mowerId: number) => {
+    setLocation(`/mowers/${mowerId}`);
   };
 
-  const upcomingServices = mockServiceReminders.filter(r => r.daysUntilDue <= 30);
-  const lowStockItems = mockStockReminders.filter(r => r.currentStock <= r.minimumThreshold);
+  const handleStockReminderClick = () => {
+    setLocation('/catalog');
+  };
   
   // Create unified reminders list
-  const unifiedReminders: UnifiedReminder[] = [
-    // Service reminders
-    ...upcomingServices.map((reminder): UnifiedReminder => ({
-      id: `service-${reminder.id}`,
-      type: 'service',
-      title: reminder.serviceType,
-      subtitle: reminder.mowerName,
-      daysUntilDue: reminder.daysUntilDue,
-      priority: reminder.priority,
-      icon: Calendar,
-      onClick: () => handleServiceReminderClick(reminder),
-    })),
-    // Stock reminders
-    ...lowStockItems.map((item): UnifiedReminder => ({
-      id: `stock-${item.id}`,
-      type: 'stock',
-      title: item.itemName,
-      subtitle: `${item.category} - ${item.currentStock} left (min: ${item.minimumThreshold})`,
-      priority: item.priority,
-      icon: Package,
-      onClick: () => setLocation('/catalog'),
-    })),
-  ];
-
-  // Sort by priority and days until due (for service items)
-  const sortedReminders = unifiedReminders.sort((a, b) => {
-    // First sort by priority: high > medium > low
-    const priorityOrder = { high: 0, medium: 1, low: 2 };
-    const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
-    if (priorityDiff !== 0) return priorityDiff;
-    
-    // Then sort by days until due (service items first, then by days)
-    if (a.daysUntilDue !== undefined && b.daysUntilDue !== undefined) {
-      return a.daysUntilDue - b.daysUntilDue;
+  const unifiedReminders: UnifiedReminder[] = reminders.map((reminder): UnifiedReminder => {
+    if (reminder.type === 'service') {
+      return {
+        id: reminder.id,
+        type: 'service',
+        title: reminder.title,
+        subtitle: reminder.subtitle,
+        daysUntilDue: reminder.daysUntilDue,
+        priority: reminder.priority,
+        icon: Calendar,
+        onClick: () => handleServiceReminderClick(reminder.mowerId),
+      };
+    } else {
+      return {
+        id: reminder.id,
+        type: 'stock',
+        title: reminder.title,
+        subtitle: reminder.subtitle,
+        priority: reminder.priority,
+        icon: Package,
+        onClick: () => handleStockReminderClick(),
+      };
     }
-    if (a.daysUntilDue !== undefined) return -1;
-    if (b.daysUntilDue !== undefined) return 1;
-    
-    return 0;
   });
 
-  const totalReminders = sortedReminders.length;
+  const totalReminders = unifiedReminders.length;
+
+  if (isLoading) {
+    return (
+      <Card className={`bg-panel border-panel-border shadow-lg flex flex-col ${className}`} style={{ height: '449px' }}>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-text-primary">
+            <Bell className="h-5 w-5 text-accent-teal" />
+            Reminders
+          </CardTitle>
+          <CardDescription className="text-text-muted">
+            Loading reminders...
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 flex-grow flex flex-col">
+          <div className="text-center py-6 text-text-muted">
+            <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>Loading...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className={`bg-panel border-panel-border shadow-lg flex flex-col ${className}`} style={{ height: '449px' }}>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-text-primary">
+            <Bell className="h-5 w-5 text-accent-teal" />
+            Reminders
+          </CardTitle>
+          <CardDescription className="text-text-muted">
+            Error loading reminders
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 flex-grow flex flex-col">
+          <div className="text-center py-6 text-text-muted">
+            <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50 text-red-500" />
+            <p>Failed to load reminders</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className={`bg-panel border-panel-border shadow-lg flex flex-col ${className}`} style={{ height: '449px' }}>
@@ -219,7 +180,7 @@ export default function RemindersCard({ className = "" }: RemindersCardProps) {
         ) : (
           <ScrollArea className="flex-grow h-[300px]">
             <div className="space-y-3 pr-4">
-              {sortedReminders.map((reminder) => {
+              {unifiedReminders.map((reminder) => {
                 const IconComponent = reminder.icon;
                 return (
                   <div
