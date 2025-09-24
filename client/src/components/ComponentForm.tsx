@@ -134,7 +134,7 @@ export default function ComponentForm({
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Component description..." {...field} data-testid="textarea-description" />
+                    <Textarea placeholder="Engine description..." {...field} data-testid="textarea-description" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

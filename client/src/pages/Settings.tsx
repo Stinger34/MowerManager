@@ -286,7 +286,7 @@ export default function Settings() {
               <li>File attachments (images, PDFs, documents)</li>
               <li>Tasks and maintenance schedules</li>
               <li>Parts catalog and inventory</li>
-              <li>Component information</li>
+              <li>Engine information</li>
             </ul>
             <p className="mt-4 text-text-primary"><strong>File format:</strong> ZIP archive with JSON database dump and attachments</p>
             <p className="text-text-primary"><strong>Compatibility:</strong> Works with all versions of MowerM8</p>

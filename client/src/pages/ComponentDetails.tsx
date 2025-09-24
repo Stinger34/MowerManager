@@ -257,7 +257,7 @@ export default function ComponentDetails() {
           {/* Metadata */}
           <Card>
             <CardHeader>
-              <CardTitle>Component Details</CardTitle>
+              <CardTitle>Engine Details</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">

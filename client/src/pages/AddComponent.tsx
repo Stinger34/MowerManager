@@ -20,7 +20,7 @@ export default function AddComponent() {
       queryClient.invalidateQueries({ queryKey: ['/api/components'] });
       toast({
         title: "Success",
-        description: "Component created successfully",
+        description: "Engine created successfully",
       });
       setLocation('/catalog');
     },

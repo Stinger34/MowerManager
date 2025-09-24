@@ -21,7 +21,7 @@ import ComponentFormModal from "./ComponentFormModal";
 import type { Component, InsertComponent } from "@shared/schema";
 
 const componentAllocationFormSchema = z.object({
-  componentId: z.number().min(1, "Component selection is required"),
+  componentId: z.number().min(1, "Engine selection is required"),
   installDate: z.date().optional(),
   notes: z.string().optional(),
 });
@@ -120,7 +120,7 @@ export default function AllocateComponentModal({
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
       toast({
         title: "Success",
-        description: "Component allocated successfully",
+        description: "Engine allocated successfully",
       });
       form.reset();
       onClose();

@@ -283,7 +283,7 @@ export default function ComponentFormModal({
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Component description..." {...field} />
+                    <Textarea placeholder="Engine description..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

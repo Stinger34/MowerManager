@@ -1076,7 +1076,7 @@ export default function MowerDetails() {
                               
                               {assetPart.componentId && (
                                 <div className="text-sm text-muted-foreground mt-1">
-                                  <span>Allocated to Component: </span>
+                                  <span>Allocated to Engine: </span>
                                   {assetPart.component ? (
                                     <Button 
                                       variant="ghost" 
