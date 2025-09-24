@@ -240,7 +240,7 @@ export default function ComponentFormModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? "Edit Component" : `Add ${isGlobalComponent ? 'Global ' : ''}Component`}
+            {isEditing ? "Edit Engine" : `Add ${isGlobalComponent ? 'Global ' : ''}Engine`}
           </DialogTitle>
         </DialogHeader>
 

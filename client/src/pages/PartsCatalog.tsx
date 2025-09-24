@@ -407,8 +407,8 @@ export default function PartsCatalog() {
           {allComponents.length === 0 && !isComponentsLoading && (
             <div className="text-center py-8 text-muted-foreground">
               <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No component types defined yet</p>
-              <p className="text-sm">Add component types to organize your mower components</p>
+              <p>No engine types defined yet</p>
+              <p className="text-sm">Add engine types to organize your mower engines</p>
             </div>
           )}
         </TabsContent>
