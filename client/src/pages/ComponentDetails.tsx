@@ -11,7 +11,7 @@ import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
 
 export default function ComponentDetails() {
-  const [, params] = useRoute("/catalog/components/:componentId");
+  const [, params] = useRoute("/catalog/engines/:componentId");
   const [, setLocation] = useLocation();
   const componentId = params?.componentId;
 
@@ -58,13 +58,13 @@ export default function ComponentDetails() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Catalog
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Component Not Found</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Engine Not Found</h1>
         </div>
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-red-600">
               <AlertTriangle className="h-5 w-5" />
-              <p>The requested component could not be found.</p>
+              <p>The requested engine could not be found.</p>
             </div>
           </CardContent>
         </Card>
@@ -231,8 +231,8 @@ export default function ComponentDetails() {
 
                 {!component.mowerId && (
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Component Type</label>
-                    <p className="text-sm text-gray-800 mt-1">Global Component (not assigned to specific mower)</p>
+                    <label className="text-sm font-medium text-gray-600">Engine Type</label>
+                    <p className="text-sm text-gray-800 mt-1">Global Engine (not assigned to specific mower)</p>
                   </div>
                 )}
               </CardContent>

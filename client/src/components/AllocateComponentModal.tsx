@@ -160,7 +160,7 @@ export default function AllocateComponentModal({
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Allocate Component to Mower</DialogTitle>
+            <DialogTitle>Allocate Engine to Mower</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -318,7 +318,7 @@ export default function AllocateComponentModal({
                     >
                       {allocateComponentMutation.isPending 
                         ? "Allocating..." 
-                        : "Allocate Component"
+                        : "Allocate Engine"
                       }
                     </Button>
                   </div>

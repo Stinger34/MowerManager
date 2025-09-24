@@ -54,9 +54,9 @@ export default function AddComponent() {
         </Button>
         
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Add New Component Type</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Add New Engine Type</h1>
           <p className="text-text-muted">
-            Add a new global component type to the parts catalog
+            Add a new global engine type to the parts catalog
           </p>
         </div>
       </div>

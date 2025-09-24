@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import type { Component, InsertComponent } from "@shared/schema";
 
 const componentFormSchema = z.object({
-  name: z.string().min(1, "Component name is required"),
+  name: z.string().min(1, "Engine name is required"),
   description: z.string().optional(),
   partNumber: z.string().optional(),
   manufacturer: z.string().optional(),
@@ -91,7 +91,7 @@ export default function ComponentForm({
     <Card>
       <CardHeader>
         <CardTitle>
-          {isEditing ? "Edit Component" : "New Component Type"}
+          {isEditing ? "Edit Engine" : "New Engine Type"}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -105,7 +105,7 @@ export default function ComponentForm({
                   <FormItem>
                     <FormLabel>Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Component name..." {...field} data-testid="input-name" />
+                      <Input placeholder="Engine name..." {...field} data-testid="input-name" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -359,7 +359,7 @@ export default function ComponentForm({
                 disabled={isSubmitting}
                 data-testid="button-submit"
               >
-                {isSubmitting ? "Creating..." : isEditing ? "Update Component" : "Create Component"}
+                {isSubmitting ? "Creating..." : isEditing ? "Update Engine" : "Create Engine"}
               </Button>
             </div>
           </form>
