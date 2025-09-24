@@ -97,6 +97,8 @@ fi
 
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};"
 sudo -u postgres psql -c "ALTER USER ${DB_USER} CREATEDB;"
+sudo -u postgres psql -d "${DB_NAME}" -c "ALTER SCHEMA public OWNER TO ${DB_USER};"
+sudo -u postgres psql -d "${DB_NAME}" -c "GRANT ALL ON SCHEMA public TO ${DB_USER};"
 
 # Configure PostgreSQL to accept local connections with MD5 (password)
 PG_VERSION=$(psql --version | grep -oE '[0-9]+' | head -1)
