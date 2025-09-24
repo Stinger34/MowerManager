@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, Image, Download, Eye, Trash2, Loader2, Star, EllipsisVertical, Edit, Archive } from "lucide-react";
+import { Upload, FileText, Image, Download, Eye, Trash2, Loader2, Star, EllipsisVertical, Edit, Archive, Camera, FolderOpen } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAttachmentThumbnail } from "@/hooks/useAttachmentThumbnails";
+import { useCameraCapture } from "@/hooks/useCameraCapture";
+import { useToast } from "@/hooks/use-toast";
 
 interface Attachment {
   id: string;
@@ -164,6 +166,28 @@ export default function AttachmentGallery({
   isUploading = false,
   isDeleting = false
 }: AttachmentGalleryProps) {
+  const { toast } = useToast();
+
+  // Camera capture functionality
+  const { isMobile, handleCameraCapture, handleGallerySelect } = useCameraCapture({
+    onFilesSelected: (files, isCameraCapture) => {
+      // Show compression info for camera captures
+      if (isCameraCapture && files.some(f => f.type.startsWith('image/'))) {
+        toast({
+          title: "Camera photos processed",
+          description: "Images have been optimized for upload",
+          variant: "default",
+        });
+      }
+      
+      // Convert to FileList-like object for compatibility
+      const fileList = files as any as FileList;
+      onUpload(fileList);
+    },
+    accept: '.pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.txt,.zip,.rar',
+    multiple: true
+  });
+
   const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
@@ -195,18 +219,49 @@ export default function AttachmentGallery({
               accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.txt,.zip,.rar"
               onChange={handleFileInputChange}
             />
-            <Button 
-              onClick={triggerFileInput} 
-              disabled={isUploading}
-              data-testid="button-upload-attachment"
-            >
-              {isUploading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Upload className="h-4 w-4 mr-2" />
-              )}
-              {isUploading ? 'Uploading...' : 'Upload Files'}
-            </Button>
+            
+            {isMobile ? (
+              // Mobile: Show camera and gallery options
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleCameraCapture} 
+                  disabled={isUploading}
+                  size="sm"
+                  data-testid="button-camera-capture"
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4 mr-2" />
+                  )}
+                  {isUploading ? 'Uploading...' : 'Camera'}
+                </Button>
+                <Button 
+                  onClick={handleGallerySelect} 
+                  disabled={isUploading}
+                  variant="outline"
+                  size="sm"
+                  data-testid="button-gallery-select"
+                >
+                  <FolderOpen className="h-4 w-4 mr-2" />
+                  Gallery
+                </Button>
+              </div>
+            ) : (
+              // Desktop: Show single upload button
+              <Button 
+                onClick={triggerFileInput} 
+                disabled={isUploading}
+                data-testid="button-upload-attachment"
+              >
+                {isUploading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4 mr-2" />
+                )}
+                {isUploading ? 'Uploading...' : 'Upload Files'}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>

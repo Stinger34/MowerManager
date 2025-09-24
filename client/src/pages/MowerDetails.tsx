@@ -17,10 +17,11 @@ import ComponentFormModal from "@/components/ComponentFormModal";
 import AllocateComponentModal from "@/components/AllocateComponentModal";
 import AllocatePartModal from "@/components/AllocatePartModal";
 import PartFormModal from "@/components/PartFormModal";
-import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench } from "lucide-react";
+import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench, Camera, FolderOpen } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMowerThumbnail } from "@/hooks/useThumbnails";
+import { useCameraCapture } from "@/hooks/useCameraCapture";
 import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Component, Part, AssetPart, AssetPartWithDetails } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
@@ -49,6 +50,43 @@ export default function MowerDetails() {
   // Edit attachment state
   const [showEditAttachmentDialog, setShowEditAttachmentDialog] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
+
+  // Camera capture functionality
+  const { isMobile, handleCameraCapture, handleGallerySelect } = useCameraCapture({
+    onFilesSelected: (files, isCameraCapture) => {
+      // Show compression info for camera captures
+      if (isCameraCapture && files.some(f => f.type.startsWith('image/'))) {
+        toast({
+          title: "Camera photos processed",
+          description: "Images have been optimized for upload",
+          variant: "default",
+        });
+      }
+      
+      const validFiles: File[] = [];
+      
+      files.forEach(file => {
+        // Check file size (30MB limit)
+        if (file.size > 30 * 1024 * 1024) {
+          toast({
+            title: "File Too Large",
+            description: `${file.name} is larger than 30MB limit`,
+            variant: "destructive"
+          });
+          return;
+        }
+        validFiles.push(file);
+      });
+      
+      if (validFiles.length > 0) {
+        setPendingFiles(validFiles);
+        setCurrentFileIndex(0);
+        setShowMetadataDialog(true);
+      }
+    },
+    accept: '*/*',
+    multiple: true
+  });
 
   // Modal states for components and parts
   const [showComponentModal, setShowComponentModal] = useState(false);
@@ -349,7 +387,7 @@ export default function MowerDetails() {
     },
   });
 
-  // File upload handler
+  // File upload handler (legacy)
   const handleFileUpload = () => {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -383,6 +421,30 @@ export default function MowerDetails() {
     };
     
     fileInput.click();
+  };
+
+  // Wrapper for AttachmentGallery onUpload callback
+  const handleAttachmentGalleryUpload = (files: FileList) => {
+    const validFiles: File[] = [];
+    
+    Array.from(files).forEach(file => {
+      // Check file size (30MB limit)
+      if (file.size > 30 * 1024 * 1024) {
+        toast({
+          title: "File Too Large",
+          description: `${file.name} is larger than 30MB limit`,
+          variant: "destructive"
+        });
+        return;
+      }
+      validFiles.push(file);
+    });
+    
+    if (validFiles.length > 0) {
+      setPendingFiles(validFiles);
+      setCurrentFileIndex(0);
+      setShowMetadataDialog(true);
+    }
   };
   
   // Handle metadata submission for file upload
@@ -741,21 +803,53 @@ export default function MowerDetails() {
               <Plus className="h-4 w-4 mr-2" />
               Add Service Record
             </Button>
-            <Button 
-              className="w-full justify-start" 
-              variant="outline"
-              onClick={handleFileUpload}
-              disabled={uploadAttachmentMutation.isPending}
-              data-testid="button-upload-attachment"
-            >
-              <ButtonLoading 
-                isLoading={uploadAttachmentMutation.isPending} 
-                loadingText="Uploading..."
+            {isMobile ? (
+              // Mobile: Show camera and gallery options
+              <div className="flex gap-2 w-full">
+                <Button 
+                  className="flex-1 justify-start" 
+                  variant="outline"
+                  onClick={handleCameraCapture}
+                  disabled={uploadAttachmentMutation.isPending}
+                  data-testid="button-camera-capture"
+                >
+                  <ButtonLoading 
+                    isLoading={uploadAttachmentMutation.isPending} 
+                    loadingText="Uploading..."
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Take Photo
+                  </ButtonLoading>
+                </Button>
+                <Button 
+                  className="flex-1 justify-start" 
+                  variant="outline"
+                  onClick={handleGallerySelect}
+                  disabled={uploadAttachmentMutation.isPending}
+                  data-testid="button-gallery-select"
+                >
+                  <FolderOpen className="h-4 w-4 mr-2" />
+                  Files
+                </Button>
+              </div>
+            ) : (
+              // Desktop: Show single upload button
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleFileUpload}
+                disabled={uploadAttachmentMutation.isPending}
+                data-testid="button-upload-attachment"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Upload Attachment
-              </ButtonLoading>
-            </Button>
+                <ButtonLoading 
+                  isLoading={uploadAttachmentMutation.isPending} 
+                  loadingText="Uploading..."
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Upload Attachment
+                </ButtonLoading>
+              </Button>
+            )}
           </CardContent>
         </Card>
         </motion.div>
@@ -1163,7 +1257,7 @@ export default function MowerDetails() {
                 title: attachment.title ?? undefined,
                 description: attachment.description ?? undefined,
               }))}
-              onUpload={handleFileUpload}
+              onUpload={handleAttachmentGalleryUpload}
               onView={(id) => {
                 const attachment = attachments.find(a => a.id === id);
                 if (attachment) {
