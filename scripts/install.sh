@@ -154,28 +154,28 @@ else
   git clone -b "$REPO_BRANCH" --single-branch "$REPO_URL" .
 fi
 
-echo
-echo "Creating swap space for npm install (prevents 'Killed' errors)..."
-SWAPFILE="/swapfile"
-if ! swapon --show | grep -q "${SWAPFILE}"; then
-  # Remove old swapfile if it exists
-  if [ -f "${SWAPFILE}" ]; then
-    swapoff "${SWAPFILE}" 2>/dev/null || true
-    rm -f "${SWAPFILE}"
-  fi
-  # Create new swapfile with dd, no holes!
-  dd if=/dev/zero of="${SWAPFILE}" bs=1M count=2048 status=progress
-  chmod 600 "${SWAPFILE}"
-  mkswap "${SWAPFILE}"
-  swapon "${SWAPFILE}"
-  grep -q "${SWAPFILE}" /etc/fstab || echo "${SWAPFILE} none swap sw 0 0" >> /etc/fstab
-else
-  echo "Swap file already exists and is active."
-fi
+# echo
+# echo "Creating swap space for npm install (prevents 'Killed' errors)..."
+#SWAPFILE="/swapfile"
+#if ! swapon --show | grep -q "${SWAPFILE}"; then
+#  # Remove old swapfile if it exists
+#  if [ -f "${SWAPFILE}" ]; then
+#    swapoff "${SWAPFILE}" 2>/dev/null || true
+#    rm -f "${SWAPFILE}"
+#  fi
+#  # Create new swapfile with dd, no holes!
+#  dd if=/dev/zero of="${SWAPFILE}" bs=1M count=2048 status=progress
+#  chmod 600 "${SWAPFILE}"
+#  mkswap "${SWAPFILE}"
+#  swapon "${SWAPFILE}"
+#  grep -q "${SWAPFILE}" /etc/fstab || echo "${SWAPFILE} none swap sw 0 0" >> /etc/fstab
+#else
+#  echo "Swap file already exists and is active."
+#fi
 
-echo
-echo "Verifying swap is active:"
-free -h
+#echo
+#echo "Verifying swap is active:"
+#free -h
 
 echo
 echo "Verifying swap is active:"
