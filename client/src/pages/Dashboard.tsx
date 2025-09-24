@@ -6,7 +6,7 @@ import RemindersCard from "@/components/RemindersCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Search, Plus, Trash2, Loader2, Zap, Calendar, FileText } from "lucide-react";
 import { useLocation } from "wouter";
@@ -217,10 +217,16 @@ export default function Dashboard() {
                     <p className="text-sm">Add your first mower to get started</p>
                   </div>
                 ) : (
-                  <Carousel className="w-full">
-                    <CarouselContent className="-ml-4">
-                      {filteredMowers.map((mower) => (
-                        <CarouselItem key={mower.id} className="pl-4 basis-full">
+                  <ScrollArea className="w-full">
+                    <div className="flex gap-4 pb-4">
+                      {filteredMowers.map((mower, index) => (
+                        <div 
+                          key={mower.id} 
+                          className="flex-none w-[calc(50%-0.5rem)]"
+                          style={{ 
+                            display: index < 2 ? 'block' : 'block',
+                          }}
+                        >
                           <AssetCard
                             id={String(mower.id)}
                             make={mower.make}
@@ -238,16 +244,11 @@ export default function Dashboard() {
                             onAddService={handleAddService}
                             onDelete={handleDelete}
                           />
-                        </CarouselItem>
+                        </div>
                       ))}
-                    </CarouselContent>
-                    {filteredMowers.length > 1 && (
-                      <>
-                        <CarouselPrevious className="left-2" />
-                        <CarouselNext className="right-2" />
-                      </>
-                    )}
-                  </Carousel>
+                    </div>
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
                 )}
               </CardContent>
             </Card>
