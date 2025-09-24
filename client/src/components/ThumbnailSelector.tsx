@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { X, Image, Upload } from 'lucide-react';
+import { X, Image, Upload, Camera, FolderOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCameraCapture } from '@/hooks/useCameraCapture';
 
 interface ThumbnailFile {
   file: File;
@@ -22,12 +23,18 @@ export default function ThumbnailSelector({
   const { toast } = useToast();
   const [thumbnail, setThumbnail] = useState<ThumbnailFile | null>(null);
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
+  // Camera capture functionality
+  const { isMobile, handleCameraCapture, handleGallerySelect } = useCameraCapture({
+    onFilesSelected: (files, isCameraCapture) => {
+      if (files.length > 0) {
+        handleFilesSelected(files[0], isCameraCapture);
+      }
+    },
+    accept: 'image/*',
+    multiple: false
+  });
 
-    const file = files[0];
-    
+  const handleFilesSelected = (file: File, isCameraCapture: boolean = false) => {
     // Validate file size (10MB limit for thumbnails)
     if (file.size > 10 * 1024 * 1024) {
       toast({
@@ -50,26 +57,44 @@ export default function ThumbnailSelector({
     if (!allowedTypes.includes(file.type)) {
       toast({
         title: "Invalid file type",
-        description: "Only image files (JPEG, PNG, GIF, WebP) are allowed for thumbnails",
+        description: "Only image files are allowed for thumbnails",
         variant: "destructive",
       });
       return;
     }
 
+    // Show compression info for camera captures
+    if (isCameraCapture) {
+      toast({
+        title: "Camera photo processed",
+        description: "Thumbnail image has been optimized",
+        variant: "default",
+      });
+    }
+
     // Create preview URL
     const previewUrl = URL.createObjectURL(file);
-    const thumbnailFile: ThumbnailFile = {
+    
+    const newThumbnail: ThumbnailFile = {
       file,
       previewUrl
     };
 
-    setThumbnail(thumbnailFile);
-    onThumbnailChange(thumbnailFile);
-
+    setThumbnail(newThumbnail);
+    onThumbnailChange(newThumbnail);
+    
     toast({
-      title: "Thumbnail selected",
-      description: `${file.name} will be set as the mower thumbnail`,
+      title: "Thumbnail set",
+      description: "Thumbnail image has been selected",
     });
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    handleFilesSelected(file, false);
     
     // Reset input
     event.target.value = '';
@@ -107,19 +132,53 @@ export default function ThumbnailSelector({
             className="hidden"
             accept=".jpg,.jpeg,.png,.gif,.webp"
           />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => document.getElementById('thumbnail-upload')?.click()}
-            disabled={disabled}
-            className="gap-2"
-            data-testid="button-assign-thumbnail"
-          >
-            <Image className="h-4 w-4" />
-            Assign Thumbnail
-          </Button>
+          
+          {isMobile ? (
+            // Mobile: Show camera and gallery options
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCameraCapture}
+                disabled={disabled}
+                className="flex-1 gap-2"
+                data-testid="button-camera-thumbnail"
+              >
+                <Camera className="h-4 w-4" />
+                Take Photo
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGallerySelect}
+                disabled={disabled}
+                className="flex-1 gap-2"
+                data-testid="button-gallery-thumbnail"
+              >
+                <FolderOpen className="h-4 w-4" />
+                Gallery
+              </Button>
+            </div>
+          ) : (
+            // Desktop: Show single assign button
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => document.getElementById('thumbnail-upload')?.click()}
+              disabled={disabled}
+              className="gap-2"
+              data-testid="button-assign-thumbnail"
+            >
+              <Image className="h-4 w-4" />
+              Assign Thumbnail
+            </Button>
+          )}
+          
           <span className="text-sm text-muted-foreground">
             Max 10MB • Images only
+            {isMobile && (
+              <div className="text-xs">Camera photos auto-compressed</div>
+            )}
           </span>
         </div>
       </div>
