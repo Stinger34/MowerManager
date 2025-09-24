@@ -316,7 +316,7 @@ export default function MowerDetails() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
       queryClient.invalidateQueries({ queryKey: ['/api/components'] });
-      toast({ title: "Success", description: "Component deleted successfully" });
+      toast({ title: "Success", description: "Engine deleted successfully" });
       setShowDeleteComponentDialog(false);
       setComponentToDelete(null);
     },
@@ -770,9 +770,9 @@ export default function MowerDetails() {
           <TabsTrigger value="tasks" data-testid="tab-tasks">
             Tasks ({tasks.length})
           </TabsTrigger>
-          <TabsTrigger value="parts-components" data-testid="tab-parts-components">
+          <TabsTrigger value="parts-engines" data-testid="tab-parts-engines">
             <Wrench className="h-4 w-4 mr-2" />
-            Parts/Components ({components.length + mowerParts.length})
+            Parts/Engines ({components.length + mowerParts.length})
           </TabsTrigger>
           <TabsTrigger value="service-history" data-testid="tab-service-history">
             Service History
@@ -894,7 +894,7 @@ export default function MowerDetails() {
           )}
         </TabsContent>
         
-        <TabsContent value="parts-components">
+        <TabsContent value="parts-engines">
           {componentsError || mowerPartsError ? (
             <Card>
               <CardContent className="pt-6">
@@ -927,16 +927,16 @@ export default function MowerDetails() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <Wrench className="h-5 w-5" />
-                      Components ({components.length})
+                      Engines ({components.length})
                     </CardTitle>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={handleAllocateComponent} data-testid="button-allocate-component">
                         <Wrench className="h-4 w-4 mr-2" />
-                        Allocate Component
+                        Allocate Engine
                       </Button>
                       <Button variant="outline" size="sm" onClick={handleAddComponent} data-testid="button-add-component">
                         <Plus className="h-4 w-4 mr-2" />
-                        Create Component
+                        Create Engine
                       </Button>
                     </div>
                   </div>
@@ -944,7 +944,7 @@ export default function MowerDetails() {
                 <CardContent>
                   {components.length === 0 ? (
                     <p className="text-muted-foreground text-center py-8">
-                      No components yet. Use "Allocate Component" to select from existing components or "Create Component" to create a new one.
+                      No engines yet. Use "Allocate Engine" to select from existing engines or "Create Engine" to create a new one.
                     </p>
                   ) : (
                     <div className="space-y-3">
@@ -956,7 +956,7 @@ export default function MowerDetails() {
                                 <Button 
                                   variant="ghost" 
                                   className="p-0 h-auto font-medium text-left justify-start"
-                                  onClick={() => setLocation(`/catalog/components/${component.id}`)}
+                                  onClick={() => setLocation(`/catalog/engines/${component.id}`)}
                                 >
                                   {component.name}
                                 </Button>
@@ -1076,12 +1076,12 @@ export default function MowerDetails() {
                               
                               {assetPart.componentId && (
                                 <div className="text-sm text-muted-foreground mt-1">
-                                  <span>Allocated to Component: </span>
+                                  <span>Allocated to Engine: </span>
                                   {assetPart.component ? (
                                     <Button 
                                       variant="ghost" 
                                       className="p-0 h-auto text-sm text-blue-600 underline"
-                                      onClick={() => setLocation(`/catalog/components/${assetPart.componentId}`)}
+                                      onClick={() => setLocation(`/catalog/engines/${assetPart.componentId}`)}
                                     >
                                       {assetPart.component.name}
                                     </Button>
@@ -1256,9 +1256,9 @@ export default function MowerDetails() {
       <AlertDialog open={showDeleteComponentDialog} onOpenChange={setShowDeleteComponentDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Component</AlertDialogTitle>
+            <AlertDialogTitle>Delete Engine</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the component "{componentToDelete?.name}"? This action cannot be undone and will also remove any part allocations to this component.
+              Are you sure you want to delete the engine "{componentToDelete?.name}"? This action cannot be undone and will also remove any part allocations to this engine.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1273,7 +1273,7 @@ export default function MowerDetails() {
               disabled={deleteComponentMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteComponentMutation.isPending ? "Deleting..." : "Delete Component"}
+              {deleteComponentMutation.isPending ? "Deleting..." : "Delete Engine"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

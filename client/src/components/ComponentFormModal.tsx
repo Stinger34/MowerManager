@@ -22,7 +22,7 @@ import AttachmentUploadArea from "./AttachmentUploadArea";
 import { uploadAttachmentsForEntity } from "@/lib/attachmentUpload";
 
 const componentFormSchema = z.object({
-  name: z.string().min(1, "Component name is required"),
+  name: z.string().min(1, "Engine name is required"),
   description: z.string().optional(),
   partNumber: z.string().optional(),
   manufacturer: z.string().optional(),
@@ -240,7 +240,7 @@ export default function ComponentFormModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? "Edit Component" : `Add ${isGlobalComponent ? 'Global ' : ''}Component`}
+            {isEditing ? "Edit Engine" : `Add ${isGlobalComponent ? 'Global ' : ''}Engine`}
           </DialogTitle>
         </DialogHeader>
 
@@ -254,7 +254,7 @@ export default function ComponentFormModal({
                   <FormItem>
                     <FormLabel>Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Component name..." {...field} />
+                      <Input placeholder="Engine name..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -283,7 +283,7 @@ export default function ComponentFormModal({
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Component description..." {...field} />
+                    <Textarea placeholder="Engine description..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -516,8 +516,8 @@ export default function ComponentFormModal({
                 {createMutation.isPending || updateMutation.isPending 
                   ? "Saving..." 
                   : isEditing 
-                    ? "Update Component" 
-                    : "Create Component"
+                    ? "Update Engine" 
+                    : "Create Engine"
                 }
               </Button>
             </div>
