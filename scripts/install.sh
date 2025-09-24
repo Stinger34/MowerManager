@@ -175,6 +175,10 @@ echo "Verifying swap is active:"
 free -h
 
 echo
+echo "Verifying swap is active:"
+free -h
+
+echo
 echo "Installing dependencies (this may take several minutes)..."
 if [ -f package-lock.json ]; then
   echo "Found package-lock.json; attempting 'npm ci' for exact dependency versions..."
