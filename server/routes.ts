@@ -6,6 +6,7 @@ import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertA
 import { processPDF, getDocumentPageCount, generateTxtThumbnail } from "./pdfUtils";
 import { createBackup, validateBackupFile, restoreFromBackup } from "./backup";
 import { NotificationService } from "./notificationService";
+import { webSocketService } from "./websocketService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // put application routes here
@@ -113,6 +114,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mowerDisplayName = `${mower.make} ${mower.model}`;
       await NotificationService.createMowerNotification('added', mowerDisplayName, mower.id.toString());
       
+      // Broadcast WebSocket event
+      webSocketService.broadcastAssetEvent('asset-created', 'mower', mower.id, { mower });
+      
       res.status(201).json(mower);
     } catch (error) {
       console.error('Mower creation error:', error);
@@ -142,6 +146,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!mower) {
         return res.status(404).json({ error: 'Mower not found' });
       }
+      
+      // Broadcast WebSocket event
+      webSocketService.broadcastAssetEvent('asset-updated', 'mower', mower.id, { mower });
+      
       res.json(mower);
     } catch (error) {
       console.error('Mower update error:', error);
@@ -163,6 +171,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (mower) {
         const mowerDisplayName = `${mower.make} ${mower.model}`;
         await NotificationService.createMowerNotification('deleted', mowerDisplayName, mower.id.toString());
+        
+        // Broadcast WebSocket event
+        webSocketService.broadcastAssetEvent('asset-deleted', 'mower', mower.id, { mower });
       }
       
       res.status(204).send();
@@ -192,6 +203,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertTaskSchema.parse(taskData);
       console.log('Validated task data:', validatedData);
       const task = await storage.createTask(validatedData);
+      
+      // Broadcast WebSocket event
+      webSocketService.broadcastAssetEvent('task-created', 'task', task.id, { task, mowerId: task.mowerId });
+      
       res.status(201).json(task);
     } catch (error) {
       console.error('Task creation error:', error);
@@ -290,6 +305,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create service record and update mower service dates
       const serviceRecord = await storage.createServiceRecordWithMowerUpdate(validatedData);
+      
+      // Broadcast WebSocket event
+      webSocketService.broadcastAssetEvent('service-created', 'service-record', serviceRecord.id, { 
+        serviceRecord, 
+        mowerId: serviceRecord.mowerId 
+      });
+      
       res.status(201).json(serviceRecord);
     } catch (error) {
       console.error('Service record creation error:', error);
@@ -726,6 +748,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create notification for new component
       await NotificationService.createComponentNotification('created', component.name, component.id.toString());
 
+      // Broadcast WebSocket event
+      webSocketService.broadcastAssetEvent('component-created', 'component', component.id, { 
+        component, 
+        mowerId: component.mowerId 
+      });
+
       res.status(201).json(component);
     } catch (error) {
       console.error('Component creation error:', error);
@@ -1097,6 +1125,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await NotificationService.createPartNotification('allocated', part.name, part.id.toString(), mowerDisplayName, mowerId);
       }
       
+      // Broadcast WebSocket event
+      webSocketService.broadcastAssetEvent('asset-part-created', 'asset-part', assetPart.id, { 
+        assetPart, 
+        mowerId: assetPart.mowerId,
+        componentId: assetPart.componentId 
+      });
+      
       res.status(201).json(assetPart);
     } catch (error) {
       res.status(400).json({ error: 'Invalid asset part data', details: error instanceof Error ? error.message : String(error) });
@@ -1117,10 +1152,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/asset-parts/:id', async (req: Request, res: Response) => {
     try {
+      // Get asset part details before deletion for WebSocket broadcast
+      const assetPart = await storage.getAssetPart(req.params.id);
+      
       const deleted = await storage.deleteAssetPart(req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: 'Asset part allocation not found' });
       }
+      
+      // Broadcast WebSocket event if we have the original data
+      if (assetPart) {
+        webSocketService.broadcastAssetEvent('asset-part-deleted', 'asset-part', assetPart.id, { 
+          assetPart, 
+          mowerId: assetPart.mowerId,
+          componentId: assetPart.componentId 
+        });
+      }
+      
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete asset part allocation' });
@@ -1296,6 +1344,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+
+  // Initialize WebSocket server
+  webSocketService.initialize(httpServer);
 
   return httpServer;
 }

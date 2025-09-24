@@ -61,6 +61,7 @@ export interface IStorage {
   getAssetPartsWithDetailsByMowerId(mowerId: string): Promise<AssetPartWithDetails[]>;
   getAssetPartsByComponentId(componentId: string): Promise<AssetPart[]>;
   getAllAssetParts(): Promise<AssetPart[]>;
+  getAssetPart(id: string): Promise<AssetPart | undefined>;
   createAssetPart(assetPart: InsertAssetPart): Promise<AssetPart>;
   updateAssetPart(id: string, assetPart: Partial<InsertAssetPart>): Promise<AssetPart | undefined>;
   deleteAssetPart(id: string): Promise<boolean>;
@@ -474,6 +475,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.assetParts.values());
   }
 
+  async getAssetPart(id: string): Promise<AssetPart | undefined> {
+    return this.assetParts.get(id);
+  }
+
   async createAssetPart(insertAssetPart: InsertAssetPart): Promise<AssetPart> {
     const id = (this.assetParts.size + 1).toString();
     const now = new Date();
@@ -860,6 +865,11 @@ export class DbStorage implements IStorage {
 
   async getAllAssetParts(): Promise<AssetPart[]> {
     return await db.select().from(assetParts);
+  }
+
+  async getAssetPart(id: string): Promise<AssetPart | undefined> {
+    const results = await db.select().from(assetParts).where(eq(assetParts.id, parseInt(id)));
+    return results[0];
   }
 
   async createAssetPart(insertAssetPart: InsertAssetPart): Promise<AssetPart> {
