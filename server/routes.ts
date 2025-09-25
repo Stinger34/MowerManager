@@ -6,6 +6,7 @@ import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertA
 import { processPDF, getDocumentPageCount, generateTxtThumbnail } from "./pdfUtils";
 import { createBackup, validateBackupFile, restoreFromBackup } from "./backup";
 import { NotificationService } from "./notificationService";
+import { webSocketService } from "./websocketService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // put application routes here
@@ -113,6 +114,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mowerDisplayName = `${mower.make} ${mower.model}`;
       await NotificationService.createMowerNotification('added', mowerDisplayName, mower.id.toString());
       
+      // Broadcast WebSocket event
+      webSocketService.broadcastAssetEvent('asset-created', 'mower', mower.id, { mower });
+      
       res.status(201).json(mower);
     } catch (error) {
       console.error('Mower creation error:', error);
@@ -142,6 +146,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!mower) {
         return res.status(404).json({ error: 'Mower not found' });
       }
+      
+      // Broadcast WebSocket event
+      webSocketService.broadcastAssetEvent('asset-updated', 'mower', mower.id, { mower });
+      
       res.json(mower);
     } catch (error) {
       console.error('Mower update error:', error);
@@ -163,6 +171,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (mower) {
         const mowerDisplayName = `${mower.make} ${mower.model}`;
         await NotificationService.createMowerNotification('deleted', mowerDisplayName, mower.id.toString());
+        
+        // Broadcast WebSocket event
+        webSocketService.broadcastAssetEvent('asset-deleted', 'mower', mower.id, { mower });
       }
       
       res.status(204).send();
@@ -192,6 +203,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertTaskSchema.parse(taskData);
       console.log('Validated task data:', validatedData);
       const task = await storage.createTask(validatedData);
+      
+      // Broadcast WebSocket event
+      webSocketService.broadcastAssetEvent('task-created', 'task', task.id, { task, mowerId: task.mowerId });
+      
       res.status(201).json(task);
     } catch (error) {
       console.error('Task creation error:', error);
@@ -290,6 +305,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create service record and update mower service dates
       const serviceRecord = await storage.createServiceRecordWithMowerUpdate(validatedData);
+      
+      // Broadcast WebSocket event
+      webSocketService.broadcastAssetEvent('service-created', 'service-record', serviceRecord.id, { 
+        serviceRecord, 
+        mowerId: serviceRecord.mowerId 
+      });
+      
       res.status(201).json(serviceRecord);
     } catch (error) {
       console.error('Service record creation error:', error);
@@ -726,6 +748,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create notification for new component
       await NotificationService.createComponentNotification('created', component.name, component.id.toString());
 
+      // Broadcast WebSocket event
+      webSocketService.broadcastAssetEvent('component-created', 'component', component.id, { 
+        component, 
+        mowerId: component.mowerId 
+      });
+
       res.status(201).json(component);
     } catch (error) {
       console.error('Component creation error:', error);
@@ -1097,6 +1125,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await NotificationService.createPartNotification('allocated', part.name, part.id.toString(), mowerDisplayName, mowerId);
       }
       
+      // Broadcast WebSocket event
+      webSocketService.broadcastAssetEvent('asset-part-created', 'asset-part', assetPart.id, { 
+        assetPart, 
+        mowerId: assetPart.mowerId,
+        componentId: assetPart.componentId 
+      });
+      
       res.status(201).json(assetPart);
     } catch (error) {
       res.status(400).json({ error: 'Invalid asset part data', details: error instanceof Error ? error.message : String(error) });
@@ -1117,10 +1152,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/asset-parts/:id', async (req: Request, res: Response) => {
     try {
+      // Get asset part details before deletion for WebSocket broadcast
+      const assetPart = await storage.getAssetPart(req.params.id);
+      
       const deleted = await storage.deleteAssetPart(req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: 'Asset part allocation not found' });
       }
+      
+      // Broadcast WebSocket event if we have the original data
+      if (assetPart) {
+        webSocketService.broadcastAssetEvent('asset-part-deleted', 'asset-part', assetPart.id, { 
+          assetPart, 
+          mowerId: assetPart.mowerId,
+          componentId: assetPart.componentId 
+        });
+      }
+      
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete asset part allocation' });
@@ -1290,12 +1338,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reminders routes
+  app.get('/api/reminders/low-stock', async (_req: Request, res: Response) => {
+    try {
+      const lowStockParts = await storage.getLowStockParts();
+      res.json(lowStockParts);
+    } catch (error) {
+      console.error('Error fetching low-stock parts:', error);
+      res.status(500).json({ error: 'Failed to fetch low-stock parts' });
+    }
+  });
+
+  app.get('/api/reminders/upcoming-services', async (_req: Request, res: Response) => {
+    try {
+      const upcomingServices = await storage.getUpcomingServiceReminders();
+      res.json(upcomingServices);
+    } catch (error) {
+      console.error('Error fetching upcoming service reminders:', error);
+      res.status(500).json({ error: 'Failed to fetch upcoming service reminders' });
+    }
+  });
+
+  app.get('/api/reminders', async (_req: Request, res: Response) => {
+    try {
+      const [lowStockParts, upcomingServices] = await Promise.all([
+        storage.getLowStockParts(),
+        storage.getUpcomingServiceReminders()
+      ]);
+
+      // Transform to unified reminder format
+      const stockReminders = lowStockParts.map(part => ({
+        id: `stock-${part.id}`,
+        type: 'stock' as const,
+        title: part.name,
+        subtitle: `${part.category} - ${part.stockQuantity} left (min: ${part.minStockLevel})`,
+        priority: part.stockQuantity === 0 ? 'high' as const : 'medium' as const,
+        partId: part.id,
+        currentStock: part.stockQuantity,
+        minStock: part.minStockLevel
+      }));
+
+      const serviceReminders = upcomingServices.map(service => ({
+        id: `service-${service.mower.id}-${service.dueDate.getTime()}`,
+        type: 'service' as const,
+        title: service.serviceType,
+        subtitle: `${service.mower.make} ${service.mower.model}`,
+        daysUntilDue: service.daysUntilDue,
+        priority: service.daysUntilDue <= 7 ? 'high' as const : 
+                 service.daysUntilDue <= 14 ? 'medium' as const : 'low' as const,
+        mowerId: service.mower.id,
+        dueDate: service.dueDate
+      }));
+
+      // Combine and sort by priority and urgency
+      const allReminders = [...stockReminders, ...serviceReminders].sort((a, b) => {
+        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+        if (priorityDiff !== 0) return priorityDiff;
+        
+        // Secondary sort by days until due for service items
+        if (a.type === 'service' && b.type === 'service') {
+          return a.daysUntilDue - b.daysUntilDue;
+        }
+        
+        return 0;
+      });
+
+      res.json(allReminders);
+    } catch (error) {
+      console.error('Error fetching reminders:', error);
+      res.status(500).json({ error: 'Failed to fetch reminders' });
+    }
+  });
+
   // Catch-all for undefined API routes to always return JSON, never HTML
   app.use('/api', (req: Request, res: Response) => {
     res.status(404).json({ error: 'API route not found' });
   });
 
   const httpServer = createServer(app);
+
+  // Initialize WebSocket server
+  webSocketService.initialize(httpServer);
 
   return httpServer;
 }

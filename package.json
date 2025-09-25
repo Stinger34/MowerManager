@@ -12,6 +12,8 @@
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:validate": "./validate-migrations.sh",
+    "db:validate:strict": "./validate-migrations.sh --strict",
     "build:analyze": "npm run build && echo \"Bundle analysis generated at dist/stats.html\""
   },
   "dependencies": {

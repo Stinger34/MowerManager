@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import ServiceHistoryTable from "@/components/ServiceHistoryTable";
 import MaintenanceOverview from "@/components/MaintenanceOverview";
 import AttachmentGallery from "@/components/AttachmentGallery";
+import UnifiedFileUploadArea from "@/components/UnifiedFileUploadArea";
 import AttachmentMetadataDialog from "@/components/AttachmentMetadataDialog";
 import EditAttachmentDialog from "@/components/EditAttachmentDialog";
 import TaskList from "@/components/TaskList";
@@ -17,14 +18,26 @@ import ComponentFormModal from "@/components/ComponentFormModal";
 import AllocateComponentModal from "@/components/AllocateComponentModal";
 import AllocatePartModal from "@/components/AllocatePartModal";
 import PartFormModal from "@/components/PartFormModal";
-import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench } from "lucide-react";
+import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench, Camera, FolderOpen } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMowerThumbnail } from "@/hooks/useThumbnails";
+import { useCameraCapture } from "@/hooks/useCameraCapture";
+import { useWebSocketAutoRefresh } from "@/hooks/useWebSocket";
 import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Component, Part, AssetPart, AssetPartWithDetails } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
 import { motion } from "framer-motion";
+
+interface AttachmentFile {
+  file: File;
+  metadata: {
+    title: string;
+    description: string;
+  };
+  previewUrl?: string;
+  isThumbnail?: boolean;
+}
 
 export default function MowerDetails() {
   const [, params] = useRoute("/mowers/:id");
@@ -36,6 +49,9 @@ export default function MowerDetails() {
   const urlParams = new URLSearchParams(window.location.search);
   const tabParam = urlParams.get('tab');
   
+  // Initialize WebSocket for auto-refresh
+  const { isConnected: wsConnected, error: wsError } = useWebSocketAutoRefresh();
+  
   const [notes, setNotes] = useState("");
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -46,9 +62,50 @@ export default function MowerDetails() {
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [showMetadataDialog, setShowMetadataDialog] = useState(false);
   
+  // Unified upload state
+  const [unifiedAttachments, setUnifiedAttachments] = useState<AttachmentFile[]>([]);
+  const [unifiedThumbnail, setUnifiedThumbnail] = useState<AttachmentFile | null>(null);
+  
   // Edit attachment state
   const [showEditAttachmentDialog, setShowEditAttachmentDialog] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
+
+  // Camera capture functionality
+  const { isMobile, handleCameraCapture, handleGallerySelect } = useCameraCapture({
+    onFilesSelected: (files, isCameraCapture) => {
+      // Show compression info for camera captures
+      if (isCameraCapture && files.some(f => f.type.startsWith('image/'))) {
+        toast({
+          title: "Camera photos processed",
+          description: "Images have been optimized for upload",
+          variant: "default",
+        });
+      }
+      
+      const validFiles: File[] = [];
+      
+      files.forEach(file => {
+        // Check file size (30MB limit)
+        if (file.size > 30 * 1024 * 1024) {
+          toast({
+            title: "File Too Large",
+            description: `${file.name} is larger than 30MB limit`,
+            variant: "destructive"
+          });
+          return;
+        }
+        validFiles.push(file);
+      });
+      
+      if (validFiles.length > 0) {
+        setPendingFiles(validFiles);
+        setCurrentFileIndex(0);
+        setShowMetadataDialog(true);
+      }
+    },
+    accept: '*/*',
+    multiple: true
+  });
 
   // Modal states for components and parts
   const [showComponentModal, setShowComponentModal] = useState(false);
@@ -349,7 +406,7 @@ export default function MowerDetails() {
     },
   });
 
-  // File upload handler
+  // File upload handler (legacy)
   const handleFileUpload = () => {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -383,6 +440,66 @@ export default function MowerDetails() {
     };
     
     fileInput.click();
+  };
+
+  // Handle unified attachment uploads
+  const handleUnifiedAttachmentsUpload = async (attachments: AttachmentFile[]) => {
+    if (attachments.length === 0) return;
+    
+    // Upload each attachment sequentially
+    for (const attachment of attachments) {
+      try {
+        await uploadAttachmentMutation.mutateAsync({
+          file: attachment.file,
+          metadata: attachment.metadata
+        });
+      } catch (error) {
+        console.error('Failed to upload attachment:', error);
+        break; // Stop uploading on first error
+      }
+    }
+    
+    // Clear the unified attachments after successful upload
+    setUnifiedAttachments([]);
+    setUnifiedThumbnail(null);
+  };
+
+  // Handle unified thumbnail change
+  const handleUnifiedThumbnailChange = (thumbnail: AttachmentFile | null) => {
+    setUnifiedThumbnail(thumbnail);
+    
+    // If a thumbnail is set and we have a mower, update the server
+    if (thumbnail && mower) {
+      // First upload the thumbnail attachment, then set it as thumbnail
+      uploadAttachmentMutation.mutate({
+        file: thumbnail.file,
+        metadata: thumbnail.metadata
+      });
+    }
+  };
+
+  // Wrapper for AttachmentGallery onUpload callback
+  const handleAttachmentGalleryUpload = (files: FileList) => {
+    const validFiles: File[] = [];
+    
+    Array.from(files).forEach(file => {
+      // Check file size (30MB limit)
+      if (file.size > 30 * 1024 * 1024) {
+        toast({
+          title: "File Too Large",
+          description: `${file.name} is larger than 30MB limit`,
+          variant: "destructive"
+        });
+        return;
+      }
+      validFiles.push(file);
+    });
+    
+    if (validFiles.length > 0) {
+      setPendingFiles(validFiles);
+      setCurrentFileIndex(0);
+      setShowMetadataDialog(true);
+    }
   };
   
   // Handle metadata submission for file upload
@@ -741,21 +858,23 @@ export default function MowerDetails() {
               <Plus className="h-4 w-4 mr-2" />
               Add Service Record
             </Button>
-            <Button 
-              className="w-full justify-start" 
-              variant="outline"
-              onClick={handleFileUpload}
-              disabled={uploadAttachmentMutation.isPending}
-              data-testid="button-upload-attachment"
-            >
-              <ButtonLoading 
-                isLoading={uploadAttachmentMutation.isPending} 
-                loadingText="Uploading..."
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Upload Attachment
-              </ButtonLoading>
-            </Button>
+            
+            {/* Unified Upload Component */}
+            <div className="pt-2">
+              <UnifiedFileUploadArea
+                onAttachmentsChange={(attachments) => {
+                  setUnifiedAttachments(attachments);
+                  // Auto-upload when attachments are added
+                  if (attachments.length > 0) {
+                    handleUnifiedAttachmentsUpload(attachments);
+                  }
+                }}
+                onThumbnailChange={handleUnifiedThumbnailChange}
+                disabled={uploadAttachmentMutation.isPending}
+                showThumbnailSelection={true}
+                mode="details"
+              />
+            </div>
           </CardContent>
         </Card>
         </motion.div>
@@ -1163,7 +1282,7 @@ export default function MowerDetails() {
                 title: attachment.title ?? undefined,
                 description: attachment.description ?? undefined,
               }))}
-              onUpload={handleFileUpload}
+              onUpload={handleAttachmentGalleryUpload}
               onView={(id) => {
                 const attachment = attachments.find(a => a.id === id);
                 if (attachment) {

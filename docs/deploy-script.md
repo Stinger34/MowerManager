@@ -79,14 +79,44 @@ The `deploy.sh` script has been significantly enhanced to provide a robust, safe
 
 ## Migration Workflow
 
-The enhanced script uses a proper migration workflow:
+The enhanced script uses a comprehensive migration workflow with automated validation:
 
-1. **Generate Migration**: Uses `drizzle-kit generate` to create migration files based on schema changes
-2. **Analyze Changes**: Parses migration files to detect specific schema modifications
-3. **User Confirmation**: Prompts for confirmation before applying database changes
-4. **Apply Migration**: Uses `drizzle-kit migrate` to apply changes to the database
-5. **Schema Actions**: Executes conditional actions based on detected changes
-6. **Fallback**: Falls back to `drizzle-kit push` if migration generation fails
+1. **Automated Migration Validation**: Validates migration files and detects issues
+   - Checks for missing migration files and gaps in sequence  
+   - Validates migration journal against database state
+   - Detects orphaned migration files not tracked in journal
+   - Attempts automatic recovery of missing files from backups
+
+2. **Generate Migration**: Uses `drizzle-kit generate` to create migration files based on schema changes
+
+3. **Migration Analysis**: Parses migration files to detect specific schema modifications
+
+4. **User Confirmation**: Prompts for confirmation before applying database changes
+
+5. **Apply Migration**: Uses `drizzle-kit migrate` to apply changes to the database with error handling
+
+6. **Post-Migration Validation**: Verifies migration was applied correctly
+
+7. **Schema Actions**: Executes conditional actions based on detected changes
+
+8. **Fallback Strategies**: Falls back to `drizzle-kit push` if migration fails, with comprehensive error guidance
+
+### Automated Migration Checks
+
+The deployment script now includes comprehensive migration validation:
+
+```bash
+# Run migration validation only (no database required)
+npm run db:validate
+
+# Strict validation for CI/CD (treats warnings as errors)  
+npm run db:validate:strict
+
+# Full deployment with automated migration checks
+./deploy.sh --dry-run --verbose
+```
+
+For detailed information about the migration automation system, see [Migration Automation Documentation](migration-automation.md).
 
 ## Schema Detection Examples
 

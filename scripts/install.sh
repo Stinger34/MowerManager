@@ -66,15 +66,13 @@ fi
 
 echo
 echo "==== [Step 4: PostgreSQL Database Config] ===="
-echo "Press Enter to accept the default, or enter a custom value."
-read -p "Database name [mower_db]: " DB_NAME
-DB_NAME=${DB_NAME:-mower_db}
 
-read -p "Database user [mower_user]: " DB_USER
-DB_USER=${DB_USER:-mower_user}
+# Set static values for DB name and user
+DB_NAME="mower_db"
+DB_USER="mower_user"
 
-# Generate a secure random password for the database user
-DB_PASSWORD=$(openssl rand -base64 32 | tr -d '+/=')
+# Generate a secure random password for the database user, sanitized
+DB_PASSWORD=$(openssl rand -base64 32 | tr -d '+/=' | tr -d '\n\r[:space:]')
 echo "Generated database password: $DB_PASSWORD"
 echo "NOTE: This password will be written to your application's .env file for use by the service."
 
@@ -85,13 +83,11 @@ systemctl enable postgresql
 
 echo
 echo "Creating database and user (if not exists)..."
-# Check if database exists, if not, create it
 DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'")
 if [ "$DB_EXISTS" != "1" ]; then
   sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME};"
 fi
 
-# Check if user exists, if not, create it
 USER_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'")
 if [ "$USER_EXISTS" != "1" ]; then
   sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';"
@@ -99,9 +95,10 @@ else
   sudo -u postgres psql -c "ALTER USER ${DB_USER} WITH PASSWORD '${DB_PASSWORD}';"
 fi
 
-# Grant privileges and set CREATEDB
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};"
 sudo -u postgres psql -c "ALTER USER ${DB_USER} CREATEDB;"
+sudo -u postgres psql -d "${DB_NAME}" -c "ALTER SCHEMA public OWNER TO ${DB_USER};"
+sudo -u postgres psql -d "${DB_NAME}" -c "GRANT ALL ON SCHEMA public TO ${DB_USER};"
 
 # Configure PostgreSQL to accept local connections with MD5 (password)
 PG_VERSION=$(psql --version | grep -oE '[0-9]+' | head -1)
@@ -115,6 +112,9 @@ echo
 echo "Testing connection with new database user..."
 PGPASSWORD="$DB_PASSWORD" psql -U "${DB_USER}" -h localhost -d "${DB_NAME}" -c "SELECT current_user, current_database();" || {
     echo "ERROR: Cannot connect with new user credentials."
+    echo "Database user: ${DB_USER}"
+    echo "Database password: ${DB_PASSWORD}"
+    echo "Connection string: postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}"
     exit 1
 }
 
@@ -159,17 +159,28 @@ else
   git clone -b "$REPO_BRANCH" --single-branch "$REPO_URL" .
 fi
 
-echo
-echo "Creating swap space for npm install (prevents 'Killed' errors)..."
-if ! swapon --show | grep -q '/swapfile'; then
-  fallocate -l 2G /swapfile
-  chmod 600 /swapfile
-  mkswap /swapfile
-  swapon /swapfile
-  echo '/swapfile none swap sw 0 0' >> /etc/fstab
-else
-  echo "Swap file already exists and is active."
-fi
+# echo
+# echo "Creating swap space for npm install (prevents 'Killed' errors)..."
+#SWAPFILE="/swapfile"
+#if ! swapon --show | grep -q "${SWAPFILE}"; then
+#  # Remove old swapfile if it exists
+#  if [ -f "${SWAPFILE}" ]; then
+#    swapoff "${SWAPFILE}" 2>/dev/null || true
+#    rm -f "${SWAPFILE}"
+#  fi
+#  # Create new swapfile with dd, no holes!
+#  dd if=/dev/zero of="${SWAPFILE}" bs=1M count=2048 status=progress
+#  chmod 600 "${SWAPFILE}"
+#  mkswap "${SWAPFILE}"
+#  swapon "${SWAPFILE}"
+#  grep -q "${SWAPFILE}" /etc/fstab || echo "${SWAPFILE} none swap sw 0 0" >> /etc/fstab
+#else
+#  echo "Swap file already exists and is active."
+#fi
+
+#echo
+#echo "Verifying swap is active:"
+#free -h
 
 echo
 echo "Verifying swap is active:"
@@ -197,10 +208,12 @@ NODE_OPTIONS="--max-old-space-size=4096" npm run build
 echo
 echo "==== [Step 6] Environment File, DB Schema, and Service Setup ===="
 
-# Create .env file with the correct values
-echo "DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}" > /opt/mowerm8/.env
-echo "NODE_ENV=production" >> /opt/mowerm8/.env
-echo "PORT=5000" >> /opt/mowerm8/.env
+# Create .env file with the correct values, overwrite to avoid whitespace
+cat > /opt/mowerm8/.env <<EOF
+DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}
+NODE_ENV=production
+PORT=5000
+EOF
 
 echo "Created .env file with the following content:"
 cat /opt/mowerm8/.env
@@ -216,6 +229,11 @@ else
 fi
 
 echo
+echo "Creating non-root user for the application (mowerapp)..."
+id -u mowerapp &>/dev/null || useradd -m -s /bin/bash mowerapp
+chown -R mowerapp:mowerapp /opt/mowerm8
+
+echo
 echo "Creating systemd service for automated startup..."
 cat > /etc/systemd/system/mower-app.service <<EOF
 [Unit]
@@ -224,7 +242,7 @@ After=network.target postgresql.service
 
 [Service]
 Type=simple
-User=root
+User=mowerapp
 WorkingDirectory=/opt/mowerm8
 Environment=NODE_ENV=production
 EnvironmentFile=/opt/mowerm8/.env

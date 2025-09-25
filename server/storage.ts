@@ -1,7 +1,7 @@
 import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, type Component, type InsertComponent, type Part, type InsertPart, type AssetPart, type InsertAssetPart, type AssetPartWithDetails, type Notification, type InsertNotification, mowers, tasks, serviceRecords, attachments, components, parts, assetParts, notifications } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -61,9 +61,14 @@ export interface IStorage {
   getAssetPartsWithDetailsByMowerId(mowerId: string): Promise<AssetPartWithDetails[]>;
   getAssetPartsByComponentId(componentId: string): Promise<AssetPart[]>;
   getAllAssetParts(): Promise<AssetPart[]>;
+  getAssetPart(id: string): Promise<AssetPart | undefined>;
   createAssetPart(assetPart: InsertAssetPart): Promise<AssetPart>;
   updateAssetPart(id: string, assetPart: Partial<InsertAssetPart>): Promise<AssetPart | undefined>;
   deleteAssetPart(id: string): Promise<boolean>;
+
+  // Reminders methods
+  getLowStockParts(): Promise<Part[]>;
+  getUpcomingServiceReminders(): Promise<{ mower: Mower; serviceType: string; daysUntilDue: number; dueDate: Date }[]>;
 
   // Notification methods
   getNotifications(): Promise<Notification[]>;
@@ -474,9 +479,35 @@ export class MemStorage implements IStorage {
     return Array.from(this.assetParts.values());
   }
 
+  async getAssetPart(id: string): Promise<AssetPart | undefined> {
+    return this.assetParts.get(id);
+  }
+
   async createAssetPart(insertAssetPart: InsertAssetPart): Promise<AssetPart> {
     const id = (this.assetParts.size + 1).toString();
     const now = new Date();
+    
+    // Get the part to reduce its stock
+    const part = this.parts.get(insertAssetPart.partId.toString());
+    if (!part) {
+      throw new Error('Part not found');
+    }
+    
+    const quantityToReduce = insertAssetPart.quantity || 1;
+    
+    // Check if we have enough stock
+    if (part.stockQuantity < quantityToReduce) {
+      throw new Error(`Insufficient stock. Available: ${part.stockQuantity}, Required: ${quantityToReduce}`);
+    }
+    
+    // Reduce stock quantity
+    const updatedPart = {
+      ...part,
+      stockQuantity: part.stockQuantity - quantityToReduce,
+      updatedAt: now
+    };
+    this.parts.set(insertAssetPart.partId.toString(), updatedPart);
+    
     const assetPart: AssetPart = {
       ...insertAssetPart,
       id: parseInt(id),
@@ -496,6 +527,29 @@ export class MemStorage implements IStorage {
     const assetPart = this.assetParts.get(id);
     if (!assetPart) return undefined;
     
+    // Check if quantity is being updated
+    if (updateData.quantity !== undefined && updateData.quantity !== assetPart.quantity) {
+      const part = this.parts.get(assetPart.partId.toString());
+      if (!part) {
+        throw new Error('Part not found');
+      }
+      
+      const quantityDifference = updateData.quantity - assetPart.quantity;
+      
+      // Check if we have enough stock when increasing quantity
+      if (quantityDifference > 0 && part.stockQuantity < quantityDifference) {
+        throw new Error(`Insufficient stock. Available: ${part.stockQuantity}, Required: ${quantityDifference}`);
+      }
+      
+      // Update stock quantity (reduce if quantity increased, increase if quantity decreased)
+      const updatedPart = {
+        ...part,
+        stockQuantity: part.stockQuantity - quantityDifference,
+        updatedAt: new Date()
+      };
+      this.parts.set(assetPart.partId.toString(), updatedPart);
+    }
+    
     const updatedAssetPart: AssetPart = {
       ...assetPart,
       ...updateData,
@@ -505,6 +559,21 @@ export class MemStorage implements IStorage {
   }
 
   async deleteAssetPart(id: string): Promise<boolean> {
+    const assetPart = this.assetParts.get(id);
+    if (!assetPart) return false;
+    
+    // Get the part to restore its stock
+    const part = this.parts.get(assetPart.partId.toString());
+    if (part) {
+      // Restore stock quantity
+      const updatedPart = {
+        ...part,
+        stockQuantity: part.stockQuantity + assetPart.quantity,
+        updatedAt: new Date()
+      };
+      this.parts.set(assetPart.partId.toString(), updatedPart);
+    }
+    
     return this.assetParts.delete(id);
   }
 
@@ -562,6 +631,37 @@ export class MemStorage implements IStorage {
   async deleteAllNotifications(): Promise<boolean> {
     this.notifications.clear();
     return true;
+  }
+
+  // Reminders methods
+  async getLowStockParts(): Promise<Part[]> {
+    return Array.from(this.parts.values()).filter(part => 
+      part.minStockLevel !== null && part.stockQuantity <= part.minStockLevel
+    );
+  }
+
+  async getUpcomingServiceReminders(): Promise<{ mower: Mower; serviceType: string; daysUntilDue: number; dueDate: Date }[]> {
+    const today = new Date();
+    const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+    
+    return Array.from(this.mowers.values())
+      .filter(mower => {
+        if (!mower.nextServiceDate) return false;
+        const serviceDate = new Date(mower.nextServiceDate);
+        return serviceDate >= today && serviceDate <= thirtyDaysFromNow;
+      })
+      .map(mower => {
+        const serviceDate = new Date(mower.nextServiceDate!);
+        const timeDiff = serviceDate.getTime() - today.getTime();
+        const daysUntilDue = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+        
+        return {
+          mower,
+          serviceType: 'Scheduled Maintenance',
+          daysUntilDue,
+          dueDate: serviceDate
+        };
+      });
   }
 }
 
@@ -862,22 +962,116 @@ export class DbStorage implements IStorage {
     return await db.select().from(assetParts);
   }
 
+  async getAssetPart(id: string): Promise<AssetPart | undefined> {
+    const results = await db.select().from(assetParts).where(eq(assetParts.id, parseInt(id)));
+    return results[0];
+  }
+
   async createAssetPart(insertAssetPart: InsertAssetPart): Promise<AssetPart> {
-    const result = await db.insert(assetParts).values(insertAssetPart).returning();
-    return result[0];
+    // Start a transaction to ensure atomicity
+    const result = await db.transaction(async (tx) => {
+      // First, decrement the stock quantity of the part
+      const stockResult = await tx.update(parts)
+        .set({ 
+          stockQuantity: sql`${parts.stockQuantity} - ${insertAssetPart.quantity || 1}`,
+          updatedAt: new Date()
+        })
+        .where(eq(parts.id, insertAssetPart.partId))
+        .returning();
+      
+      if (stockResult.length === 0) {
+        throw new Error('Part not found');
+      }
+
+      // Check if stock would go negative
+      if (stockResult[0].stockQuantity < 0) {
+        throw new Error(`Insufficient stock. Available: ${stockResult[0].stockQuantity + (insertAssetPart.quantity || 1)}, Required: ${insertAssetPart.quantity || 1}`);
+      }
+
+      // Create the asset part allocation
+      const assetPartResult = await tx.insert(assetParts).values(insertAssetPart).returning();
+      return assetPartResult[0];
+    });
+
+    return result;
   }
 
   async updateAssetPart(id: string, updateData: Partial<InsertAssetPart>): Promise<AssetPart | undefined> {
-    const result = await db.update(assetParts)
-      .set(updateData)
-      .where(eq(assetParts.id, parseInt(id)))
-      .returning();
-    return result[0];
+    // Start a transaction to ensure atomicity
+    const result = await db.transaction(async (tx) => {
+      // First, get the current asset part to check for quantity changes
+      const currentAssetPartResult = await tx.select().from(assetParts).where(eq(assetParts.id, parseInt(id)));
+      if (currentAssetPartResult.length === 0) {
+        return undefined;
+      }
+      
+      const currentAssetPart = currentAssetPartResult[0];
+      
+      // Check if quantity is being updated
+      if (updateData.quantity !== undefined && updateData.quantity !== currentAssetPart.quantity) {
+        const quantityDifference = updateData.quantity - currentAssetPart.quantity;
+        
+        // Update stock quantity (reduce if quantity increased, increase if quantity decreased)
+        const stockResult = await tx.update(parts)
+          .set({ 
+            stockQuantity: sql`${parts.stockQuantity} - ${quantityDifference}`,
+            updatedAt: new Date()
+          })
+          .where(eq(parts.id, currentAssetPart.partId))
+          .returning();
+        
+        if (stockResult.length === 0) {
+          throw new Error('Part not found');
+        }
+
+        // Check if stock would go negative
+        if (stockResult[0].stockQuantity < 0) {
+          throw new Error(`Insufficient stock. Available: ${stockResult[0].stockQuantity + quantityDifference}, Required: ${quantityDifference}`);
+        }
+      }
+
+      // Update the asset part
+      const updateResult = await tx.update(assetParts)
+        .set(updateData)
+        .where(eq(assetParts.id, parseInt(id)))
+        .returning();
+      
+      return updateResult[0];
+    });
+
+    return result;
   }
 
   async deleteAssetPart(id: string): Promise<boolean> {
-    const result = await db.delete(assetParts).where(eq(assetParts.id, parseInt(id)));
-    return (result.rowCount ?? 0) > 0;
+    // Start a transaction to ensure atomicity
+    const result = await db.transaction(async (tx) => {
+      // First, get the asset part to know how much stock to restore
+      const assetPartResult = await tx.select().from(assetParts).where(eq(assetParts.id, parseInt(id)));
+      if (assetPartResult.length === 0) {
+        return false;
+      }
+      
+      const assetPart = assetPartResult[0];
+      
+      // Delete the asset part allocation
+      const deleteResult = await tx.delete(assetParts).where(eq(assetParts.id, parseInt(id)));
+      
+      if ((deleteResult.rowCount ?? 0) === 0) {
+        return false;
+      }
+
+      // Restore the stock quantity
+      await tx.update(parts)
+        .set({ 
+          stockQuantity: sql`${parts.stockQuantity} + ${assetPart.quantity}`,
+          updatedAt: new Date()
+        })
+        .where(eq(parts.id, assetPart.partId));
+
+      return true;
+    });
+
+    return result;
   }
 
   // Notification methods
@@ -922,6 +1116,42 @@ export class DbStorage implements IStorage {
   async deleteAllNotifications(): Promise<boolean> {
     const result = await db.delete(notifications);
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // Reminders methods
+  async getLowStockParts(): Promise<Part[]> {
+    return await db.select()
+      .from(parts)
+      .where(
+        sql`${parts.stockQuantity} <= ${parts.minStockLevel} AND ${parts.minStockLevel} IS NOT NULL`
+      );
+  }
+
+  async getUpcomingServiceReminders(): Promise<{ mower: Mower; serviceType: string; daysUntilDue: number; dueDate: Date }[]> {
+    const today = new Date();
+    const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+    
+    // Get mowers with upcoming service dates
+    const mowersWithServices = await db.select()
+      .from(mowers)
+      .where(
+        sql`${mowers.nextServiceDate} IS NOT NULL 
+            AND ${mowers.nextServiceDate} >= ${today.toISOString().split('T')[0]}
+            AND ${mowers.nextServiceDate} <= ${thirtyDaysFromNow.toISOString().split('T')[0]}`
+      );
+
+    return mowersWithServices.map(mower => {
+      const serviceDate = new Date(mower.nextServiceDate!);
+      const timeDiff = serviceDate.getTime() - today.getTime();
+      const daysUntilDue = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+      
+      return {
+        mower,
+        serviceType: 'Scheduled Maintenance', // Generic service type since we don't have specific types in mower table
+        daysUntilDue,
+        dueDate: serviceDate
+      };
+    });
   }
 }
 
