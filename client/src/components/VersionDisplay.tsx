@@ -29,7 +29,7 @@ export function VersionDisplay({ className = "" }: VersionDisplayProps) {
   };
 
   return (
-    <div className={`fixed bottom-4 left-4 z-50 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm border border-border rounded-md px-2 py-1 shadow-sm ${className}`}>
+    <div className={`fixed bottom-4 left-4 z-50 text-xs text-muted-foreground bg-background/80 backdrop-blur-sm border border-nested-border rounded-md px-2 py-1 shadow-sm ${className}`}>
       <div className="font-mono">
         {versionInfo.fullDisplayText}
       </div>

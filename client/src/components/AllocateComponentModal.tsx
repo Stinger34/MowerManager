@@ -200,15 +200,15 @@ export default function AllocateComponentModal({
                   )}
                 </div>
               ) : (
-                <div className="max-h-60 overflow-y-auto space-y-2 border rounded-md p-2">
+                <div className="max-h-60 overflow-y-auto space-y-2 border border-nested-border rounded-md p-2">
                   {availableComponents.map((component) => (
                     <div
                       key={component.id}
                       className={cn(
-                        "border rounded-lg p-3 cursor-pointer transition-colors",
+                        "border border-nested-border rounded-lg p-3 cursor-pointer transition-colors",
                         form.watch("componentId") === component.id
                           ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
+                          : "hover:border-primary/50"
                       )}
                       onClick={() => form.setValue("componentId", component.id)}
                     >
