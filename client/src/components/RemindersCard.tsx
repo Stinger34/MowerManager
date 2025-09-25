@@ -114,7 +114,7 @@ export default function RemindersCard({ className = "" }: RemindersCardProps) {
             <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
         </div>
-        <Card className="bg-panel border-panel-border shadow-card flex flex-col" style={{ height: '449px' }}>
+        <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200 flex flex-col" style={{ height: '449px' }}>
           <CardHeader className="pb-4">
             <CardTitle className="text-lg font-semibold text-text-primary">Loading reminders...</CardTitle>
             <CardDescription className="text-text-muted">
@@ -147,7 +147,7 @@ export default function RemindersCard({ className = "" }: RemindersCardProps) {
             <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
         </div>
-        <Card className="bg-panel border-panel-border shadow-card flex flex-col" style={{ height: '449px' }}>
+        <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200 flex flex-col" style={{ height: '449px' }}>
           <CardHeader className="pb-4">
             <CardTitle className="text-lg font-semibold text-text-primary">Error loading reminders</CardTitle>
             <CardDescription className="text-text-muted">
@@ -186,7 +186,7 @@ export default function RemindersCard({ className = "" }: RemindersCardProps) {
           <ArrowRight className="h-4 w-4 ml-1" />
         </Button>
       </div>
-      <Card className="bg-panel border-panel-border shadow-card flex flex-col" style={{ height: '449px' }}>
+      <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200 flex flex-col" style={{ height: '449px' }}>
         <CardHeader className="pb-4">
           <CardTitle className="text-lg font-semibold text-text-primary">Upcoming Services & Alerts</CardTitle>
           <CardDescription className="text-text-muted">
@@ -208,7 +208,7 @@ export default function RemindersCard({ className = "" }: RemindersCardProps) {
                   return (
                     <div
                       key={reminder.id}
-                      className="p-3 rounded-lg border border-medium-gray bg-white hover:border-accent-teal transition-all duration-200 cursor-pointer"
+                      className="p-3 rounded-lg border border-card-border bg-white hover:border-accent-teal hover:shadow-md transition-all duration-200 cursor-pointer"
                       onClick={reminder.onClick}
                     >
                       <div className="flex items-start justify-between gap-2">

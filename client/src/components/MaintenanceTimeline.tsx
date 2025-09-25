@@ -116,7 +116,7 @@ export default function MaintenanceTimeline({
           )}
         </div>
       </div>
-      <Card className="bg-panel border-panel-border shadow-card flex flex-col" style={{ height: '449px' }}>
+      <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200 flex flex-col" style={{ height: '449px' }}>
         <CardHeader className="pb-4">
           <CardTitle className="text-lg font-semibold text-text-primary">Maintenance Timeline</CardTitle>
           <CardDescription className="text-text-muted">
@@ -146,7 +146,7 @@ export default function MaintenanceTimeline({
                   </div>
                   
                   <div 
-                    className="flex-1 min-w-0 bg-white rounded-lg border border-medium-gray p-3 shadow-sm cursor-pointer hover:shadow-md hover:border-accent-teal transition-all duration-200"
+                    className="flex-1 min-w-0 bg-white rounded-lg border border-card-border p-3 shadow-sm cursor-pointer hover:shadow-md hover:border-accent-teal transition-all duration-200"
                     onClick={() => {
                       setLocation(`/mowers/${event.mowerId}?tab=service-history`);
                     }}

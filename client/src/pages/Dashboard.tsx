@@ -208,7 +208,7 @@ export default function Dashboard() {
               <h2 className="text-2xl font-bold tracking-tight text-text-dark">Mower Asset Quick Views</h2>
             </div>
             
-            <Card className="bg-panel border-panel-border shadow-card">
+            <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200">
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg font-semibold text-text-primary">Quick Mower Assets</CardTitle>
                 <CardDescription className="text-text-muted">
@@ -284,7 +284,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-panel-border hover:shadow-md hover:border-accent-teal transition-all duration-200 cursor-pointer shadow-card" onClick={() => setLocation('/maintenance')}>
+        <Card className="bg-white border-card-border hover:shadow-md hover:border-accent-teal transition-all duration-200 cursor-pointer shadow-card" onClick={() => setLocation('/maintenance')}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-text-primary">
               <Calendar className="h-5 w-5 text-accent-teal" />
@@ -299,7 +299,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-panel-border hover:shadow-md hover:border-accent-teal transition-all duration-200 cursor-pointer shadow-card" onClick={() => setLocation('/reports')}>
+        <Card className="bg-white border-card-border hover:shadow-md hover:border-accent-teal transition-all duration-200 cursor-pointer shadow-card" onClick={() => setLocation('/reports')}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-text-primary">
               <FileText className="h-5 w-5 text-accent-teal" />

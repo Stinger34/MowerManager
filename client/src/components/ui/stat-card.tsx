@@ -55,8 +55,8 @@ export function StatCard({
     <Card 
       data-testid={testId}
       className={cn(
-        "bg-panel rounded-card shadow-card border border-panel-border",
-        clickable && "hover-elevate cursor-pointer",
+        "bg-panel rounded-card shadow-card border-card-border hover:shadow-md hover:border-accent-teal transition-all duration-200",
+        clickable && "cursor-pointer",
         className
       )}
       onClick={clickable ? onClick : undefined}
