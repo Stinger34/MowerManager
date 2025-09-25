@@ -79,7 +79,17 @@ The `deploy.sh` script has been significantly enhanced to provide a robust, safe
 
 ## Migration Workflow
 
-The enhanced script uses a comprehensive migration workflow with automated validation:
+The enhanced script uses a smart migration workflow that adapts based on database state:
+
+### Empty Database Detection
+
+The script first checks if the target database is empty:
+
+1. **Database State Check**: Queries PostgreSQL to count tables in public schema
+2. **Empty Database Path**: If no tables found, runs `npm run db:push` to initialize schema
+3. **Non-Empty Database Path**: If tables exist, proceeds with migration workflow
+
+### Migration Workflow for Non-Empty Databases
 
 1. **Automated Migration Validation**: Validates migration files and detects issues
    - Checks for missing migration files and gaps in sequence  
@@ -100,6 +110,14 @@ The enhanced script uses a comprehensive migration workflow with automated valid
 7. **Schema Actions**: Executes conditional actions based on detected changes
 
 8. **Fallback Strategies**: Falls back to `drizzle-kit push` if migration fails, with comprehensive error guidance
+
+### Database State Detection
+
+```bash
+# The script automatically detects:
+# - Empty database (0 tables) → Uses db:push for initialization
+# - Non-empty database (>0 tables) → Uses migration workflow
+```
 
 ### Automated Migration Checks
 
