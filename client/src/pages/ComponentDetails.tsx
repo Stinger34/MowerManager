@@ -1,12 +1,19 @@
+import { useState } from "react";
 import { useRoute } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Wrench, DollarSign, Hash, Building, FileText, AlertTriangle, Calendar, Paperclip } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ArrowLeft, Wrench, DollarSign, Hash, Building, FileText, AlertTriangle, Calendar, Paperclip, Edit, Trash2, Plus, Package } from "lucide-react";
 import { useLocation } from "wouter";
-import type { Component, Attachment } from "@shared/schema";
+import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import ComponentFormModal from "@/components/ComponentFormModal";
+import AllocateComponentModal from "@/components/AllocateComponentModal";
+import type { Component, Attachment, AssetPartWithDetails } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
 
@@ -14,6 +21,15 @@ export default function ComponentDetails() {
   const [, params] = useRoute("/catalog/engines/:componentId");
   const [, setLocation] = useLocation();
   const componentId = params?.componentId;
+  const { toast } = useToast();
+
+  // Modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAllocateModal, setShowAllocateModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  // Initialize WebSocket for auto-refresh
+  const { isConnected: wsConnected, error: wsError } = useAssetEventsRefresh();
 
   // Fetch component data
   const { data: component, isLoading, error } = useQuery<Component>({
@@ -26,6 +42,57 @@ export default function ComponentDetails() {
     queryKey: ['/api/components', componentId, 'attachments'],
     enabled: !!componentId,
   });
+
+  // Fetch parts allocated to this engine
+  const { data: allocatedParts = [], isLoading: isPartsLoading } = useQuery<AssetPartWithDetails[]>({
+    queryKey: ['/api/components', componentId, 'parts'],
+    enabled: !!componentId,
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (componentId: number) => {
+      await apiRequest('DELETE', `/api/components/${componentId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      toast({ title: "Success", description: "Engine deleted successfully" });
+      setLocation('/catalog');
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete engine", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Handlers
+  const handleEdit = () => {
+    setShowEditModal(true);
+  };
+
+  const handleDelete = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (component) {
+      deleteMutation.mutate(component.id);
+    }
+  };
+
+  const handleAllocate = () => {
+    // We need to pass a mowerId to allocate to a mower, or handle global engines differently
+    setShowAllocateModal(true);
+  };
+
+  const handleModalSuccess = () => {
+    // Refetch data after successful operations
+    queryClient.invalidateQueries({ queryKey: ['/api/components', componentId] });
+    queryClient.invalidateQueries({ queryKey: ['/api/components', componentId, 'parts'] });
+  };
 
   if (isLoading) {
     return (
@@ -75,17 +142,35 @@ export default function ComponentDetails() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => setLocation('/catalog')}
-          data-testid="button-back-to-catalog"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Catalog
-        </Button>
-        <h1 className="text-3xl font-bold tracking-tight text-text-dark">{component.name}</h1>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setLocation('/catalog')}
+            data-testid="button-back-to-catalog"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Catalog
+          </Button>
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">{component.name}</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleEdit}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+          {!component.mowerId && (
+            <Button variant="outline" size="sm" onClick={handleAllocate}>
+              <Plus className="h-4 w-4 mr-2" />
+              Allocate
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={handleDelete}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="details" className="space-y-4">
@@ -103,12 +188,12 @@ export default function ComponentDetails() {
         <TabsContent value="details">
           {/* Component Details */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Basic Information */}
+            {/* Basic Information with Pricing & Dates */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Wrench className="h-5 w-5" />
-                  Component Information
+                  Engine Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -170,18 +255,8 @@ export default function ComponentDetails() {
                     <p className="text-sm text-gray-800 mt-1">{component.description}</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
 
-            {/* Dates and Pricing */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
-                  Pricing & Dates
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                {/* Pricing & Dates Information */}
                 {component.cost && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Cost</label>
@@ -237,6 +312,58 @@ export default function ComponentDetails() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Allocated Parts */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Allocated Parts ({allocatedParts.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isPartsLoading ? (
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
+                  </div>
+                ) : allocatedParts.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">
+                    No parts allocated to this engine yet.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {allocatedParts.map((allocation) => (
+                      <div key={allocation.id} className="border rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-medium">{allocation.part.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              Part #: {allocation.part.partNumber} • Quantity: {allocation.quantity}
+                              {allocation.installDate && (
+                                <span className="ml-2">
+                                  • Installed: {new Date(allocation.installDate).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                            {allocation.notes && (
+                              <p className="text-sm text-muted-foreground mt-1">{allocation.notes}</p>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setLocation(`/catalog/parts/${allocation.part.id}`)}
+                          >
+                            View Part
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Notes */}
@@ -287,6 +414,45 @@ export default function ComponentDetails() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Edit Component Modal */}
+      <ComponentFormModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        component={component}
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Allocate Component Modal - Only for global engines */}
+      {!component?.mowerId && (
+        <AllocateComponentModal
+          isOpen={showAllocateModal}
+          onClose={() => setShowAllocateModal(false)}
+          mowerId=""
+          onSuccess={handleModalSuccess}
+        />
+      )}
+
+      {/* Delete Component Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Engine</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{component?.name}"? This action cannot be undone and will remove all related data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

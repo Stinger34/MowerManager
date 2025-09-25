@@ -187,6 +187,12 @@ echo "Verifying swap is active:"
 free -h
 
 echo
+echo "Updating npm and dependencies for latest compatibility..."
+npm install -g npm@latest
+npx update-browserslist-db@latest
+npm update
+
+echo
 echo "Installing dependencies (this may take several minutes)..."
 if [ -f package-lock.json ]; then
   echo "Found package-lock.json; attempting 'npm ci' for exact dependency versions..."

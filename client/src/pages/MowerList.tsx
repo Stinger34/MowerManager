@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Plus, ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useMowerThumbnails } from "@/hooks/useThumbnails";
+import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import type { Mower } from "@shared/schema";
 
 interface MowerListProps {}
@@ -15,6 +16,9 @@ export default function MowerList() {
   const [, params] = useRoute("/mowers");
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Initialize WebSocket for auto-refresh
+  const { isConnected: wsConnected, error: wsError } = useAssetEventsRefresh();
   
   // Get filter from URL search params
   const urlParams = new URLSearchParams(window.location.search);

@@ -14,7 +14,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useMowerThumbnails } from "@/hooks/useThumbnails";
-import { useWebSocketAutoRefresh } from "@/hooks/useWebSocket";
+import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import type { Mower, ServiceRecord } from "@shared/schema";
 
 export default function Dashboard() {
@@ -27,7 +27,7 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   // Initialize WebSocket for auto-refresh
-  const { isConnected: wsConnected, error: wsError } = useWebSocketAutoRefresh();
+  const { isConnected: wsConnected, error: wsError } = useAssetEventsRefresh();
 
   const { data: mowers, isLoading, error } = useQuery<Mower[]>({
     queryKey: ['/api/mowers'],
@@ -203,10 +203,12 @@ export default function Dashboard() {
         {/* Mower Asset Quick Views and Reminders - Second row */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Mower Assets Section - Takes 2 columns */}
-          <div className="lg:col-span-2 space-y-6">
-            <h2 className="text-2xl font-bold tracking-tight text-text-dark">Mower Asset Quick Views</h2>
+          <div className="lg:col-span-2">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold tracking-tight text-text-dark">Mower Asset Quick Views</h2>
+            </div>
             
-            <Card className="bg-panel border-panel-border shadow-card">
+            <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200">
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg font-semibold text-text-primary">Quick Mower Assets</CardTitle>
                 <CardDescription className="text-text-muted">
@@ -267,7 +269,7 @@ export default function Dashboard() {
 
       {/* Quick Actions Cards - Middle row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-accent-teal text-white border-accent-teal hover:bg-accent-teal/90 transition-all duration-200 cursor-pointer shadow-lg" onClick={() => setLocation('/mowers/new')}>
+        <Card className="bg-accent-teal text-white border-accent-teal hover:bg-accent-teal/90 transition-all duration-200 cursor-pointer shadow-card" onClick={() => setLocation('/mowers/new')}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-white">
               <Plus className="h-5 w-5" />
@@ -282,7 +284,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-medium-gray hover:shadow-lg hover:border-accent-teal transition-all duration-200 cursor-pointer" onClick={() => setLocation('/maintenance')}>
+        <Card className="bg-white border-card-border hover:shadow-md hover:border-accent-teal transition-all duration-200 cursor-pointer shadow-card" onClick={() => setLocation('/maintenance')}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-text-primary">
               <Calendar className="h-5 w-5 text-accent-teal" />
@@ -297,7 +299,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-medium-gray hover:shadow-lg hover:border-accent-teal transition-all duration-200 cursor-pointer" onClick={() => setLocation('/reports')}>
+        <Card className="bg-white border-card-border hover:shadow-md hover:border-accent-teal transition-all duration-200 cursor-pointer shadow-card" onClick={() => setLocation('/reports')}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-text-primary">
               <FileText className="h-5 w-5 text-accent-teal" />

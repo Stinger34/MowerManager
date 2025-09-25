@@ -233,6 +233,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!task) {
         return res.status(404).json({ error: 'Task not found' });
       }
+      
+      // Broadcast WebSocket event for task update
+      webSocketService.broadcastAssetEvent('task-updated', 'task', task.id, { task, mowerId: task.mowerId });
+      
       res.json(task);
     } catch (error) {
       res.status(400).json({ error: 'Invalid task data' });
@@ -241,10 +245,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/tasks/:id', async (req: Request, res: Response) => {
     try {
+      // Get task details before deletion for WebSocket broadcast
+      const task = await storage.getTask(req.params.id);
+      
       const deleted = await storage.deleteTask(req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: 'Task not found' });
       }
+      
+      // Broadcast WebSocket event for task deletion
+      if (task) {
+        webSocketService.broadcastAssetEvent('task-deleted', 'task', task.id, { task, mowerId: task.mowerId });
+      }
+      
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete task' });
@@ -351,6 +364,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Service record not found' });
       }
       
+      // Broadcast WebSocket event for service record update
+      webSocketService.broadcastAssetEvent('service-updated', 'service-record', updatedServiceRecord.id, { 
+        serviceRecord: updatedServiceRecord, 
+        mowerId: updatedServiceRecord.mowerId 
+      });
+      
       res.json(updatedServiceRecord);
     } catch (error) {
       console.error('Service record update error:', error);
@@ -361,10 +380,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/service/:id', async (req: Request, res: Response) => {
     try {
       console.log('Service record deletion request:', { params: req.params });
+      
+      // Get service record details before deletion for WebSocket broadcast
+      const serviceRecord = await storage.getServiceRecord(req.params.id);
+      
       const deleted = await storage.deleteServiceRecord(req.params.id);
       if (!deleted) {
         return res.status(404).json({ error: 'Service record not found' });
       }
+      
+      // Broadcast WebSocket event for service record deletion
+      if (serviceRecord) {
+        webSocketService.broadcastAssetEvent('service-deleted', 'service-record', serviceRecord.id, { 
+          serviceRecord, 
+          mowerId: serviceRecord.mowerId 
+        });
+      }
+      
       res.status(204).send();
     } catch (error) {
       console.error('Service record deletion error:', error);
@@ -798,6 +830,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!component) {
         return res.status(404).json({ error: 'Component not found' });
       }
+      
+      // Broadcast WebSocket event for component update
+      webSocketService.broadcastAssetEvent('component-updated', 'component', component.id, { 
+        component, 
+        mowerId: component.mowerId 
+      });
+      
       res.json(component);
     } catch (error) {
       res.status(400).json({ error: 'Invalid component data', details: error instanceof Error ? error.message : String(error) });
@@ -817,6 +856,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create notification for deleted component
       if (component) {
         await NotificationService.createComponentNotification('deleted', component.name, component.id.toString());
+        
+        // Broadcast WebSocket event for component deletion
+        webSocketService.broadcastAssetEvent('component-deleted', 'component', component.id, { 
+          component, 
+          mowerId: component.mowerId 
+        });
       }
       
       res.status(204).send();
@@ -951,6 +996,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create notification for new part
       await NotificationService.createPartNotification('created', part.name, part.id.toString());
       
+      // Broadcast WebSocket event for part creation
+      webSocketService.broadcastAssetEvent('part-created', 'part', part.id, { part });
+      
       res.status(201).json(part);
     } catch (error) {
       res.status(400).json({ error: 'Invalid part data', details: error instanceof Error ? error.message : String(error) });
@@ -963,6 +1011,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!part) {
         return res.status(404).json({ error: 'Part not found' });
       }
+      
+      // Broadcast WebSocket event for part update
+      webSocketService.broadcastAssetEvent('part-updated', 'part', part.id, { part });
+      
       res.json(part);
     } catch (error) {
       res.status(400).json({ error: 'Invalid part data', details: error instanceof Error ? error.message : String(error) });
@@ -982,6 +1034,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create notification for deleted part
       if (part) {
         await NotificationService.createPartNotification('deleted', part.name, part.id.toString());
+        
+        // Broadcast WebSocket event for part deletion
+        webSocketService.broadcastAssetEvent('part-deleted', 'part', part.id, { part });
       }
       
       res.status(204).send();
@@ -1083,6 +1138,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/parts/:id/allocations', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching allocations for part ID:', req.params.id);
+      const allocations = await storage.getAssetPartsByPartId(req.params.id);
+      res.json(allocations);
+    } catch (error) {
+      console.error('Error fetching part allocations:', error);
+      res.status(500).json({ error: 'Failed to fetch part allocations' });
+    }
+  });
+
   // Asset Part allocation routes
   app.get('/api/mowers/:mowerId/parts', async (req: Request, res: Response) => {
     try {
@@ -1144,6 +1210,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!assetPart) {
         return res.status(404).json({ error: 'Asset part allocation not found' });
       }
+      
+      // Broadcast WebSocket event for asset-part update
+      webSocketService.broadcastAssetEvent('asset-part-updated', 'asset-part', assetPart.id, { 
+        assetPart, 
+        mowerId: assetPart.mowerId,
+        componentId: assetPart.componentId 
+      });
+      
       res.json(assetPart);
     } catch (error) {
       res.status(400).json({ error: 'Invalid asset part data', details: error instanceof Error ? error.message : String(error) });

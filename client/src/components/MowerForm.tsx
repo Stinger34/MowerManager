@@ -274,7 +274,7 @@ export default function MowerForm({
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                        <SelectItem value="maintenance">In Maintenance</SelectItem>
                         <SelectItem value="retired">Retired</SelectItem>
                       </SelectContent>
                     </Select>

@@ -87,6 +87,8 @@ OPTIONS:
 
 FEATURES:
     • Dry-run capability with user confirmation
+    • Empty database detection and initialization
+    • Smart migration handling for empty vs non-empty databases
     • Schema-aware migrations with automatic detection
     • Automated migration file validation and gap detection
     • Database migration history validation against actual database state
@@ -97,6 +99,12 @@ FEATURES:
     • Enhanced error messaging with manual intervention guidance
     • Comprehensive logging for troubleshooting migration issues
     • Fallback strategies when migration automation fails
+
+DATABASE INITIALIZATION:
+    • Detects if target database is empty (no tables in public schema)
+    • For empty databases: runs 'npm run db:push' to initialize schema
+    • For non-empty databases: uses standard migration workflow
+    • Works with PostgreSQL connection strings via psql/node-postgres
 
 AUTOMATED MIGRATION CHECKS:
     • Detects missing migration files and gaps in migration sequence
@@ -360,6 +368,63 @@ EOF
     rm -f "$temp_list_script"
     
     echo "$tables"
+}
+
+# Check if database is empty (no tables in public schema)
+is_database_empty() {
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log INFO "[DRY-RUN] Would check if database is empty"
+        return 1  # Assume database is not empty in dry-run mode
+    fi
+    
+    log INFO "Checking if database is empty (no tables in public schema)..."
+    
+    # Create a temporary Node.js script to count tables
+    local temp_count_script="/tmp/count_tables.js"
+    cat > "$temp_count_script" << 'EOF'
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { Pool } = require('pg');
+
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+    console.log('0');
+    process.exit(0);
+}
+
+const pool = new Pool({ connectionString: databaseUrl });
+
+async function countTables() {
+    try {
+        const query = `SELECT COUNT(*) as table_count FROM information_schema.tables 
+                      WHERE table_schema = 'public' 
+                      AND table_type = 'BASE TABLE';`;
+        const result = await pool.query(query);
+        console.log(result.rows[0].table_count);
+    } catch (error) {
+        console.log('0');
+    } finally {
+        await pool.end();
+    }
+}
+
+countTables();
+EOF
+    
+    local table_count
+    table_count=$(node "$temp_count_script" 2>/dev/null || echo "0")
+    rm -f "$temp_count_script"
+    
+    log INFO "Found $table_count tables in public schema"
+    
+    if [[ "$table_count" == "0" ]]; then
+        log INFO "Database is empty - no tables found in public schema"
+        return 0
+    else
+        log INFO "Database is not empty - found $table_count tables"
+        return 1
+    fi
 }
 
 # Make migration SQL idempotent by converting CREATE TABLE to CREATE TABLE IF NOT EXISTS
@@ -995,15 +1060,18 @@ apply_migrations() {
 
 # Main deployment steps
 step_git_pull() {
+    # Add this line to avoid 'dubious ownership' errors
+    git config --global --add safe.directory /opt/mowerm8
+
     local CURRENT_BRANCH
     CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
     show_progress 1 7 "Pulling latest changes from $CURRENT_BRANCH branch..."
-    
+
     if [[ "$SKIP_GIT_PULL" == "true" ]]; then
         log INFO "Skipping git pull (--skip-git-pull flag set)"
         return 0
     fi
-    
+
     if execute "Pull latest changes from $CURRENT_BRANCH branch" "git pull origin $CURRENT_BRANCH"; then
         log SUCCESS "Git pull completed successfully"
         return 0
@@ -1015,7 +1083,26 @@ step_git_pull() {
 
 step_install_deps() {
     show_progress 2 7 "Installing dependencies..."
+
+    # Handle dependency update prompt with respect to AUTO_CONFIRM flag (preserving existing logic)
+    local run_updates="n"
+    if [[ "$AUTO_CONFIRM" == "true" ]]; then
+        log INFO "Auto-confirming: Skip dependency update steps"
+        run_updates="n"
+    else
+        read -p "Do you want to run dependency update steps? (y/N): " run_updates
+    fi
     
+    if [[ "$run_updates" =~ ^[Yy]$ ]]; then
+        # Dependency update steps
+        execute "Update npm to latest version" "npm install -g npm@latest"
+        execute "Update Browserslist DB" "npx update-browserslist-db@latest"
+        execute "Update all dependencies" "npm update"
+       # execute "Fix vulnerabilities" "npm audit fix --force"
+    else
+        echo "Skipping dependency update steps."
+    fi
+
     if execute "Install dependencies" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
         log SUCCESS "Dependencies installed successfully"
         return 0
@@ -1038,108 +1125,135 @@ step_build() {
 }
 
 step_migration() {
-    show_progress 4 7 "Processing database schema changes with automated validation..."
+    show_progress 4 7 "Processing database schema changes..."
     
-    # ENHANCED MIGRATION STEP WITH AUTOMATED CHECKS AND FIXES
-    # This step includes comprehensive migration validation, automated fixes,
-    # and robust error handling with fallback strategies
+    log INFO "Starting database schema processing..."
     
-    log INFO "Starting automated migration checks and validation..."
-    
-    # Step 1: Comprehensive Migration Check with Automated Fixes
-    local migration_check_result
-    comprehensive_migration_check
-    migration_check_result=$?
-    
-    if [[ $migration_check_result -eq 1 ]]; then
-        log WARN "Migration issues detected, but deployment will continue with enhanced safeguards"
-        log INFO "Using fallback strategy for schema synchronization"
-    fi
-    
-    # Step 2: Generate migration and detect changes
-    if generate_migration; then
-        log INFO "Schema changes detected, proceeding with idempotent migration"
+    # Step 1: Check if database is empty (no tables in public schema)
+    if is_database_empty; then
+        log INFO "Empty database detected - initializing schema with db:push"
         
         if [[ "$DRY_RUN" == "false" ]]; then
-            if confirm "Apply detected database schema changes with automated validation?"; then
-                if apply_migrations; then
-                    execute_schema_actions
-                    log SUCCESS "Database schema updated successfully with comprehensive validation"
-                    
-                    # Post-migration validation
-                    log INFO "Running post-migration validation..."
-                    if validate_migration_history; then
-                        log SUCCESS "Post-migration validation passed"
-                    else
-                        log WARN "Post-migration validation found minor inconsistencies, but deployment continues"
-                    fi
-                    
+            if confirm "Initialize empty database schema?"; then
+                if execute "Initialize database schema" "npm run db:push"; then
+                    log SUCCESS "Database schema initialized successfully"
                     return 0
                 else
-                    # Enhanced error handling: don't fail deployment for idempotency issues
-                    log WARN "Migration step encountered issues, applying automated recovery..."
-                    log INFO "This may be due to idempotency (existing database objects) or migration history issues"
-                    log INFO "Attempting automated recovery with schema verification..."
-                    
-                    # Fallback 1: try db:push as a verification step
-                    if execute "Verify database schema (fallback method 1)" "npm run db:push"; then
-                        log SUCCESS "Database schema verification successful via automated fallback"
-                        return 0
-                    else
-                        log ERROR "Primary fallback failed, attempting final recovery strategy..."
-                        
-                        # Fallback 2: Manual intervention guidance
-                        log ERROR "=== MANUAL INTERVENTION REQUIRED ==="
-                        log ERROR "Migration automation encountered unrecoverable issues."
-                        log ERROR "Please follow these steps:"
-                        log ERROR "1. Check database connectivity: DATABASE_URL=\${DATABASE_URL:-'not set'}"
-                        log ERROR "2. Verify migration files in: $MIGRATION_DIR"
-                        log ERROR "3. Check migration journal: $MIGRATION_DIR/meta/_journal.json"
-                        log ERROR "4. Consider running: npm run db:push (to force schema sync)"
-                        log ERROR "5. Or run: npm run db:generate && npm run db:migrate (to regenerate)"
-                        log ERROR "=========================================="
-                        
-                        return $EXIT_ERROR_MIGRATION
-                    fi
+                    log ERROR "Failed to initialize database schema"
+                    return $EXIT_ERROR_MIGRATION
                 fi
             else
-                log WARN "User declined to apply database changes"
+                log WARN "User declined to initialize database schema"
                 return $EXIT_USER_ABORT
             fi
         else
-            log INFO "[DRY-RUN] Would apply database migrations with comprehensive automated checks and validation"
+            log INFO "[DRY-RUN] Would initialize empty database schema with npm run db:push"
             return 0
         fi
     else
-        log INFO "No schema changes detected, performing schema verification with automated checks"
+        log INFO "Non-empty database detected - proceeding with migration workflow"
         
-        # Even with no schema changes, run validation and ensure database is accessible
-        log INFO "Running schema consistency check..."
+        # ENHANCED MIGRATION STEP WITH AUTOMATED CHECKS AND FIXES
+        # This step includes comprehensive migration validation, automated fixes,
+        # and robust error handling with fallback strategies
         
-        if execute "Update database schema (with validation)" "npm run db:push"; then
-            log SUCCESS "Database schema verified/updated successfully with automated validation"
+        log INFO "Starting automated migration checks and validation..."
+        
+        # Step 2: Comprehensive Migration Check with Automated Fixes
+        local migration_check_result
+        comprehensive_migration_check
+        migration_check_result=$?
+        
+        if [[ $migration_check_result -eq 1 ]]; then
+            log WARN "Migration issues detected, but deployment will continue with enhanced safeguards"
+            log INFO "Using fallback strategy for schema synchronization"
+        fi
+        
+        # Step 3: Generate migration and detect changes
+        if generate_migration; then
+            log INFO "Schema changes detected, proceeding with idempotent migration"
             
-            # Run a final consistency check
             if [[ "$DRY_RUN" == "false" ]]; then
-                if validate_migration_history; then
-                    log SUCCESS "Schema consistency validation passed"
+                if confirm "Apply detected database schema changes with automated validation?"; then
+                    if apply_migrations; then
+                        execute_schema_actions
+                        log SUCCESS "Database schema updated successfully with comprehensive validation"
+                        
+                        # Post-migration validation
+                        log INFO "Running post-migration validation..."
+                        if validate_migration_history; then
+                            log SUCCESS "Post-migration validation passed"
+                        else
+                            log WARN "Post-migration validation found minor inconsistencies, but deployment continues"
+                        fi
+                        
+                        return 0
+                    else
+                        # Enhanced error handling: don't fail deployment for idempotency issues
+                        log WARN "Migration step encountered issues, applying automated recovery..."
+                        log INFO "This may be due to idempotency (existing database objects) or migration history issues"
+                        log INFO "Attempting automated recovery with schema verification..."
+                        
+                        # Fallback 1: try db:push as a verification step
+                        if execute "Verify database schema (fallback method 1)" "npm run db:push"; then
+                            log SUCCESS "Database schema verification successful via automated fallback"
+                            return 0
+                        else
+                            log ERROR "Primary fallback failed, attempting final recovery strategy..."
+                            
+                            # Fallback 2: Manual intervention guidance
+                            log ERROR "=== MANUAL INTERVENTION REQUIRED ==="
+                            log ERROR "Migration automation encountered unrecoverable issues."
+                            log ERROR "Please follow these steps:"
+                            log ERROR "1. Check database connectivity: DATABASE_URL=\${DATABASE_URL:-'not set'}"
+                            log ERROR "2. Verify migration files in: $MIGRATION_DIR"
+                            log ERROR "3. Check migration journal: $MIGRATION_DIR/meta/_journal.json"
+                            log ERROR "4. Consider running: npm run db:push (to force schema sync)"
+                            log ERROR "5. Or run: npm run db:generate && npm run db:migrate (to regenerate)"
+                            log ERROR "=========================================="
+                            
+                            return $EXIT_ERROR_MIGRATION
+                        fi
+                    fi
                 else
-                    log WARN "Minor schema consistency issues detected, but deployment successful"
-                    log INFO "Consider running migration cleanup: npm run db:generate && npm run db:migrate"
+                    log WARN "User declined to apply database changes"
+                    return $EXIT_USER_ABORT
                 fi
+            else
+                log INFO "[DRY-RUN] Would apply database migrations with comprehensive automated checks and validation"
+                return 0
             fi
-            
-            return 0
         else
-            log ERROR "Failed to update database schema even with automated fallbacks"
-            log ERROR "=== MANUAL INTERVENTION REQUIRED ==="
-            log ERROR "Database schema verification failed completely."
-            log ERROR "Please check:"
-            log ERROR "1. Database connectivity and permissions"
-            log ERROR "2. DATABASE_URL environment variable"
-            log ERROR "3. Database server availability"
-            log ERROR "=========================================="
-            return $EXIT_ERROR_MIGRATION
+            log INFO "No schema changes detected, performing schema verification with automated checks"
+            
+            # Even with no schema changes, run validation and ensure database is accessible
+            log INFO "Running schema consistency check..."
+            
+            if execute "Update database schema (with validation)" "npm run db:push"; then
+                log SUCCESS "Database schema verified/updated successfully with automated validation"
+                
+                # Run a final consistency check
+                if [[ "$DRY_RUN" == "false" ]]; then
+                    if validate_migration_history; then
+                        log SUCCESS "Schema consistency validation passed"
+                    else
+                        log WARN "Minor schema consistency issues detected, but deployment successful"
+                        log INFO "Consider running migration cleanup: npm run db:generate && npm run db:migrate"
+                    fi
+                fi
+                
+                return 0
+            else
+                log ERROR "Failed to update database schema even with automated fallbacks"
+                log ERROR "=== MANUAL INTERVENTION REQUIRED ==="
+                log ERROR "Database schema verification failed completely."
+                log ERROR "Please check:"
+                log ERROR "1. Database connectivity and permissions"
+                log ERROR "2. DATABASE_URL environment variable"
+                log ERROR "3. Database server availability"
+                log ERROR "=========================================="
+                return $EXIT_ERROR_MIGRATION
+            fi
         fi
     fi
 }

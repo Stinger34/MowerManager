@@ -25,6 +25,7 @@ export interface IStorage {
   markTaskComplete(id: string): Promise<Task | undefined>;
   
   // Service Record methods
+  getServiceRecord(id: string): Promise<ServiceRecord | undefined>;
   getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]>;
   getAllServiceRecords(): Promise<ServiceRecord[]>;
   createServiceRecordWithMowerUpdate(serviceRecord: InsertServiceRecord): Promise<ServiceRecord>;
@@ -60,6 +61,7 @@ export interface IStorage {
   getAssetPartsByMowerId(mowerId: string): Promise<AssetPart[]>;
   getAssetPartsWithDetailsByMowerId(mowerId: string): Promise<AssetPartWithDetails[]>;
   getAssetPartsByComponentId(componentId: string): Promise<AssetPart[]>;
+  getAssetPartsByPartId(partId: string): Promise<AssetPartWithDetails[]>;
   getAllAssetParts(): Promise<AssetPart[]>;
   getAssetPart(id: string): Promise<AssetPart | undefined>;
   createAssetPart(assetPart: InsertAssetPart): Promise<AssetPart>;
@@ -225,6 +227,10 @@ export class MemStorage implements IStorage {
   }
 
   // Service Record methods
+  async getServiceRecord(id: string): Promise<ServiceRecord | undefined> {
+    return this.serviceRecords.get(id);
+  }
+
   async getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]> {
     return Array.from(this.serviceRecords.values()).filter(record => record.mowerId === parseInt(mowerId));
   }
@@ -473,6 +479,27 @@ export class MemStorage implements IStorage {
     return Array.from(this.assetParts.values()).filter(assetPart => 
       assetPart.componentId && assetPart.componentId.toString() === componentId
     );
+  }
+
+  async getAssetPartsByPartId(partId: string): Promise<AssetPartWithDetails[]> {
+    const assetPartsList = Array.from(this.assetParts.values()).filter(assetPart => 
+      assetPart.partId.toString() === partId
+    );
+    
+    return assetPartsList.map(assetPart => {
+      const part = this.parts.get(assetPart.partId.toString());
+      const mower = assetPart.mowerId ? this.mowers.get(assetPart.mowerId.toString()) : undefined;
+      const component = assetPart.componentId ? this.components.get(assetPart.componentId.toString()) : undefined;
+      const serviceRecord = assetPart.serviceRecordId ? this.serviceRecords.get(assetPart.serviceRecordId) : undefined;
+      
+      return {
+        ...assetPart,
+        part: part!,
+        mower,
+        component,
+        serviceRecord
+      } as AssetPartWithDetails;
+    }).filter(item => item.part); // Filter out any where part wasn't found
   }
 
   async getAllAssetParts(): Promise<AssetPart[]> {
@@ -758,6 +785,11 @@ export class DbStorage implements IStorage {
   }
 
   // Service Record methods
+  async getServiceRecord(id: string): Promise<ServiceRecord | undefined> {
+    const result = await db.select().from(serviceRecords).where(eq(serviceRecords.id, id));
+    return result[0];
+  }
+
   async getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]> {
     return await db.select().from(serviceRecords).where(eq(serviceRecords.mowerId, parseInt(mowerId)));
   }
@@ -958,6 +990,55 @@ export class DbStorage implements IStorage {
     return await db.select().from(assetParts).where(eq(assetParts.componentId, parseInt(componentId)));
   }
 
+  async getAssetPartsByPartId(partId: string): Promise<AssetPartWithDetails[]> {
+    const result = await db
+      .select({
+        id: assetParts.id,
+        partId: assetParts.partId,
+        mowerId: assetParts.mowerId,
+        componentId: assetParts.componentId,
+        quantity: assetParts.quantity,
+        installDate: assetParts.installDate,
+        serviceRecordId: assetParts.serviceRecordId,
+        notes: assetParts.notes,
+        createdAt: assetParts.createdAt,
+        // Include related data
+        part: {
+          id: parts.id,
+          name: parts.name,
+          partNumber: parts.partNumber,
+          manufacturer: parts.manufacturer,
+          category: parts.category,
+          unitCost: parts.unitCost,
+          stockQuantity: parts.stockQuantity,
+          minStockLevel: parts.minStockLevel,
+          notes: parts.notes,
+          createdAt: parts.createdAt,
+          updatedAt: parts.updatedAt,
+        },
+        mower: {
+          id: mowers.id,
+          make: mowers.make,
+          model: mowers.model,
+          year: mowers.year,
+          serialNumber: mowers.serialNumber,
+        },
+        component: {
+          id: components.id,
+          name: components.name,
+          partNumber: components.partNumber,
+          manufacturer: components.manufacturer,
+        }
+      })
+      .from(assetParts)
+      .innerJoin(parts, eq(assetParts.partId, parts.id))
+      .leftJoin(mowers, eq(assetParts.mowerId, mowers.id))
+      .leftJoin(components, eq(assetParts.componentId, components.id))
+      .where(eq(assetParts.partId, parseInt(partId)));
+    
+    return result as AssetPartWithDetails[];
+  }
+
   async getAllAssetParts(): Promise<AssetPart[]> {
     return await db.select().from(assetParts);
   }
@@ -969,7 +1050,7 @@ export class DbStorage implements IStorage {
 
   async createAssetPart(insertAssetPart: InsertAssetPart): Promise<AssetPart> {
     // Start a transaction to ensure atomicity
-    const result = await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx: any) => {
       // First, decrement the stock quantity of the part
       const stockResult = await tx.update(parts)
         .set({ 
@@ -998,7 +1079,7 @@ export class DbStorage implements IStorage {
 
   async updateAssetPart(id: string, updateData: Partial<InsertAssetPart>): Promise<AssetPart | undefined> {
     // Start a transaction to ensure atomicity
-    const result = await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx: any) => {
       // First, get the current asset part to check for quantity changes
       const currentAssetPartResult = await tx.select().from(assetParts).where(eq(assetParts.id, parseInt(id)));
       if (currentAssetPartResult.length === 0) {
@@ -1044,7 +1125,7 @@ export class DbStorage implements IStorage {
 
   async deleteAssetPart(id: string): Promise<boolean> {
     // Start a transaction to ensure atomicity
-    const result = await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx: any) => {
       // First, get the asset part to know how much stock to restore
       const assetPartResult = await tx.select().from(assetParts).where(eq(assetParts.id, parseInt(id)));
       if (assetPartResult.length === 0) {
@@ -1140,7 +1221,7 @@ export class DbStorage implements IStorage {
             AND ${mowers.nextServiceDate} <= ${thirtyDaysFromNow.toISOString().split('T')[0]}`
       );
 
-    return mowersWithServices.map(mower => {
+    return mowersWithServices.map((mower: Mower) => {
       const serviceDate = new Date(mower.nextServiceDate!);
       const timeDiff = serviceDate.getTime() - today.getTime();
       const daysUntilDue = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));

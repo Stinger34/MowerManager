@@ -146,7 +146,7 @@ export default function MaintenanceHistory() {
       </div>
 
       {/* Filters */}
-      <Card className="bg-panel border-panel-border">
+      <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
@@ -189,7 +189,7 @@ export default function MaintenanceHistory() {
       </Card>
 
       {/* Maintenance Records */}
-      <Card className="bg-panel border-panel-border">
+      <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200">
         <CardHeader>
           <CardTitle className="text-text-primary">Maintenance Records</CardTitle>
           <CardDescription className="text-text-muted">
@@ -208,7 +208,7 @@ export default function MaintenanceHistory() {
               {paginatedRecords.map((record: ServiceRecord & { mowerName: string; technician?: string }) => (
                 <div 
                   key={record.id} 
-                  className="flex items-center justify-between p-4 border border-panel-border rounded-lg hover:bg-accent-card transition-colors"
+                  className="flex items-center justify-between p-4 border border-card-border rounded-lg hover:bg-accent-card transition-colors"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-accent-teal/10 flex items-center justify-center">
@@ -259,7 +259,7 @@ export default function MaintenanceHistory() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-6 border-t border-panel-border">
+            <div className="flex items-center justify-between pt-6 border-t border-card-border">
               <div className="text-sm text-text-muted">
                 Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredAndSortedRecords.length)} of {filteredAndSortedRecords.length} records
               </div>

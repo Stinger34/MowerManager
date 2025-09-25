@@ -101,61 +101,9 @@ export default function RemindersCard({ className = "" }: RemindersCardProps) {
 
   if (isLoading) {
     return (
-      <Card className={`bg-panel border-panel-border shadow-lg flex flex-col ${className}`} style={{ height: '449px' }}>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-text-primary">
-            <Bell className="h-5 w-5 text-accent-teal" />
-            Reminders
-          </CardTitle>
-          <CardDescription className="text-text-muted">
-            Loading reminders...
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 flex-grow flex flex-col">
-          <div className="text-center py-6 text-text-muted">
-            <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>Loading...</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card className={`bg-panel border-panel-border shadow-lg flex flex-col ${className}`} style={{ height: '449px' }}>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-text-primary">
-            <Bell className="h-5 w-5 text-accent-teal" />
-            Reminders
-          </CardTitle>
-          <CardDescription className="text-text-muted">
-            Error loading reminders
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 flex-grow flex flex-col">
-          <div className="text-center py-6 text-text-muted">
-            <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50 text-red-500" />
-            <p>Failed to load reminders</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className={`bg-panel border-panel-border shadow-lg flex flex-col ${className}`} style={{ height: '449px' }}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-text-primary">
-            <Bell className="h-5 w-5 text-accent-teal" />
-            Reminders
-            {totalReminders > 0 && (
-              <Badge variant="secondary" className="ml-2 bg-accent-teal text-white">
-                {totalReminders}
-              </Badge>
-            )}
-          </CardTitle>
+      <div className={className}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold tracking-tight text-text-dark">Reminders</h2>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -166,71 +114,147 @@ export default function RemindersCard({ className = "" }: RemindersCardProps) {
             <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
         </div>
-        <CardDescription className="text-text-muted">
-          Upcoming services and stock level alerts (next 30 days)
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 flex-grow flex flex-col">
-        {totalReminders === 0 ? (
-          <div className="text-center py-6 text-text-muted">
-            <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No active reminders</p>
-            <p className="text-sm">All services are up to date</p>
-          </div>
-        ) : (
-          <ScrollArea className="flex-grow h-[300px]">
-            <div className="space-y-3 pr-4">
-              {unifiedReminders.map((reminder) => {
-                const IconComponent = reminder.icon;
-                return (
-                  <div
-                    key={reminder.id}
-                    className="p-3 rounded-lg border border-medium-gray bg-white hover:border-accent-teal transition-all duration-200 cursor-pointer"
-                    onClick={reminder.onClick}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-2 flex-1 min-w-0">
-                        <IconComponent className="h-4 w-4 text-accent-teal mt-0.5 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium text-sm text-text-primary truncate">
-                              {reminder.title}
-                            </p>
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${priorityColors[reminder.priority]} flex-shrink-0`}
-                            >
-                              {reminder.priority}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-text-muted truncate">{reminder.subtitle}</p>
-                          {reminder.daysUntilDue !== undefined && (
-                            <div className="flex items-center gap-1 mt-1">
-                              {reminder.daysUntilDue <= 7 ? (
-                                <AlertTriangle className="h-3 w-3 text-red-500" />
-                              ) : (
-                                <Clock className="h-3 w-3 text-text-muted" />
-                              )}
-                              <span className={`text-xs ${
-                                reminder.daysUntilDue <= 7 ? 'text-red-600 font-medium' : 'text-text-muted'
-                              }`}>
-                                {reminder.daysUntilDue <= 0 
-                                  ? `${Math.abs(reminder.daysUntilDue)} days overdue`
-                                  : `${reminder.daysUntilDue} days`
-                                }
-                              </span>
+        <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200 flex flex-col" style={{ height: '449px' }}>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold text-text-primary">Loading reminders...</CardTitle>
+            <CardDescription className="text-text-muted">
+              Please wait while we load your reminders
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 flex-grow flex flex-col">
+            <div className="text-center py-6 text-text-muted">
+              <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>Loading...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={className}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold tracking-tight text-text-dark">Reminders</h2>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleViewAllReminders}
+            className="text-text-muted hover:text-accent-teal"
+          >
+            View All
+            <ArrowRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+        <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200 flex flex-col" style={{ height: '449px' }}>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold text-text-primary">Error loading reminders</CardTitle>
+            <CardDescription className="text-text-muted">
+              There was a problem loading your reminders
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 flex-grow flex flex-col">
+            <div className="text-center py-6 text-text-muted">
+              <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50 text-red-500" />
+              <p>Failed to load reminders</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className={className}>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold tracking-tight text-text-dark">
+          Reminders
+          {totalReminders > 0 && (
+            <Badge variant="secondary" className="ml-2 bg-accent-teal text-white">
+              {totalReminders}
+            </Badge>
+          )}
+        </h2>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleViewAllReminders}
+          className="text-text-muted hover:text-accent-teal"
+        >
+          View All
+          <ArrowRight className="h-4 w-4 ml-1" />
+        </Button>
+      </div>
+      <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200 flex flex-col" style={{ height: '449px' }}>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-semibold text-text-primary">Upcoming Services & Alerts</CardTitle>
+          <CardDescription className="text-text-muted">
+            Services and stock level alerts (next 30 days)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 flex-grow flex flex-col">
+          {totalReminders === 0 ? (
+            <div className="text-center py-6 text-text-muted">
+              <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>No active reminders</p>
+              <p className="text-sm">All services are up to date</p>
+            </div>
+          ) : (
+            <ScrollArea className="flex-grow h-[300px]">
+              <div className="space-y-3 pr-4">
+                {unifiedReminders.map((reminder) => {
+                  const IconComponent = reminder.icon;
+                  return (
+                    <div
+                      key={reminder.id}
+                      className="p-3 rounded-lg border border-card-border bg-white hover:border-accent-teal hover:shadow-md transition-all duration-200 cursor-pointer"
+                      onClick={reminder.onClick}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                          <IconComponent className="h-4 w-4 text-accent-teal mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="font-medium text-sm text-text-primary truncate">
+                                {reminder.title}
+                              </p>
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs ${priorityColors[reminder.priority]} flex-shrink-0`}
+                              >
+                                {reminder.priority}
+                              </Badge>
                             </div>
-                          )}
+                            <p className="text-xs text-text-muted truncate">{reminder.subtitle}</p>
+                            {reminder.daysUntilDue !== undefined && (
+                              <div className="flex items-center gap-1 mt-1">
+                                {reminder.daysUntilDue <= 7 ? (
+                                  <AlertTriangle className="h-3 w-3 text-red-500" />
+                                ) : (
+                                  <Clock className="h-3 w-3 text-text-muted" />
+                                )}
+                                <span className={`text-xs ${
+                                  reminder.daysUntilDue <= 7 ? 'text-red-600 font-medium' : 'text-text-muted'
+                                }`}>
+                                  {reminder.daysUntilDue <= 0 
+                                    ? `${Math.abs(reminder.daysUntilDue)} days overdue`
+                                    : `${reminder.daysUntilDue} days`
+                                  }
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </ScrollArea>
-        )}
-      </CardContent>
-    </Card>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
