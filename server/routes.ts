@@ -1138,6 +1138,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/parts/:id/allocations', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching allocations for part ID:', req.params.id);
+      const allocations = await storage.getAssetPartsByPartId(req.params.id);
+      res.json(allocations);
+    } catch (error) {
+      console.error('Error fetching part allocations:', error);
+      res.status(500).json({ error: 'Failed to fetch part allocations' });
+    }
+  });
+
   // Asset Part allocation routes
   app.get('/api/mowers/:mowerId/parts', async (req: Request, res: Response) => {
     try {
