@@ -110,7 +110,7 @@ systemctl restart postgresql
 
 echo
 echo "Testing connection with new database user..."
-PGPASSWORD="$DB_PASSWORD" psql -U "${DB_USER}" -h localhost -d "${DB_NAME}" -c "SELECT current_user, current_database;" || {
+PGPASSWORD="$DB_PASSWORD" psql -U "${DB_USER}" -h localhost -d "${DB_NAME}" -c "SELECT current_user, current_database();" || {
     echo "ERROR: Cannot connect with new user credentials."
     echo "Database user: ${DB_USER}"
     echo "Database password: ${DB_PASSWORD}"
