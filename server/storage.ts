@@ -25,6 +25,7 @@ export interface IStorage {
   markTaskComplete(id: string): Promise<Task | undefined>;
   
   // Service Record methods
+  getServiceRecord(id: string): Promise<ServiceRecord | undefined>;
   getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]>;
   getAllServiceRecords(): Promise<ServiceRecord[]>;
   createServiceRecordWithMowerUpdate(serviceRecord: InsertServiceRecord): Promise<ServiceRecord>;
@@ -225,6 +226,10 @@ export class MemStorage implements IStorage {
   }
 
   // Service Record methods
+  async getServiceRecord(id: string): Promise<ServiceRecord | undefined> {
+    return this.serviceRecords.get(id);
+  }
+
   async getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]> {
     return Array.from(this.serviceRecords.values()).filter(record => record.mowerId === parseInt(mowerId));
   }
@@ -758,6 +763,11 @@ export class DbStorage implements IStorage {
   }
 
   // Service Record methods
+  async getServiceRecord(id: string): Promise<ServiceRecord | undefined> {
+    const result = await db.select().from(serviceRecords).where(eq(serviceRecords.id, id));
+    return result[0];
+  }
+
   async getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]> {
     return await db.select().from(serviceRecords).where(eq(serviceRecords.mowerId, parseInt(mowerId)));
   }
@@ -969,7 +979,7 @@ export class DbStorage implements IStorage {
 
   async createAssetPart(insertAssetPart: InsertAssetPart): Promise<AssetPart> {
     // Start a transaction to ensure atomicity
-    const result = await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx: any) => {
       // First, decrement the stock quantity of the part
       const stockResult = await tx.update(parts)
         .set({ 
@@ -998,7 +1008,7 @@ export class DbStorage implements IStorage {
 
   async updateAssetPart(id: string, updateData: Partial<InsertAssetPart>): Promise<AssetPart | undefined> {
     // Start a transaction to ensure atomicity
-    const result = await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx: any) => {
       // First, get the current asset part to check for quantity changes
       const currentAssetPartResult = await tx.select().from(assetParts).where(eq(assetParts.id, parseInt(id)));
       if (currentAssetPartResult.length === 0) {
@@ -1044,7 +1054,7 @@ export class DbStorage implements IStorage {
 
   async deleteAssetPart(id: string): Promise<boolean> {
     // Start a transaction to ensure atomicity
-    const result = await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx: any) => {
       // First, get the asset part to know how much stock to restore
       const assetPartResult = await tx.select().from(assetParts).where(eq(assetParts.id, parseInt(id)));
       if (assetPartResult.length === 0) {
@@ -1140,7 +1150,7 @@ export class DbStorage implements IStorage {
             AND ${mowers.nextServiceDate} <= ${thirtyDaysFromNow.toISOString().split('T')[0]}`
       );
 
-    return mowersWithServices.map(mower => {
+    return mowersWithServices.map((mower: Mower) => {
       const serviceDate = new Date(mower.nextServiceDate!);
       const timeDiff = serviceDate.getTime() - today.getTime();
       const daysUntilDue = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));

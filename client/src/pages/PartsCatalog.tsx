@@ -10,6 +10,7 @@ import { Search, Plus, Package, Wrench, Edit, Trash2, AlertTriangle } from "luci
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import ComponentFormModal from "@/components/ComponentFormModal";
 import PartFormModal from "@/components/PartFormModal";
 import type { Part, Component } from "@shared/schema";
@@ -19,6 +20,9 @@ export default function PartsCatalog() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const { toast } = useToast();
+
+  // Initialize WebSocket for auto-refresh
+  const { isConnected: wsConnected, error: wsError } = useAssetEventsRefresh();
 
   // Modal states
   const [showPartModal, setShowPartModal] = useState(false);

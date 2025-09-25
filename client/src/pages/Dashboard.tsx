@@ -14,7 +14,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useMowerThumbnails } from "@/hooks/useThumbnails";
-import { useWebSocketAutoRefresh } from "@/hooks/useWebSocket";
+import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import type { Mower, ServiceRecord } from "@shared/schema";
 
 export default function Dashboard() {
@@ -27,7 +27,7 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   // Initialize WebSocket for auto-refresh
-  const { isConnected: wsConnected, error: wsError } = useWebSocketAutoRefresh();
+  const { isConnected: wsConnected, error: wsError } = useAssetEventsRefresh();
 
   const { data: mowers, isLoading, error } = useQuery<Mower[]>({
     queryKey: ['/api/mowers'],

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Package, DollarSign, Hash, Building, FileText, AlertTriangle, Paperclip } from "lucide-react";
 import { useLocation } from "wouter";
+import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import type { Part, Attachment } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
@@ -14,6 +15,9 @@ export default function PartDetails() {
   const [, params] = useRoute("/catalog/parts/:partId");
   const [, setLocation] = useLocation();
   const partId = params?.partId;
+
+  // Initialize WebSocket for auto-refresh
+  const { isConnected: wsConnected, error: wsError } = useAssetEventsRefresh();
 
   // Fetch part data
   const { data: part, isLoading, error } = useQuery<Part>({
