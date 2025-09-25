@@ -1015,7 +1015,13 @@ step_git_pull() {
 
 step_install_deps() {
     show_progress 2 7 "Installing dependencies..."
-    
+
+    # Dependency update steps
+    execute "Update npm to latest version" "npm install -g npm@latest"
+    execute "Update Browserslist DB" "npx update-browserslist-db@latest"
+    execute "Update all dependencies" "npm update"
+    execute "Fix vulnerabilities" "npm audit fix --force"
+
     if execute "Install dependencies" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
         log SUCCESS "Dependencies installed successfully"
         return 0
