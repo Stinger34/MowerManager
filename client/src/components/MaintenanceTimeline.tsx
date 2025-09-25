@@ -88,42 +88,41 @@ export default function MaintenanceTimeline({
   };
 
   return (
-    <Card className={`bg-panel border-panel-border shadow-lg flex flex-col ${className}`} style={{ height: '449px' }}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-text-primary">
-            <Wrench className="h-5 w-5 text-accent-teal" />
-            Recent Maintenance
-          </CardTitle>
-          <div className="flex gap-2">
-            {onAddMaintenance && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={onAddMaintenance}
-                className="bg-accent-teal text-white hover:bg-accent-teal/90 border-accent-teal"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add
-              </Button>
-            )}
-            {onViewAll && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={onViewAll}
-                className="text-text-muted hover:text-accent-teal"
-              >
-                View All
-                <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
-            )}
-          </div>
+    <div className={className}>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold tracking-tight text-text-dark">Recent Maintenance</h2>
+        <div className="flex gap-2">
+          {onAddMaintenance && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onAddMaintenance}
+              className="bg-accent-teal text-white hover:bg-accent-teal/90 border-accent-teal"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add
+            </Button>
+          )}
+          {onViewAll && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onViewAll}
+              className="text-text-muted hover:text-accent-teal"
+            >
+              View All
+              <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          )}
         </div>
-        <CardDescription className="text-text-muted">
-          Timeline of maintenance activities across all mowers
-        </CardDescription>
-      </CardHeader>
+      </div>
+      <Card className="bg-panel border-panel-border shadow-card flex flex-col" style={{ height: '449px' }}>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-semibold text-text-primary">Maintenance Timeline</CardTitle>
+          <CardDescription className="text-text-muted">
+            Timeline of maintenance activities across all mowers
+          </CardDescription>
+        </CardHeader>
       <CardContent className="space-y-4 flex-grow flex flex-col">
         {events.length === 0 ? (
           <div className="text-center py-6 text-text-muted">
@@ -245,6 +244,7 @@ export default function MaintenanceTimeline({
           </div>
         )}
       </CardContent>
+      </Card>
 
       {/* Service Details Modal */}
       {selectedEvent && (
@@ -269,6 +269,6 @@ export default function MaintenanceTimeline({
           onDelete={handleDeleteFromModal}
         />
       )}
-    </Card>
+    </div>
   );
 }
