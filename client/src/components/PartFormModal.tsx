@@ -70,9 +70,14 @@ export default function PartFormModal({
     },
   });
 
+  // Watch category to determine if this is an Engine part
+  const watchedCategory = form.watch("category");
+  const isEngine = watchedCategory?.toLowerCase() === 'engine';
+
   // Reset form when part prop changes
   useEffect(() => {
     if (isOpen) {
+      const isEngineEdit = part?.category?.toLowerCase() === 'engine';
       form.reset({
         name: part?.name || "",
         description: part?.description || "",
@@ -80,8 +85,8 @@ export default function PartFormModal({
         manufacturer: part?.manufacturer || "",
         category: part?.category || "",
         unitCost: part?.unitCost || "",
-        stockQuantity: part?.stockQuantity || 0,
-        minStockLevel: part?.minStockLevel || 0,
+        stockQuantity: isEngineEdit ? 1 : (part?.stockQuantity || 0),
+        minStockLevel: isEngineEdit ? 0 : (part?.minStockLevel || 0),
         notes: part?.notes || "",
       });
       // Reset attachments for editing mode
@@ -90,6 +95,15 @@ export default function PartFormModal({
       }
     }
   }, [part, isOpen, form, isEditing]);
+
+  // Auto-adjust values when category changes to/from engine
+  useEffect(() => {
+    if (isEngine && !isEditing) {
+      // For new Engine parts, set stock to 1 and minStock to 0
+      form.setValue("stockQuantity", 1);
+      form.setValue("minStockLevel", 0);
+    }
+  }, [isEngine, form, isEditing]);
 
   const createMutation = useMutation({
     mutationFn: async (data: PartFormData) => {
@@ -344,8 +358,15 @@ export default function PartFormModal({
                         min="0"
                         {...field} 
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        disabled={isEngine}
+                        value={isEngine ? 1 : field.value}
                       />
                     </FormControl>
+                    {isEngine && (
+                      <p className="text-xs text-muted-foreground">
+                        Engine assets always have stock quantity of 1
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -363,8 +384,15 @@ export default function PartFormModal({
                         min="0"
                         {...field} 
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        disabled={isEngine}
+                        value={isEngine ? 0 : field.value}
                       />
                     </FormControl>
+                    {isEngine && (
+                      <p className="text-xs text-muted-foreground">
+                        Engine assets don't use minimum stock levels
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

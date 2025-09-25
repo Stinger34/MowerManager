@@ -91,9 +91,11 @@ export default function PartsCatalog() {
   // Get unique categories from parts
   const categories = Array.from(new Set(parts.map(part => part.category)));
 
-  // Calculate low stock parts
+  // Calculate low stock parts (exclude Engine parts from stock alerts)
   const lowStockParts = parts.filter(part => 
-    part.minStockLevel && part.stockQuantity <= part.minStockLevel
+    part.category?.toLowerCase() !== 'engine' && 
+    part.minStockLevel && 
+    part.stockQuantity <= part.minStockLevel
   );
 
   // Handlers
@@ -280,16 +282,19 @@ export default function PartsCatalog() {
                         <span className="text-muted-foreground">Category:</span>
                         <Badge variant="secondary">{part.category}</Badge>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Stock:</span>
-                        <span className={`font-medium ${
-                          part.minStockLevel && part.stockQuantity <= part.minStockLevel 
-                            ? 'text-amber-600' 
-                            : 'text-green-600'
-                        }`}>
-                          {part.stockQuantity} units
-                        </span>
-                      </div>
+                      {/* Hide stock information for Engine parts */}
+                      {part.category?.toLowerCase() !== 'engine' && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Stock:</span>
+                          <span className={`font-medium ${
+                            part.minStockLevel && part.stockQuantity <= part.minStockLevel 
+                              ? 'text-amber-600' 
+                              : 'text-green-600'
+                          }`}>
+                            {part.stockQuantity} units
+                          </span>
+                        </div>
+                      )}
                       {part.unitCost && (
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Unit Cost:</span>
