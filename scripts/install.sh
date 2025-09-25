@@ -191,7 +191,6 @@ echo "Updating npm and dependencies for latest compatibility..."
 npm install -g npm@latest
 npx update-browserslist-db@latest
 npm update
-npm audit fix
 
 echo
 echo "Installing dependencies (this may take several minutes)..."
