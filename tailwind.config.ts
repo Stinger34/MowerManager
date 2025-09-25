@@ -27,6 +27,7 @@ export default {
           DEFAULT: "hsl(var(--panel) / <alpha-value>)",
           border: "hsl(var(--panel-border) / <alpha-value>)",
         },
+        "nested-border": "hsl(var(--nested-border) / <alpha-value>)",
         "accent-orange": "hsl(var(--accent-orange) / <alpha-value>)",
         "sidebar-icon": "hsl(var(--sidebar-icon) / <alpha-value>)",
         "accent-card": "hsl(var(--accent-card) / <alpha-value>)",

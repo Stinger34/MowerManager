@@ -20,6 +20,9 @@
   --sidebar-border: 222 19% 20%;       /* Darker grey border */
   --sidebar-icon: 162 54% 59%;         /* Teal Green #4ecca3 */
   --sidebar-ring: 162 54% 59%;         /* Teal Green #4ecca3 */
+  
+  /* Border color for nested elements to match sidebar background */
+  --nested-border: 222 19% 25%;        /* Same as sidebar background for visual consistency */
 
   --panel: 0 0% 100%;                  /* White #ffffff */
   --panel-border: 218 18% 39%;         /* Blue-Gray #505762 */
@@ -144,6 +147,9 @@
   --sidebar-border: 222 19% 20%;        /* Darker sidebar border */
   --sidebar-icon: 162 54% 79%;          /* Light teal for better visibility */
   --sidebar-ring: 162 54% 79%;          /* Light teal for focus rings */
+  
+  /* Border color for nested elements to match sidebar background */
+  --nested-border: 222 19% 15%;         /* Same as sidebar background for visual consistency */
 
   --panel: 222 19% 20%;                 /* Dark panel background */
   --panel-border: 162 54% 59%;          /* Teal Green border for contrast */
