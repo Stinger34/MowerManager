@@ -2,11 +2,15 @@
 
 This directory contains database migration files managed by Drizzle ORM.
 
-## Baseline Migration
+## Fresh Start Setup
 
-### Initial Setup (September 2025)
+### Clean Migration State
 
-The database schema has been initialized with a baseline migration (`0000_baseline_20250924.sql`) that establishes the complete current schema structure. This baseline migration includes all 8 core tables:
+The migration system has been reset to a clean state, ready for fresh installations and new builds. The migration journal is empty and ready to track future schema changes.
+
+### Database Schema
+
+The current database schema is defined in `/shared/schema.ts` and includes these core tables:
 
 - **mowers** - Equipment inventory and basic information
 - **service_records** - Maintenance and repair history  
@@ -19,24 +23,24 @@ The database schema has been initialized with a baseline migration (`0000_baseli
 
 ### Migration Journal
 
-The migration system uses a journal file (`_journal.json`) to track which migrations have been applied. The baseline migration is marked as already applied to prevent re-execution on existing databases.
+The migration system uses a journal file (`_journal.json`) to track which migrations have been applied. The journal starts empty for fresh installations.
 
-### Future Migrations
+### Managing Database Changes
 
-All future database schema changes should be managed through Drizzle ORM:
+All database schema changes should be managed through Drizzle ORM:
 
 1. **Modify the schema**: Update `/shared/schema.ts` with your changes
 2. **Generate migration**: Run `npm run db:generate` to create migration files
 3. **Apply migration**: Run `npm run db:migrate` to apply changes to the database
 
-### Team Onboarding
+### Fresh Installations
 
 For new team members or fresh database installations:
 
-1. The baseline migration establishes the complete schema
-2. Any subsequent migrations will build incrementally on this foundation
+1. The schema will be created from `/shared/schema.ts` via Drizzle ORM
+2. Future migrations will build incrementally on the generated schema
 3. This ensures reproducible database state across all environments
 
 ### Legacy Migrations
 
-Previous migration files have been moved to `/migrations-old/` for historical reference. The new migration system starts fresh with this baseline to ensure consistency and maintainability.
+Previous migration files have been moved to `/migrations-old/` for historical reference. The current migration system starts with a clean slate for better maintainability.
