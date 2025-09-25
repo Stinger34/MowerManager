@@ -137,6 +137,7 @@ export default function Maintenance() {
   // Create unified maintenance list
   const getUnifiedMaintenanceList = (): UnifiedMaintenanceItem[] => {
     const unified: UnifiedMaintenanceItem[] = [];
+    const processedMowerIds = new Set<number>();
 
     // Add mowers currently in maintenance (priority 1 - always at top)
     maintenanceMowers.forEach(mower => {
@@ -150,12 +151,41 @@ export default function Maintenance() {
         status: 'in_maintenance',
         priority: 1
       });
+      processedMowerIds.add(mower.id);
     });
 
-    // Add upcoming maintenance items
+    // Add mowers with overdue nextServiceDate (priority 2)
+    mowers.forEach(mower => {
+      if (processedMowerIds.has(mower.id) || mower.status !== 'active' || !mower.nextServiceDate) {
+        return;
+      }
+
+      const nextServiceDate = new Date(mower.nextServiceDate);
+      const today = new Date();
+      const daysUntilDue = Math.ceil((nextServiceDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (nextServiceDate < today) {
+        unified.push({
+          id: `overdue-${mower.id}`,
+          mowerId: mower.id,
+          mowerName: `${mower.make} ${mower.model}`,
+          mowerSerialNumber: mower.serialNumber || undefined,
+          type: 'maintenance_item',
+          serviceType: 'overdue service',
+          lastDate: mower.lastServiceDate ? new Date(mower.lastServiceDate) : null,
+          nextDue: nextServiceDate,
+          daysUntilDue: daysUntilDue,
+          status: 'overdue',
+          priority: 2
+        });
+        processedMowerIds.add(mower.id);
+      }
+    });
+
+    // Add upcoming maintenance items based on service intervals (priority 3)
     upcomingMaintenance.forEach(item => {
-      // Skip if this mower is already in maintenance
-      if (maintenanceMowers.some(m => m.id === item.mowerId)) {
+      // Skip if this mower is already processed
+      if (processedMowerIds.has(item.mowerId)) {
         return;
       }
 
@@ -171,6 +201,35 @@ export default function Maintenance() {
         status: item.status,
         priority: item.status === 'overdue' ? 2 : 3 // Overdue = 2, Upcoming = 3
       });
+    });
+
+    // Add mowers with upcoming nextServiceDate (priority 3)
+    mowers.forEach(mower => {
+      if (processedMowerIds.has(mower.id) || mower.status !== 'active' || !mower.nextServiceDate) {
+        return;
+      }
+
+      const nextServiceDate = new Date(mower.nextServiceDate);
+      const today = new Date();
+      const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+      const daysUntilDue = Math.ceil((nextServiceDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (nextServiceDate >= today && nextServiceDate <= thirtyDaysFromNow) {
+        unified.push({
+          id: `upcoming-${mower.id}`,
+          mowerId: mower.id,
+          mowerName: `${mower.make} ${mower.model}`,
+          mowerSerialNumber: mower.serialNumber || undefined,
+          type: 'maintenance_item',
+          serviceType: 'scheduled service',
+          lastDate: mower.lastServiceDate ? new Date(mower.lastServiceDate) : null,
+          nextDue: nextServiceDate,
+          daysUntilDue: daysUntilDue,
+          status: daysUntilDue <= 7 ? 'due_soon' : 'upcoming',
+          priority: 3
+        });
+        processedMowerIds.add(mower.id);
+      }
     });
 
     // Sort by priority first, then by days until due (for same priority items)
