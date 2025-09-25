@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Wrench, DollarSign, Hash, Building, FileText, AlertTriangle, Calendar, Paperclip } from "lucide-react";
 import { useLocation } from "wouter";
+import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import type { Component, Attachment } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
@@ -14,6 +15,9 @@ export default function ComponentDetails() {
   const [, params] = useRoute("/catalog/engines/:componentId");
   const [, setLocation] = useLocation();
   const componentId = params?.componentId;
+
+  // Initialize WebSocket for auto-refresh
+  const { isConnected: wsConnected, error: wsError } = useAssetEventsRefresh();
 
   // Fetch component data
   const { data: component, isLoading, error } = useQuery<Component>({
