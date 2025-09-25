@@ -52,7 +52,10 @@ function Router() {
       <Route path="/mowers" component={() => <PageTransition><MowerList /></PageTransition>} />
       <Route path="/maintenance/history" component={() => <PageTransition><MaintenanceHistory /></PageTransition>} />
       <Route path="/maintenance" component={() => <PageTransition><Maintenance /></PageTransition>} />
-      <Route path="/reminders" component={() => <PageTransition><Reminders /></PageTransition>} />
+      <Route path="/reminders" component={() => {
+        window.location.replace('/maintenance');
+        return null;
+      }} />
       <Route path="/reports" component={() => <PageTransition><Reports /></PageTransition>} />
       <Route path="/catalog" component={() => <PageTransition><PartsCatalog /></PageTransition>} />
       <Route path="/catalog/parts/:partId" component={() => <PageTransition><PartDetails /></PageTransition>} />

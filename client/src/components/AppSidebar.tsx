@@ -19,11 +19,6 @@ const navigationItems = [
     url: "/maintenance",
     icon: Wrench,
   },
-  {
-    title: "Reminders",
-    url: "/reminders",
-    icon: Bell,
-  },
 ];
 
 const quickActions = [
