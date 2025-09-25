@@ -1019,11 +1019,16 @@ step_git_pull() {
 step_install_deps() {
     show_progress 2 7 "Installing dependencies..."
 
-    # Dependency update steps
-    execute "Update npm to latest version" "npm install -g npm@latest"
-    execute "Update Browserslist DB" "npx update-browserslist-db@latest"
-    execute "Update all dependencies" "npm update"
-   # execute "Fix vulnerabilities" "npm audit fix --force"
+ read -p "Do you want to run dependency update steps? (y/N): " run_updates
+    if [[ "$run_updates" =~ ^[Yy]$ ]]; then
+        # Dependency update steps
+        execute "Update npm to latest version" "npm install -g npm@latest"
+        execute "Update Browserslist DB" "npx update-browserslist-db@latest"
+        execute "Update all dependencies" "npm update"
+       # execute "Fix vulnerabilities" "npm audit fix --force"
+    else
+        echo "Skipping dependency update steps."
+    fi
 
     if execute "Install dependencies" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
         log SUCCESS "Dependencies installed successfully"
