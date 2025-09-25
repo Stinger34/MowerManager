@@ -170,7 +170,7 @@ export default function Settings() {
       </div>
 
       {/* Backup & Restore Section */}
-      <Card className="bg-white border-panel-border shadow-card">
+      <Card className="bg-white border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-text-primary">
             <Database className="h-5 w-5 text-accent-teal" />
@@ -212,7 +212,7 @@ export default function Settings() {
             )}
           </div>
 
-          <div className="border-t border-panel-border pt-6">
+          <div className="border-t border-card-border pt-6">
             {/* Restore Section */}
             <div className="space-y-4">
               <div>
@@ -270,7 +270,7 @@ export default function Settings() {
       </Card>
 
       {/* Backup Information */}
-      <Card className="bg-white border-panel-border shadow-card">
+      <Card className="bg-white border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-text-primary">
             <CheckCircle className="h-5 w-5 text-accent-teal" />

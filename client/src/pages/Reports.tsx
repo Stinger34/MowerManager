@@ -83,7 +83,7 @@ export default function Reports() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="border-panel-border">
+          <Button variant="outline" className="border-card-border">
             <Filter className="h-4 w-4 mr-2" />
             Filter
           </Button>
@@ -97,7 +97,7 @@ export default function Reports() {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {quickStats.map((stat, index) => (
-          <Card key={index} className="bg-panel border-panel-border">
+          <Card key={index} className="bg-panel border-card-border">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm text-text-muted">{stat.label}</CardTitle>
             </CardHeader>
@@ -118,7 +118,7 @@ export default function Reports() {
 
       {/* Report Categories */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-panel border-panel-border hover:shadow-lg transition-shadow cursor-pointer">
+        <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200 cursor-pointer">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-text-primary">
               <BarChart3 className="h-5 w-5" />
@@ -138,7 +138,7 @@ export default function Reports() {
           </CardContent>
         </Card>
 
-        <Card className="bg-panel border-panel-border hover:shadow-lg transition-shadow cursor-pointer">
+        <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200 cursor-pointer">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-text-primary">
               <Calendar className="h-5 w-5" />
@@ -158,7 +158,7 @@ export default function Reports() {
           </CardContent>
         </Card>
 
-        <Card className="bg-panel border-panel-border hover:shadow-lg transition-shadow cursor-pointer">
+        <Card className="bg-panel border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200 cursor-pointer">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-text-primary">
               <TrendingUp className="h-5 w-5" />
@@ -180,7 +180,7 @@ export default function Reports() {
       </div>
 
       {/* Recent Reports */}
-      <Card className="bg-panel border-panel-border">
+      <Card className="bg-panel border-card-border">
         <CardHeader>
           <CardTitle className="text-text-primary">Recent Reports</CardTitle>
           <CardDescription className="text-text-muted">
@@ -189,7 +189,7 @@ export default function Reports() {
         </CardHeader>
         <CardContent className="space-y-4">
           {reports.map((report) => (
-            <div key={report.id} className="flex items-center justify-between p-4 border border-panel-border rounded-lg">
+            <div key={report.id} className="flex items-center justify-between p-4 border border-card-border rounded-lg">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-accent-teal/10 flex items-center justify-center">
                   <FileText className="h-5 w-5 text-accent-teal" />

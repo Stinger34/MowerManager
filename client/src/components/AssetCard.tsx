@@ -40,7 +40,7 @@ export default function AssetCard({
   onDelete
 }: AssetCardProps) {
   return (
-    <Card className="bg-white rounded-card shadow-lg border border-medium-gray hover:shadow-xl hover:border-accent-teal transition-all duration-200 cursor-pointer" data-testid={`card-mower-${id}`}>
+    <Card className="bg-white rounded-card shadow-card border-card-border hover:shadow-md hover:border-accent-teal transition-all duration-200 cursor-pointer" data-testid={`card-mower-${id}`}>
       {thumbnailUrl && (
         <div className="w-full h-48 overflow-hidden rounded-t-card">
           <img 
@@ -68,7 +68,7 @@ export default function AssetCard({
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-white border-medium-gray shadow-lg">
+          <DropdownMenuContent align="end" className="bg-white border-card-border shadow-lg">
             <DropdownMenuItem onClick={() => onViewDetails(id)} className="hover:bg-accent-teal/10" data-testid={`button-view-${id}`}>
               View Details
             </DropdownMenuItem>
