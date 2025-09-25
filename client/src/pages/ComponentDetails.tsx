@@ -13,7 +13,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import ComponentFormModal from "@/components/ComponentFormModal";
 import AllocateComponentModal from "@/components/AllocateComponentModal";
-import type { Component, Attachment, AssetPartWithDetails } from "@shared/schema";
+import AllocatePartModal from "@/components/AllocatePartModal";
+import AllocateEngineToMowerModal from "@/components/AllocateEngineToMowerModal";
+import type { Component, Attachment, AssetPartWithDetails, AssetPart } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
 
@@ -26,7 +28,10 @@ export default function ComponentDetails() {
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAllocateModal, setShowAllocateModal] = useState(false);
+  const [showAllocatePartModal, setShowAllocatePartModal] = useState(false);
+  const [showAllocateEngineToMowerModal, setShowAllocateEngineToMowerModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [editingAssetPart, setEditingAssetPart] = useState<AssetPart | null>(null);
 
   // Initialize WebSocket for auto-refresh
   const { isConnected: wsConnected, error: wsError } = useAssetEventsRefresh();
@@ -88,10 +93,29 @@ export default function ComponentDetails() {
     setShowAllocateModal(true);
   };
 
+  const handleAllocatePart = () => {
+    setEditingAssetPart(null);
+    setShowAllocatePartModal(true);
+  };
+
+  const handleEditAssetPart = (assetPart: AssetPart) => {
+    setEditingAssetPart(assetPart);
+    setShowAllocatePartModal(true);
+  };
+
+  const handleAllocateEngineToMower = () => {
+    setShowAllocateEngineToMowerModal(true);
+  };
+
   const handleModalSuccess = () => {
     // Refetch data after successful operations
     queryClient.invalidateQueries({ queryKey: ['/api/components', componentId] });
     queryClient.invalidateQueries({ queryKey: ['/api/components', componentId, 'parts'] });
+    // Show success toast
+    toast({
+      title: "Success",
+      description: "Operation completed successfully",
+    });
   };
 
   if (isLoading) {
@@ -161,10 +185,16 @@ export default function ComponentDetails() {
             Edit
           </Button>
           {!component.mowerId && (
-            <Button variant="outline" size="sm" onClick={handleAllocate}>
-              <Plus className="h-4 w-4 mr-2" />
-              Allocate
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={handleAllocate}>
+                <Plus className="h-4 w-4 mr-2" />
+                Allocate
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleAllocateEngineToMower}>
+                <Wrench className="h-4 w-4 mr-2" />
+                Allocate to Mower
+              </Button>
+            </>
           )}
           <Button variant="outline" size="sm" onClick={handleDelete}>
             <Trash2 className="h-4 w-4 mr-2" />
@@ -316,10 +346,16 @@ export default function ComponentDetails() {
             {/* Allocated Parts */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="h-5 w-5" />
-                  Allocated Parts ({allocatedParts.length})
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="h-5 w-5" />
+                    Allocated Parts ({allocatedParts.length})
+                  </CardTitle>
+                  <Button variant="outline" size="sm" onClick={handleAllocatePart}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Allocate Part
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {isPartsLoading ? (
@@ -350,13 +386,22 @@ export default function ComponentDetails() {
                               <p className="text-sm text-muted-foreground mt-1">{allocation.notes}</p>
                             )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setLocation(`/catalog/parts/${allocation.part.id}`)}
-                          >
-                            View Part
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setLocation(`/catalog/parts/${allocation.part.id}`)}
+                            >
+                              View Part
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditAssetPart(allocation)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -429,6 +474,29 @@ export default function ComponentDetails() {
           isOpen={showAllocateModal}
           onClose={() => setShowAllocateModal(false)}
           mowerId=""
+          onSuccess={handleModalSuccess}
+        />
+      )}
+
+      {/* Allocate Part Modal */}
+      <AllocatePartModal
+        isOpen={showAllocatePartModal}
+        onClose={() => {
+          setShowAllocatePartModal(false);
+          setEditingAssetPart(null);
+        }}
+        mowerId={component?.mowerId?.toString() || ""}
+        componentId={componentId}
+        assetPart={editingAssetPart}
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Allocate Engine to Mower Modal - Only for global engines */}
+      {!component?.mowerId && component && (
+        <AllocateEngineToMowerModal
+          isOpen={showAllocateEngineToMowerModal}
+          onClose={() => setShowAllocateEngineToMowerModal(false)}
+          engine={component}
           onSuccess={handleModalSuccess}
         />
       )}
