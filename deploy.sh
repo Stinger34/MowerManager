@@ -1020,7 +1020,7 @@ step_install_deps() {
     execute "Update npm to latest version" "npm install -g npm@latest"
     execute "Update Browserslist DB" "npx update-browserslist-db@latest"
     execute "Update all dependencies" "npm update"
-    execute "Fix vulnerabilities" "npm audit fix --force"
+   # execute "Fix vulnerabilities" "npm audit fix --force"
 
     if execute "Install dependencies" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
         log SUCCESS "Dependencies installed successfully"
