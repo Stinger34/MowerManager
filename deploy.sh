@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
-# deploy.sh — Enhanced deployment script for MowerManager application
-# Features: dry-run capability, schema-aware migrations, dynamic prompts, error handling, 
-#           automated migration validation, and comprehensive fallback strategies
-#
-# IMPROVEMENT: Database empty check now scans for tables in all schemas except system/internal schemas.
-# Debug logging is added for DATABASE_URL and returned errors.
+# MowerManager deploy.sh — Robust, with environment sanity checks, Node/pg setup, and safe helper scripts
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="${SCRIPT_DIR}/deploy.log"
 MIGRATION_DIR="${SCRIPT_DIR}/migrations"
-TEMP_MIGRATION_FILE=""
+COUNT_SCRIPT="$SCRIPT_DIR/count_tables.js"
+DEBUG_SCRIPT="$SCRIPT_DIR/debug_list_tables.js"
 
 DRY_RUN=false
 AUTO_CONFIRM=false
@@ -98,10 +94,7 @@ confirm() {
 
 cleanup() {
     local exit_code=$?
-    if [[ -n "$TEMP_MIGRATION_FILE" && -f "$TEMP_MIGRATION_FILE" ]]; then
-        log INFO "Cleaning up temporary migration file: $TEMP_MIGRATION_FILE"
-        rm -f "$TEMP_MIGRATION_FILE"
-    fi
+    rm -f "$COUNT_SCRIPT" "$DEBUG_SCRIPT"
     if [[ $exit_code -ne 0 ]]; then
         log ERROR "Deployment failed with exit code $exit_code"
         log INFO "Check the log file: $LOG_FILE"
@@ -161,18 +154,30 @@ execute() {
     fi
 }
 
-# IMPROVED: Check if database is empty (no tables in any non-system schema)
-is_database_empty() {
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log INFO "[DRY-RUN] Would check if database is empty"
-        return 1
+# ---- ENVIRONMENT SANITY CHECKS ----
+env_sanity_checks() {
+    # 1. Check DATABASE_URL
+    if [[ -z "${DATABASE_URL:-}" ]]; then
+        log ERROR "DATABASE_URL is not set!"
+        echo "Export it with: export DATABASE_URL='postgresql://user:pass@host:port/db'"
+        exit 1
     fi
 
-    log INFO "Using DATABASE_URL: ${DATABASE_URL:-not set}"
-    log INFO "Checking if database is empty (no tables in non-system schemas)..."
+    # 2. Check pg module (local OR global)
+    if ! node -e "require('pg')" 2>/dev/null; then
+        log ERROR "Node.js 'pg' module not found."
+        echo "Run: npm install pg OR npm install -g pg"
+        exit 1
+    fi
 
-    local temp_count_script="/tmp/count_tables.js"
-    cat > "$temp_count_script" << 'EOF'
+    # 3. Set NODE_PATH so ESM scripts find 'pg' if only globally installed
+    export NODE_PATH="${NODE_PATH:-$(npm root -g)}"
+}
+
+# ---- HELPER SCRIPTS ----
+create_helper_scripts() {
+    # COUNT_SCRIPT
+    cat > "$COUNT_SCRIPT" << 'EOF'
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { Pool } = require('pg');
@@ -199,15 +204,8 @@ async function countTables() {
 countTables();
 EOF
 
-    table_count=$(node "$temp_count_script" 2>>"$LOG_FILE" || echo "0")
-    rm -f "$temp_count_script"
-
-    log INFO "Found $table_count tables in non-system schemas"
-
-    # Debug: List tables
-    log INFO "Listing tables in all non-system schemas for debug:"
-    local temp_debug_script="/tmp/debug_list_tables.js"
-    cat > "$temp_debug_script" << 'EOF'
+    # DEBUG_SCRIPT
+    cat > "$DEBUG_SCRIPT" << 'EOF'
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { Pool } = require('pg');
@@ -232,8 +230,23 @@ async function debugListTables() {
 }
 debugListTables();
 EOF
-    node "$temp_debug_script" >> "$LOG_FILE" 2>&1
-    rm -f "$temp_debug_script"
+}
+
+# ---- DATABASE CHECK ----
+is_database_empty() {
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log INFO "[DRY-RUN] Would check if database is empty"
+        return 1
+    fi
+
+    log INFO "Using DATABASE_URL: ${DATABASE_URL:-not set}"
+    log INFO "Node.js module path: $NODE_PATH"
+    log INFO "Checking if database is empty (no tables in non-system schemas)..."
+    table_count=$(node "$COUNT_SCRIPT" 2>>"$LOG_FILE" || echo "0")
+    log INFO "Found $table_count tables in non-system schemas"
+
+    log INFO "Listing tables in all non-system schemas for debug:"
+    node "$DEBUG_SCRIPT" >> "$LOG_FILE" 2>&1
 
     if [[ "$table_count" == "0" ]]; then
         log INFO "Database is empty - no tables found in any non-system schema"
@@ -242,46 +255,6 @@ EOF
         log INFO "Database is not empty - found $table_count tables"
         return 1
     fi
-}
-
-get_existing_tables() {
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log INFO "[DRY-RUN] Would query existing tables"
-        echo ""
-        return 0
-    fi
-
-    local temp_list_script="/tmp/list_tables.js"
-    cat > "$temp_list_script" << 'EOF'
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const { Pool } = require('pg');
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
-    process.exit(0);
-}
-const pool = new Pool({ connectionString: databaseUrl });
-async function listTables() {
-    try {
-        const query = `SELECT table_schema, table_name FROM information_schema.tables 
-                      WHERE table_type = 'BASE TABLE'
-                      AND table_schema NOT IN ('pg_catalog', 'information_schema')
-                      ORDER BY table_schema, table_name;`;
-        const result = await pool.query(query);
-        result.rows.forEach(row => console.log(row.table_schema + '.' + row.table_name));
-    } catch (error) {
-        // Silent fail
-    } finally {
-        await pool.end();
-    }
-}
-listTables();
-EOF
-
-    local tables
-    tables=$(node "$temp_list_script" 2>/dev/null || echo "")
-    rm -f "$temp_list_script"
-    echo "$tables"
 }
 
 step_git_pull() {
@@ -343,7 +316,6 @@ step_migration() {
     log INFO "Starting database schema processing..."
     if is_database_empty; then
         log INFO "Empty database detected - initializing schema with db:push"
-        # --- SAFEGUARD: Skip migration files with RENAME statements on fresh DB ---
         for file in "$MIGRATION_DIR"/*.sql; do
             if grep -qE "(RENAME TABLE|RENAME COLUMN)" "$file"; then
                 log WARN "Migration file $(basename "$file") contains RENAME statements and will be skipped for empty database initialization."
@@ -385,7 +357,6 @@ step_migration() {
         fi
     else
         log INFO "Database is not empty - proceeding with migration workflow"
-        # Here you would run your migration workflow (generate, apply, validate, etc.)
         if execute "Generate migration files" "npm run db:generate"; then
             log SUCCESS "Migration files generated"
             if execute "Apply migrations" "npm run db:migrate"; then
@@ -443,6 +414,8 @@ main_deploy() {
     log INFO "Dry run mode: $DRY_RUN"
     log INFO "Auto confirm mode: $AUTO_CONFIRM"
     log INFO "Log file: $LOG_FILE"
+    env_sanity_checks
+    create_helper_scripts
     step_git_pull || exit $?
     step_install_deps || exit $?
     step_build || exit $?
