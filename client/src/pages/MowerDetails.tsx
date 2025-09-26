@@ -25,6 +25,10 @@ import { useMowerThumbnail } from "@/hooks/useThumbnails";
 import { useCameraCapture } from "@/hooks/useCameraCapture";
 import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Engine, Part, AssetPart, AssetPartWithDetails } from "@shared/schema";
+
+// Type alias for backwards compatibility during transition
+type Component = Engine;
+type InsertComponent = typeof import("@shared/schema").insertEngineSchema._type;
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
 import { motion } from "framer-motion";
@@ -158,6 +162,17 @@ export default function MowerDetails() {
 
   // Fetch thumbnail for this mower
   const { data: thumbnail } = useMowerThumbnail(mowerId || '');
+
+  // Backwards compatibility aliases during transition (after queries are defined)
+  const selectedComponentForAllocation = selectedEngineForAllocation;
+  const setSelectedComponentForAllocation = setSelectedEngineForAllocation;
+  const components = engines;
+  const componentsError = enginesError;
+  const isComponentsLoading = isEnginesLoading;
+  const showDeleteComponentDialog = showDeleteEngineDialog;
+  const setShowDeleteComponentDialog = setShowDeleteEngineDialog;
+  const componentToDelete = engineToDelete;
+  const setComponentToDelete = setEngineToDelete;
 
   // Delete mower mutation
   const deleteMowerMutation = useMutation({
@@ -406,6 +421,10 @@ export default function MowerDetails() {
     },
   });
 
+  // More backwards compatibility aliases that depend on mutations
+  const handleConfirmDeleteComponent = () => deleteEngineMutation.mutate(engineToDelete!.id);
+  const deleteComponentMutation = deleteEngineMutation;
+
   // File upload handler (legacy)
   const handleFileUpload = () => {
     const fileInput = document.createElement('input');
@@ -626,7 +645,7 @@ export default function MowerDetails() {
 
   const handleEditAssetPart = (assetPart: AssetPart) => {
     setEditingAssetPart(assetPart);
-    setSelectedComponentForAllocation(assetPart.componentId?.toString() || null);
+    setSelectedComponentForAllocation(assetPart.engineId?.toString() || null);
     setShowAllocatePartModal(true);
   };
 
@@ -640,6 +659,33 @@ export default function MowerDetails() {
       deleteAssetPartMutation.mutate(assetPartToDelete.id);
     }
   };
+
+  // Engine/Component compatibility handlers
+  const handleAllocateComponent = () => {
+    setShowAllocateEngineModal(true);
+  };
+
+  const handleAddComponent = () => {
+    setShowEngineModal(true);
+  };
+
+  const handleEditComponent = (engine: Engine) => {
+    setEditingEngine(engine);
+    setShowEngineModal(true);
+  };
+
+  const handleDeleteComponent = (engine: Engine) => {
+    setEngineToDelete(engine);
+    setShowDeleteEngineDialog(true);
+  };
+
+  // Modal state compatibility aliases
+  const showComponentModal = showEngineModal;
+  const setShowComponentModal = setShowEngineModal;
+  const editingComponent = editingEngine;
+  const setEditingComponent = setEditingEngine;
+  const showAllocateComponentModal = showAllocateEngineModal;
+  const setShowAllocateComponentModal = setShowAllocateEngineModal;
 
   const handleModalSuccess = () => {
     // Refresh data after successful operations
@@ -1193,19 +1239,19 @@ export default function MowerDetails() {
                                 </div>
                               )}
                               
-                              {assetPart.componentId && (
+                              {assetPart.engineId && (
                                 <div className="text-sm text-muted-foreground mt-1">
                                   <span>Allocated to Engine: </span>
-                                  {assetPart.component ? (
+                                  {assetPart.engine ? (
                                     <Button 
                                       variant="ghost" 
                                       className="p-0 h-auto text-sm text-blue-600 underline"
-                                      onClick={() => setLocation(`/catalog/engines/${assetPart.componentId}`)}
+                                      onClick={() => setLocation(`/catalog/engines/${assetPart.engineId}`)}
                                     >
-                                      {assetPart.component.name}
+                                      {assetPart.engine.name}
                                     </Button>
                                   ) : (
-                                    <span>ID: {assetPart.componentId}</span>
+                                    <span>ID: {assetPart.engineId}</span>
                                   )}
                                 </div>
                               )}
@@ -1358,7 +1404,7 @@ export default function MowerDetails() {
           setSelectedComponentForAllocation(null);
         }}
         mowerId={mowerId!}
-        componentId={selectedComponentForAllocation}
+        engineId={selectedComponentForAllocation}
         assetPart={editingAssetPart}
         onSuccess={handleModalSuccess}
       />
@@ -1404,7 +1450,7 @@ export default function MowerDetails() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove Part Allocation</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove this part allocation? This will unlink the part from this {assetPartToDelete?.componentId ? 'component' : 'mower'} but will not delete the part from inventory.
+              Are you sure you want to remove this part allocation? This will unlink the part from this {assetPartToDelete?.engineId ? 'engine' : 'mower'} but will not delete the part from inventory.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
