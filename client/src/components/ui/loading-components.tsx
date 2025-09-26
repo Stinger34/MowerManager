@@ -120,7 +120,7 @@ export function CardLoadingSkeleton({ cards = 3, className }: CardLoadingSkeleto
       {Array.from({ length: cards }).map((_, i) => (
         <motion.div
           key={i}
-          className="p-6 border rounded-lg space-y-4"
+          className="p-6 border border-nested-border rounded-lg space-y-4"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: i * 0.1, duration: 0.3 }}

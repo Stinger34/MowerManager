@@ -69,8 +69,8 @@ export default function EditMower() {
           </Button>
           
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Edit Mower</h1>
-            <p className="text-muted-foreground">Loading...</p>
+            <h1 className="text-3xl font-bold tracking-tight text-text-dark">Edit Mower</h1>
+            <p className="text-text-muted">Loading...</p>
           </div>
         </div>
       </div>
@@ -114,8 +114,8 @@ export default function EditMower() {
         </Button>
         
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Edit Mower</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Edit Mower</h1>
+          <p className="text-text-muted">
             Edit details for {mower?.make} {mower?.model}
           </p>
         </div>

@@ -1,12 +1,19 @@
+import { useState } from "react";
 import { useRoute } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Package, DollarSign, Hash, Building, FileText, AlertTriangle, Paperclip } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ArrowLeft, Package, DollarSign, Hash, Building, FileText, AlertTriangle, Paperclip, Edit, Trash2, Plus } from "lucide-react";
 import { useLocation } from "wouter";
-import type { Part, Attachment } from "@shared/schema";
+import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import PartFormModal from "@/components/PartFormModal";
+import AllocatePartModal from "@/components/AllocatePartModal";
+import type { Part, Attachment, AssetPartWithDetails } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
 
@@ -14,6 +21,15 @@ export default function PartDetails() {
   const [, params] = useRoute("/catalog/parts/:partId");
   const [, setLocation] = useLocation();
   const partId = params?.partId;
+  const { toast } = useToast();
+
+  // Modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAllocateModal, setShowAllocateModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  // Initialize WebSocket for auto-refresh
+  const { isConnected: wsConnected, error: wsError } = useAssetEventsRefresh();
 
   // Fetch part data
   const { data: part, isLoading, error } = useQuery<Part>({
@@ -26,6 +42,56 @@ export default function PartDetails() {
     queryKey: ['/api/parts', partId, 'attachments'],
     enabled: !!partId,
   });
+
+  // Fetch part allocations (where this part has been allocated)
+  const { data: partAllocations = [], isLoading: isAllocationsLoading } = useQuery<AssetPartWithDetails[]>({
+    queryKey: ['/api/parts', partId, 'allocations'],
+    enabled: !!partId,
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (partId: number) => {
+      await apiRequest('DELETE', `/api/parts/${partId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/parts'] });
+      toast({ title: "Success", description: "Part deleted successfully" });
+      setLocation('/catalog');
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete part", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Handlers
+  const handleEdit = () => {
+    setShowEditModal(true);
+  };
+
+  const handleDelete = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (part) {
+      deleteMutation.mutate(part.id);
+    }
+  };
+
+  const handleAllocate = () => {
+    setShowAllocateModal(true);
+  };
+
+  const handleModalSuccess = () => {
+    // Refetch data after successful operations
+    queryClient.invalidateQueries({ queryKey: ['/api/parts', partId] });
+    queryClient.invalidateQueries({ queryKey: ['/api/parts', partId, 'allocations'] });
+  };
 
   if (isLoading) {
     return (
@@ -58,7 +124,7 @@ export default function PartDetails() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Catalog
           </Button>
-          <h1 className="text-2xl font-bold text-gray-900">Part Not Found</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">Part Not Found</h1>
         </div>
         <Card>
           <CardContent className="pt-6">
@@ -77,17 +143,33 @@ export default function PartDetails() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => setLocation('/catalog')}
-          data-testid="button-back-to-catalog"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Catalog
-        </Button>
-        <h1 className="text-2xl font-bold text-gray-900">{part.name}</h1>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setLocation('/catalog')}
+            data-testid="button-back-to-catalog"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Catalog
+          </Button>
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">{part.name}</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleEdit}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleAllocate}>
+            <Plus className="h-4 w-4 mr-2" />
+            Allocate
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDelete}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="details" className="space-y-4">
@@ -147,18 +229,8 @@ export default function PartDetails() {
                     <p className="text-sm text-gray-800 mt-1">{part.description}</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
 
-            {/* Stock and Pricing */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
-                  Stock & Pricing
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+                {/* Stock Information */}
                 <div>
                   <label className="text-sm font-medium text-gray-600">Stock Status</label>
                   <div className="flex items-center gap-2 mt-1">
@@ -179,6 +251,7 @@ export default function PartDetails() {
                   </div>
                 )}
 
+                {/* Pricing Information */}
                 {part.unitCost && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Unit Cost</label>
@@ -197,6 +270,66 @@ export default function PartDetails() {
                     }
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Allocations */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Allocated To ({partAllocations.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isAllocationsLoading ? (
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                    <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
+                  </div>
+                ) : partAllocations.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">
+                    This part hasn't been allocated yet.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {partAllocations.map((allocation) => (
+                      <div key={allocation.id} className="border rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-medium">
+                              {allocation.component ? allocation.component.name : allocation.mower?.make + ' ' + allocation.mower?.model}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Quantity: {allocation.quantity}
+                              {allocation.installDate && (
+                                <span className="ml-2">
+                                  • Installed: {new Date(allocation.installDate).toLocaleDateString()}
+                                </span>
+                              )}
+                            </div>
+                            {allocation.notes && (
+                              <p className="text-sm text-muted-foreground mt-1">{allocation.notes}</p>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (allocation.component) {
+                                setLocation(`/catalog/engines/${allocation.component.id}`);
+                              } else if (allocation.mower) {
+                                setLocation(`/mowers/${allocation.mower.id}`);
+                              }
+                            }}
+                          >
+                            View
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -249,6 +382,43 @@ export default function PartDetails() {
           />
         </TabsContent>
       </Tabs>
+
+      {/* Edit Part Modal */}
+      <PartFormModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        part={part}
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Allocate Part Modal */}
+      <AllocatePartModal
+        isOpen={showAllocateModal}
+        onClose={() => setShowAllocateModal(false)}
+        mowerId=""
+        onSuccess={handleModalSuccess}
+      />
+
+      {/* Delete Part Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Part</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{part?.name}"? This action cannot be undone and will remove all related data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

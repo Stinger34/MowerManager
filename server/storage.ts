@@ -1,7 +1,7 @@
-import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, type Component, type InsertComponent, type Part, type InsertPart, type AssetPart, type InsertAssetPart, type AssetPartWithDetails, mowers, tasks, serviceRecords, attachments, components, parts, assetParts } from "@shared/schema";
+import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, type Component, type InsertComponent, type Part, type InsertPart, type AssetPart, type InsertAssetPart, type AssetPartWithDetails, type Notification, type InsertNotification, mowers, tasks, serviceRecords, attachments, components, parts, assetParts, notifications } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -25,10 +25,12 @@ export interface IStorage {
   markTaskComplete(id: string): Promise<Task | undefined>;
   
   // Service Record methods
+  getServiceRecord(id: string): Promise<ServiceRecord | undefined>;
   getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]>;
   getAllServiceRecords(): Promise<ServiceRecord[]>;
   createServiceRecordWithMowerUpdate(serviceRecord: InsertServiceRecord): Promise<ServiceRecord>;
   updateServiceRecord(id: string, serviceRecord: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined>;
+  deleteServiceRecord(id: string): Promise<boolean>;
   
   // Attachment methods
   getAttachment(id: string): Promise<Attachment | undefined>;
@@ -59,27 +61,46 @@ export interface IStorage {
   getAssetPartsByMowerId(mowerId: string): Promise<AssetPart[]>;
   getAssetPartsWithDetailsByMowerId(mowerId: string): Promise<AssetPartWithDetails[]>;
   getAssetPartsByComponentId(componentId: string): Promise<AssetPart[]>;
+  getAssetPartsByPartId(partId: string): Promise<AssetPartWithDetails[]>;
   getAllAssetParts(): Promise<AssetPart[]>;
+  getAssetPart(id: string): Promise<AssetPart | undefined>;
   createAssetPart(assetPart: InsertAssetPart): Promise<AssetPart>;
   updateAssetPart(id: string, assetPart: Partial<InsertAssetPart>): Promise<AssetPart | undefined>;
   deleteAssetPart(id: string): Promise<boolean>;
+
+  // Reminders methods
+  getLowStockParts(): Promise<Part[]>;
+  getUpcomingServiceReminders(): Promise<{ mower: Mower; serviceType: string; daysUntilDue: number; dueDate: Date }[]>;
+
+  // Notification methods
+  getNotifications(): Promise<Notification[]>;
+  getUnreadNotifications(): Promise<Notification[]>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: string): Promise<boolean>;
+  markAllNotificationsAsRead(): Promise<boolean>;
+  deleteNotification(id: string): Promise<boolean>;
+  deleteAllNotifications(): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private mowers: Map<string, Mower>;
   private tasks: Map<string, Task>;
+  private serviceRecords: Map<string, ServiceRecord>;
   private attachments: Map<string, Attachment>;
   private components: Map<string, Component>;
   private parts: Map<string, Part>;
   private assetParts: Map<string, AssetPart>;
+  private notifications: Map<string, Notification>;
 
   constructor() {
     this.mowers = new Map();
     this.tasks = new Map();
+    this.serviceRecords = new Map();
     this.attachments = new Map();
     this.components = new Map();
     this.parts = new Map();
     this.assetParts = new Map();
+    this.notifications = new Map();
   }
 
   async getMower(id: string): Promise<Mower | undefined> {
@@ -206,18 +227,20 @@ export class MemStorage implements IStorage {
   }
 
   // Service Record methods
+  async getServiceRecord(id: string): Promise<ServiceRecord | undefined> {
+    return this.serviceRecords.get(id);
+  }
+
   async getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]> {
-    // Mock implementation for MemStorage - return empty array
-    return [];
+    return Array.from(this.serviceRecords.values()).filter(record => record.mowerId === parseInt(mowerId));
   }
 
   async getAllServiceRecords(): Promise<ServiceRecord[]> {
-    // Mock implementation for MemStorage - return empty array
-    return [];
+    return Array.from(this.serviceRecords.values());
   }
 
   async createServiceRecordWithMowerUpdate(insertServiceRecord: InsertServiceRecord): Promise<ServiceRecord> {
-    // Create service record (mock implementation for MemStorage)
+    // Create service record
     const id = randomUUID();
     const now = new Date();
     const serviceRecord: ServiceRecord = {
@@ -229,6 +252,9 @@ export class MemStorage implements IStorage {
       mileage: insertServiceRecord.mileage || null,
       createdAt: now,
     };
+
+    // Store the service record
+    this.serviceRecords.set(id, serviceRecord);
 
     // Update mower's service dates
     const mowerId = insertServiceRecord.mowerId.toString();
@@ -250,8 +276,23 @@ export class MemStorage implements IStorage {
   }
 
   async updateServiceRecord(id: string, updateData: Partial<InsertServiceRecord>): Promise<ServiceRecord | undefined> {
-    // Mock implementation for MemStorage - return undefined since no actual storage
-    return undefined;
+    const existingRecord = this.serviceRecords.get(id);
+    if (!existingRecord) return undefined;
+    
+    const updatedRecord: ServiceRecord = {
+      ...existingRecord,
+      ...updateData,
+      cost: updateData.cost !== undefined ? updateData.cost || null : existingRecord.cost,
+      performedBy: updateData.performedBy !== undefined ? updateData.performedBy || null : existingRecord.performedBy,
+      nextServiceDue: updateData.nextServiceDue !== undefined ? updateData.nextServiceDue || null : existingRecord.nextServiceDue,
+      mileage: updateData.mileage !== undefined ? updateData.mileage || null : existingRecord.mileage,
+    };
+    this.serviceRecords.set(id, updatedRecord);
+    return updatedRecord;
+  }
+
+  async deleteServiceRecord(id: string): Promise<boolean> {
+    return this.serviceRecords.delete(id);
   }
 
   // Attachment methods
@@ -285,6 +326,9 @@ export class MemStorage implements IStorage {
       description: insertAttachment.description || null,
       pageCount: insertAttachment.pageCount ?? null,
       uploadedAt: now,
+      mowerId: insertAttachment.mowerId ?? null,
+      componentId: insertAttachment.componentId ?? null,
+      partId: insertAttachment.partId ?? null,
     };
     this.attachments.set(id, attachment);
     return attachment;
@@ -437,13 +481,60 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getAssetPartsByPartId(partId: string): Promise<AssetPartWithDetails[]> {
+    const assetPartsList = Array.from(this.assetParts.values()).filter(assetPart => 
+      assetPart.partId.toString() === partId
+    );
+    
+    return assetPartsList.map(assetPart => {
+      const part = this.parts.get(assetPart.partId.toString());
+      const mower = assetPart.mowerId ? this.mowers.get(assetPart.mowerId.toString()) : undefined;
+      const component = assetPart.componentId ? this.components.get(assetPart.componentId.toString()) : undefined;
+      const serviceRecord = assetPart.serviceRecordId ? this.serviceRecords.get(assetPart.serviceRecordId) : undefined;
+      
+      return {
+        ...assetPart,
+        part: part!,
+        mower,
+        component,
+        serviceRecord
+      } as AssetPartWithDetails;
+    }).filter(item => item.part); // Filter out any where part wasn't found
+  }
+
   async getAllAssetParts(): Promise<AssetPart[]> {
     return Array.from(this.assetParts.values());
+  }
+
+  async getAssetPart(id: string): Promise<AssetPart | undefined> {
+    return this.assetParts.get(id);
   }
 
   async createAssetPart(insertAssetPart: InsertAssetPart): Promise<AssetPart> {
     const id = (this.assetParts.size + 1).toString();
     const now = new Date();
+    
+    // Get the part to reduce its stock
+    const part = this.parts.get(insertAssetPart.partId.toString());
+    if (!part) {
+      throw new Error('Part not found');
+    }
+    
+    const quantityToReduce = insertAssetPart.quantity || 1;
+    
+    // Check if we have enough stock
+    if (part.stockQuantity < quantityToReduce) {
+      throw new Error(`Insufficient stock. Available: ${part.stockQuantity}, Required: ${quantityToReduce}`);
+    }
+    
+    // Reduce stock quantity
+    const updatedPart = {
+      ...part,
+      stockQuantity: part.stockQuantity - quantityToReduce,
+      updatedAt: now
+    };
+    this.parts.set(insertAssetPart.partId.toString(), updatedPart);
+    
     const assetPart: AssetPart = {
       ...insertAssetPart,
       id: parseInt(id),
@@ -463,6 +554,29 @@ export class MemStorage implements IStorage {
     const assetPart = this.assetParts.get(id);
     if (!assetPart) return undefined;
     
+    // Check if quantity is being updated
+    if (updateData.quantity !== undefined && updateData.quantity !== assetPart.quantity) {
+      const part = this.parts.get(assetPart.partId.toString());
+      if (!part) {
+        throw new Error('Part not found');
+      }
+      
+      const quantityDifference = updateData.quantity - assetPart.quantity;
+      
+      // Check if we have enough stock when increasing quantity
+      if (quantityDifference > 0 && part.stockQuantity < quantityDifference) {
+        throw new Error(`Insufficient stock. Available: ${part.stockQuantity}, Required: ${quantityDifference}`);
+      }
+      
+      // Update stock quantity (reduce if quantity increased, increase if quantity decreased)
+      const updatedPart = {
+        ...part,
+        stockQuantity: part.stockQuantity - quantityDifference,
+        updatedAt: new Date()
+      };
+      this.parts.set(assetPart.partId.toString(), updatedPart);
+    }
+    
     const updatedAssetPart: AssetPart = {
       ...assetPart,
       ...updateData,
@@ -472,7 +586,109 @@ export class MemStorage implements IStorage {
   }
 
   async deleteAssetPart(id: string): Promise<boolean> {
+    const assetPart = this.assetParts.get(id);
+    if (!assetPart) return false;
+    
+    // Get the part to restore its stock
+    const part = this.parts.get(assetPart.partId.toString());
+    if (part) {
+      // Restore stock quantity
+      const updatedPart = {
+        ...part,
+        stockQuantity: part.stockQuantity + assetPart.quantity,
+        updatedAt: new Date()
+      };
+      this.parts.set(assetPart.partId.toString(), updatedPart);
+    }
+    
     return this.assetParts.delete(id);
+  }
+
+  // Notification methods
+  async getNotifications(): Promise<Notification[]> {
+    const notificationsList = Array.from(this.notifications.values());
+    return notificationsList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getUnreadNotifications(): Promise<Notification[]> {
+    const notificationsList = Array.from(this.notifications.values()).filter(n => !n.isRead);
+    return notificationsList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const id = randomUUID();
+    const now = new Date();
+    const notification: Notification = {
+      ...insertNotification,
+      id,
+      isRead: insertNotification.isRead || false,
+      priority: insertNotification.priority || "medium",
+      entityType: insertNotification.entityType || null,
+      entityId: insertNotification.entityId || null,
+      entityName: insertNotification.entityName || null,
+      detailUrl: insertNotification.detailUrl || null,
+      createdAt: now,
+    };
+    this.notifications.set(id, notification);
+    return notification;
+  }
+
+  async markNotificationAsRead(id: string): Promise<boolean> {
+    const notification = this.notifications.get(id);
+    if (!notification) return false;
+    
+    const updatedNotification: Notification = { ...notification, isRead: true };
+    this.notifications.set(id, updatedNotification);
+    return true;
+  }
+
+  async markAllNotificationsAsRead(): Promise<boolean> {
+    this.notifications.forEach((notification, id) => {
+      if (!notification.isRead) {
+        this.notifications.set(id, { ...notification, isRead: true });
+      }
+    });
+    return true;
+  }
+
+  async deleteNotification(id: string): Promise<boolean> {
+    return this.notifications.delete(id);
+  }
+
+  async deleteAllNotifications(): Promise<boolean> {
+    this.notifications.clear();
+    return true;
+  }
+
+  // Reminders methods
+  async getLowStockParts(): Promise<Part[]> {
+    return Array.from(this.parts.values()).filter(part => 
+      part.minStockLevel !== null && part.stockQuantity <= part.minStockLevel
+    );
+  }
+
+  async getUpcomingServiceReminders(): Promise<{ mower: Mower; serviceType: string; daysUntilDue: number; dueDate: Date }[]> {
+    const today = new Date();
+    const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+    
+    return Array.from(this.mowers.values())
+      .filter(mower => {
+        if (!mower.nextServiceDate) return false;
+        const serviceDate = new Date(mower.nextServiceDate);
+        return serviceDate >= today && serviceDate <= thirtyDaysFromNow;
+      })
+      .map(mower => {
+        const serviceDate = new Date(mower.nextServiceDate!);
+        const timeDiff = serviceDate.getTime() - today.getTime();
+        const daysUntilDue = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+        
+        return {
+          mower,
+          serviceType: 'Scheduled Maintenance',
+          daysUntilDue,
+          dueDate: serviceDate
+        };
+      });
   }
 }
 
@@ -569,6 +785,11 @@ export class DbStorage implements IStorage {
   }
 
   // Service Record methods
+  async getServiceRecord(id: string): Promise<ServiceRecord | undefined> {
+    const result = await db.select().from(serviceRecords).where(eq(serviceRecords.id, id));
+    return result[0];
+  }
+
   async getServiceRecordsByMowerId(mowerId: string): Promise<ServiceRecord[]> {
     return await db.select().from(serviceRecords).where(eq(serviceRecords.mowerId, parseInt(mowerId)));
   }
@@ -610,6 +831,14 @@ export class DbStorage implements IStorage {
       .where(eq(serviceRecords.id, id))
       .returning();
     return result[0];
+  }
+
+  async deleteServiceRecord(id: string): Promise<boolean> {
+    const result = await db
+      .delete(serviceRecords)
+      .where(eq(serviceRecords.id, id))
+      .returning();
+    return result.length > 0;
   }
 
   // Attachment methods
@@ -761,26 +990,249 @@ export class DbStorage implements IStorage {
     return await db.select().from(assetParts).where(eq(assetParts.componentId, parseInt(componentId)));
   }
 
+  async getAssetPartsByPartId(partId: string): Promise<AssetPartWithDetails[]> {
+    const result = await db
+      .select({
+        id: assetParts.id,
+        partId: assetParts.partId,
+        mowerId: assetParts.mowerId,
+        componentId: assetParts.componentId,
+        quantity: assetParts.quantity,
+        installDate: assetParts.installDate,
+        serviceRecordId: assetParts.serviceRecordId,
+        notes: assetParts.notes,
+        createdAt: assetParts.createdAt,
+        // Include related data
+        part: {
+          id: parts.id,
+          name: parts.name,
+          partNumber: parts.partNumber,
+          manufacturer: parts.manufacturer,
+          category: parts.category,
+          unitCost: parts.unitCost,
+          stockQuantity: parts.stockQuantity,
+          minStockLevel: parts.minStockLevel,
+          notes: parts.notes,
+          createdAt: parts.createdAt,
+          updatedAt: parts.updatedAt,
+        },
+        mower: {
+          id: mowers.id,
+          make: mowers.make,
+          model: mowers.model,
+          year: mowers.year,
+          serialNumber: mowers.serialNumber,
+        },
+        component: {
+          id: components.id,
+          name: components.name,
+          partNumber: components.partNumber,
+          manufacturer: components.manufacturer,
+        }
+      })
+      .from(assetParts)
+      .innerJoin(parts, eq(assetParts.partId, parts.id))
+      .leftJoin(mowers, eq(assetParts.mowerId, mowers.id))
+      .leftJoin(components, eq(assetParts.componentId, components.id))
+      .where(eq(assetParts.partId, parseInt(partId)));
+    
+    return result as AssetPartWithDetails[];
+  }
+
   async getAllAssetParts(): Promise<AssetPart[]> {
     return await db.select().from(assetParts);
   }
 
+  async getAssetPart(id: string): Promise<AssetPart | undefined> {
+    const results = await db.select().from(assetParts).where(eq(assetParts.id, parseInt(id)));
+    return results[0];
+  }
+
   async createAssetPart(insertAssetPart: InsertAssetPart): Promise<AssetPart> {
-    const result = await db.insert(assetParts).values(insertAssetPart).returning();
-    return result[0];
+    // Start a transaction to ensure atomicity
+    const result = await db.transaction(async (tx: any) => {
+      // First, decrement the stock quantity of the part
+      const stockResult = await tx.update(parts)
+        .set({ 
+          stockQuantity: sql`${parts.stockQuantity} - ${insertAssetPart.quantity || 1}`,
+          updatedAt: new Date()
+        })
+        .where(eq(parts.id, insertAssetPart.partId))
+        .returning();
+      
+      if (stockResult.length === 0) {
+        throw new Error('Part not found');
+      }
+
+      // Check if stock would go negative
+      if (stockResult[0].stockQuantity < 0) {
+        throw new Error(`Insufficient stock. Available: ${stockResult[0].stockQuantity + (insertAssetPart.quantity || 1)}, Required: ${insertAssetPart.quantity || 1}`);
+      }
+
+      // Create the asset part allocation
+      const assetPartResult = await tx.insert(assetParts).values(insertAssetPart).returning();
+      return assetPartResult[0];
+    });
+
+    return result;
   }
 
   async updateAssetPart(id: string, updateData: Partial<InsertAssetPart>): Promise<AssetPart | undefined> {
-    const result = await db.update(assetParts)
-      .set(updateData)
-      .where(eq(assetParts.id, parseInt(id)))
-      .returning();
-    return result[0];
+    // Start a transaction to ensure atomicity
+    const result = await db.transaction(async (tx: any) => {
+      // First, get the current asset part to check for quantity changes
+      const currentAssetPartResult = await tx.select().from(assetParts).where(eq(assetParts.id, parseInt(id)));
+      if (currentAssetPartResult.length === 0) {
+        return undefined;
+      }
+      
+      const currentAssetPart = currentAssetPartResult[0];
+      
+      // Check if quantity is being updated
+      if (updateData.quantity !== undefined && updateData.quantity !== currentAssetPart.quantity) {
+        const quantityDifference = updateData.quantity - currentAssetPart.quantity;
+        
+        // Update stock quantity (reduce if quantity increased, increase if quantity decreased)
+        const stockResult = await tx.update(parts)
+          .set({ 
+            stockQuantity: sql`${parts.stockQuantity} - ${quantityDifference}`,
+            updatedAt: new Date()
+          })
+          .where(eq(parts.id, currentAssetPart.partId))
+          .returning();
+        
+        if (stockResult.length === 0) {
+          throw new Error('Part not found');
+        }
+
+        // Check if stock would go negative
+        if (stockResult[0].stockQuantity < 0) {
+          throw new Error(`Insufficient stock. Available: ${stockResult[0].stockQuantity + quantityDifference}, Required: ${quantityDifference}`);
+        }
+      }
+
+      // Update the asset part
+      const updateResult = await tx.update(assetParts)
+        .set(updateData)
+        .where(eq(assetParts.id, parseInt(id)))
+        .returning();
+      
+      return updateResult[0];
+    });
+
+    return result;
   }
 
   async deleteAssetPart(id: string): Promise<boolean> {
-    const result = await db.delete(assetParts).where(eq(assetParts.id, parseInt(id)));
+    // Start a transaction to ensure atomicity
+    const result = await db.transaction(async (tx: any) => {
+      // First, get the asset part to know how much stock to restore
+      const assetPartResult = await tx.select().from(assetParts).where(eq(assetParts.id, parseInt(id)));
+      if (assetPartResult.length === 0) {
+        return false;
+      }
+      
+      const assetPart = assetPartResult[0];
+      
+      // Delete the asset part allocation
+      const deleteResult = await tx.delete(assetParts).where(eq(assetParts.id, parseInt(id)));
+      
+      if ((deleteResult.rowCount ?? 0) === 0) {
+        return false;
+      }
+
+      // Restore the stock quantity
+      await tx.update(parts)
+        .set({ 
+          stockQuantity: sql`${parts.stockQuantity} + ${assetPart.quantity}`,
+          updatedAt: new Date()
+        })
+        .where(eq(parts.id, assetPart.partId));
+
+      return true;
+    });
+
+    return result;
+  }
+
+  // Notification methods
+  async getNotifications(): Promise<Notification[]> {
+    return await db.select().from(notifications).orderBy(desc(notifications.createdAt));
+  }
+
+  async getUnreadNotifications(): Promise<Notification[]> {
+    return await db.select().from(notifications).where(eq(notifications.isRead, false)).orderBy(desc(notifications.createdAt));
+  }
+
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const notificationData: typeof notifications.$inferInsert = {
+      ...insertNotification,
+      id: randomUUID(),
+      createdAt: new Date(),
+    };
+    
+    const result = await db.insert(notifications).values(notificationData).returning();
+    return result[0];
+  }
+
+  async markNotificationAsRead(id: string): Promise<boolean> {
+    const result = await db.update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async markAllNotificationsAsRead(): Promise<boolean> {
+    const result = await db.update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.isRead, false));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async deleteNotification(id: string): Promise<boolean> {
+    const result = await db.delete(notifications).where(eq(notifications.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async deleteAllNotifications(): Promise<boolean> {
+    const result = await db.delete(notifications);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Reminders methods
+  async getLowStockParts(): Promise<Part[]> {
+    return await db.select()
+      .from(parts)
+      .where(
+        sql`${parts.stockQuantity} <= ${parts.minStockLevel} AND ${parts.minStockLevel} IS NOT NULL`
+      );
+  }
+
+  async getUpcomingServiceReminders(): Promise<{ mower: Mower; serviceType: string; daysUntilDue: number; dueDate: Date }[]> {
+    const today = new Date();
+    const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+    
+    // Get mowers with upcoming service dates
+    const mowersWithServices = await db.select()
+      .from(mowers)
+      .where(
+        sql`${mowers.nextServiceDate} IS NOT NULL 
+            AND ${mowers.nextServiceDate} >= ${today.toISOString().split('T')[0]}
+            AND ${mowers.nextServiceDate} <= ${thirtyDaysFromNow.toISOString().split('T')[0]}`
+      );
+
+    return mowersWithServices.map((mower: Mower) => {
+      const serviceDate = new Date(mower.nextServiceDate!);
+      const timeDiff = serviceDate.getTime() - today.getTime();
+      const daysUntilDue = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+      
+      return {
+        mower,
+        serviceType: 'Scheduled Maintenance', // Generic service type since we don't have specific types in mower table
+        daysUntilDue,
+        dueDate: serviceDate
+      };
+    });
   }
 }
 

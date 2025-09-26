@@ -7,6 +7,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationDropdown } from "@/components/NotificationDropdown";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import { Suspense, lazy } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageTransition } from "@/components/ui/page-transitions";
@@ -28,6 +30,10 @@ import PartDetails from "@/pages/PartDetails";
 import ComponentDetails from "@/pages/ComponentDetails";
 import AddComponent from "@/pages/AddComponent";
 import Settings from "@/pages/Settings";
+import Maintenance from "@/pages/Maintenance";
+import MaintenanceHistory from "@/pages/MaintenanceHistory";
+import Reports from "@/pages/Reports";
+import Reminders from "@/pages/Reminders";
 import NotFound from "@/pages/not-found";
 
 // Loading fallback component
@@ -44,10 +50,17 @@ function Router() {
     <Switch>
       <Route path="/" component={() => <PageTransition><Dashboard /></PageTransition>} />
       <Route path="/mowers" component={() => <PageTransition><MowerList /></PageTransition>} />
+      <Route path="/maintenance/history" component={() => <PageTransition><MaintenanceHistory /></PageTransition>} />
+      <Route path="/maintenance" component={() => <PageTransition><Maintenance /></PageTransition>} />
+      <Route path="/reminders" component={() => {
+        window.location.replace('/maintenance');
+        return null;
+      }} />
+      <Route path="/reports" component={() => <PageTransition><Reports /></PageTransition>} />
       <Route path="/catalog" component={() => <PageTransition><PartsCatalog /></PageTransition>} />
       <Route path="/catalog/parts/:partId" component={() => <PageTransition><PartDetails /></PageTransition>} />
-      <Route path="/catalog/components/new" component={() => <PageTransition><AddComponent /></PageTransition>} />
-      <Route path="/catalog/components/:componentId" component={() => <PageTransition><ComponentDetails /></PageTransition>} />
+      <Route path="/catalog/engines/new" component={() => <PageTransition><AddComponent /></PageTransition>} />
+      <Route path="/catalog/engines/:componentId" component={() => <PageTransition><ComponentDetails /></PageTransition>} />
       <Route path="/settings" component={() => <PageTransition><Settings /></PageTransition>} />
       <Route path="/mowers/new" component={() => <PageTransition><AddMower /></PageTransition>} />
       <Route path="/mowers/:id/edit" component={() => <PageTransition><EditMower /></PageTransition>} />
@@ -89,29 +102,37 @@ export default function App() {
   return (
     <ThemeProvider defaultTheme="light" storageKey="mower-tracker-theme">
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <SidebarProvider style={style as React.CSSProperties}>
-            <div className="flex h-screen w-full bg-panel">
-              <AppSidebar />
-              <div className="flex flex-col flex-1">
-                <header className="flex items-center justify-between p-4 border-b border-panel-border bg-panel shadow-card">
-                  <div className="flex items-center gap-4">
-                    <SidebarTrigger data-testid="button-sidebar-toggle" />
-                    <div className="hidden md:block">
-                      <h2 className="text-lg font-semibold text-text-primary">Mower Manager</h2>
+        <NotificationProvider>
+          <TooltipProvider>
+            <SidebarProvider style={style as React.CSSProperties}>
+              <div className="flex h-screen w-full bg-panel">
+                <AppSidebar />
+                <div className="flex flex-col flex-1">
+                  <header className="flex items-center justify-between p-4 border-b border-panel-border bg-panel shadow-card">
+                    <div className="flex items-center gap-4">
+                      <SidebarTrigger data-testid="button-sidebar-toggle" />
+                      <div className="hidden md:block">
+                        <h2 className="text-lg font-semibold text-text-primary">MowerM8</h2>
+                      </div>
                     </div>
-                  </div>
-                  <ThemeToggle />
-                </header>
-                <main className="flex-1 overflow-auto p-6 bg-calendar-bg">
-                  <Router />
-                </main>
+                    <div className="flex items-center gap-4">
+                      <div className="hidden md:flex items-center gap-2 text-sm text-text-muted">
+                        <span>Welcome back, John Doe</span>
+                      </div>
+                      <NotificationDropdown />
+                      <ThemeToggle />
+                    </div>
+                  </header>
+                  <main className="flex-1 overflow-auto p-6 bg-calendar-bg">
+                    <Router />
+                  </main>
+                </div>
               </div>
-            </div>
-            <VersionDisplay />
-          </SidebarProvider>
-          <Toaster />
-        </TooltipProvider>
+              <VersionDisplay />
+            </SidebarProvider>
+            <Toaster />
+          </TooltipProvider>
+        </NotificationProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

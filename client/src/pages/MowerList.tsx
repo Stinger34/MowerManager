@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Plus, ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useMowerThumbnails } from "@/hooks/useThumbnails";
+import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import type { Mower } from "@shared/schema";
 
 interface MowerListProps {}
@@ -15,6 +16,9 @@ export default function MowerList() {
   const [, params] = useRoute("/mowers");
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Initialize WebSocket for auto-refresh
+  const { isConnected: wsConnected, error: wsError } = useAssetEventsRefresh();
   
   // Get filter from URL search params
   const urlParams = new URLSearchParams(window.location.search);
@@ -149,7 +153,7 @@ export default function MowerList() {
           </div>
         </div>
         
-        <Button onClick={() => setLocation('/mowers/new')} className="bg-accent-orange text-white hover:bg-accent-orange/90 rounded-button" data-testid="button-add-mower">
+        <Button onClick={() => setLocation('/mowers/new')} className="bg-accent-teal text-white hover:bg-accent-teal/90 rounded-button" data-testid="button-add-mower">
           <Plus className="h-4 w-4 mr-2" />
           Add Mower
         </Button>

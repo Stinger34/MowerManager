@@ -22,7 +22,7 @@ interface StatusBadgeProps {
  */
 export function StatusBadge({ status, className, variant = "default" }: StatusBadgeProps) {
   const colors = getStatusColors(status);
-  const label = status.charAt(0).toUpperCase() + status.slice(1);
+  const label = status === 'maintenance' ? 'In Maintenance' : status.charAt(0).toUpperCase() + status.slice(1);
   
   if (variant === "outline") {
     return (

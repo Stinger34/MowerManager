@@ -1,3 +1,10 @@
+## Quick Install Script (Canary Branch)
+
+```sh
+wget https://raw.githubusercontent.com/Stinger34/MowerManager/canary/scripts/install.sh -O install.sh
+sudo bash install.sh
+```
+
 # Automated Proxmox LXC Deployment - NOT WORKING CURRENTRLY
 
 You can deploy MowerManager_LXC automatically on your Proxmox host with a single command:
@@ -38,7 +45,7 @@ v{version}-{branch} ({commit})
 Built: {date}
 ```
 
-**Example**: `v1.0.0-main (a1b2c3d) Built: Sep 21, 2025, 06:23 AM UTC`
+**Example**: `v1.3.4-main (a1b2c3d) Built: Sep 21, 2025, 06:23 AM UTC`
 
 ### How It Works
 - **Automatic Generation**: Version info is generated at build time via `prebuild` script
@@ -514,7 +521,7 @@ The application includes a comprehensive backup and restore feature that provide
 
 **What's included in the backup ZIP:**
 - **`manifest.json`** - Backup metadata including:
-  - Version information (backup format v1.0.0)
+  - Version information (backup format v1.3.4)
   - Creation timestamp
   - Schema version
   - Record counts per table for verification

@@ -13,8 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
 interface EditAttachmentDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSubmit: (metadata: { title: string; description: string }) => void;
   attachment: {
     fileName: string;
@@ -25,8 +25,8 @@ interface EditAttachmentDialogProps {
 }
 
 export default function EditAttachmentDialog({
-  isOpen,
-  onClose,
+  open,
+  onOpenChange,
   onSubmit,
   attachment,
   isLoading = false,
@@ -55,13 +55,13 @@ export default function EditAttachmentDialog({
       setTitle(attachment.title || attachment.fileName);
       setDescription(attachment.description || "");
     }
-    onClose();
+    onOpenChange(false);
   };
 
   if (!attachment) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Edit Attachment Details</DialogTitle>

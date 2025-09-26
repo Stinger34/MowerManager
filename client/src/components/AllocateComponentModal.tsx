@@ -21,7 +21,7 @@ import ComponentFormModal from "./ComponentFormModal";
 import type { Component, InsertComponent } from "@shared/schema";
 
 const componentAllocationFormSchema = z.object({
-  componentId: z.number().min(1, "Component selection is required"),
+  componentId: z.number().min(1, "Engine selection is required"),
   installDate: z.date().optional(),
   notes: z.string().optional(),
 });
@@ -120,7 +120,7 @@ export default function AllocateComponentModal({
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
       toast({
         title: "Success",
-        description: "Component allocated successfully",
+        description: "Engine allocated successfully",
       });
       form.reset();
       onClose();
@@ -160,7 +160,7 @@ export default function AllocateComponentModal({
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Allocate Component to Mower</DialogTitle>
+            <DialogTitle>Allocate Engine to Mower</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -200,15 +200,15 @@ export default function AllocateComponentModal({
                   )}
                 </div>
               ) : (
-                <div className="max-h-60 overflow-y-auto space-y-2 border rounded-md p-2">
+                <div className="max-h-60 overflow-y-auto space-y-2 border border-nested-border rounded-md p-2">
                   {availableComponents.map((component) => (
                     <div
                       key={component.id}
                       className={cn(
-                        "border rounded-lg p-3 cursor-pointer transition-colors",
+                        "border border-nested-border rounded-lg p-3 cursor-pointer transition-colors",
                         form.watch("componentId") === component.id
                           ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
+                          : "hover:border-primary/50"
                       )}
                       onClick={() => form.setValue("componentId", component.id)}
                     >
@@ -318,7 +318,7 @@ export default function AllocateComponentModal({
                     >
                       {allocateComponentMutation.isPending 
                         ? "Allocating..." 
-                        : "Allocate Component"
+                        : "Allocate Engine"
                       }
                     </Button>
                   </div>

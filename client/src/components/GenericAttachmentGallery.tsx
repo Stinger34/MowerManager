@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { useCameraCapture } from '@/hooks/useCameraCapture';
 import AttachmentGallery from './AttachmentGallery';
 import AttachmentMetadataDialog from './AttachmentMetadataDialog';
 import EditAttachmentDialog from './EditAttachmentDialog';
@@ -31,6 +32,43 @@ export default function GenericAttachmentGallery({
   const [showMetadataDialog, setShowMetadataDialog] = useState(false);
   const [showEditAttachmentDialog, setShowEditAttachmentDialog] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState<any>(null);
+
+  // Camera capture functionality
+  const { isMobile, handleCameraCapture, handleGallerySelect } = useCameraCapture({
+    onFilesSelected: (files, isCameraCapture) => {
+      // Show compression info for camera captures
+      if (isCameraCapture && files.some(f => f.type.startsWith('image/'))) {
+        toast({
+          title: "Camera photos processed",
+          description: "Images have been optimized for upload",
+          variant: "default",
+        });
+      }
+      
+      const validFiles: File[] = [];
+      
+      files.forEach(file => {
+        // Check file size (30MB limit)
+        if (file.size > 30 * 1024 * 1024) {
+          toast({
+            title: "File Too Large",
+            description: `${file.name} is larger than 30MB limit`,
+            variant: "destructive"
+          });
+          return;
+        }
+        validFiles.push(file);
+      });
+      
+      if (validFiles.length > 0) {
+        setPendingFiles(validFiles);
+        setCurrentFileIndex(0);
+        setShowMetadataDialog(true);
+      }
+    },
+    accept: '*/*',
+    multiple: true
+  });
 
   // Upload attachment mutation
   const uploadAttachmentMutation = useMutation({
@@ -114,7 +152,7 @@ export default function GenericAttachmentGallery({
     }
   });
 
-  // File input handler
+  // File input handler (legacy for non-mobile)
   const handleFileUpload = (files: FileList) => {
     const validFiles = Array.from(files);
     if (validFiles.length > 0) {
@@ -173,7 +211,7 @@ export default function GenericAttachmentGallery({
             window.open(`/api/attachments/${id}/download?inline=1`, '_blank');
           }
         }}
-        onDownload={(id, fileName) => {
+        onDownload={(id: string, fileName: string) => {
           const link = document.createElement('a');
           link.href = `/api/attachments/${id}/download`;
           link.download = fileName;
@@ -188,7 +226,6 @@ export default function GenericAttachmentGallery({
         }}
         onSetThumbnail={onSetThumbnail}
         thumbnailAttachmentId={thumbnailAttachmentId}
-        isLoading={isLoading}
         isUploading={uploadAttachmentMutation.isPending}
         isDeleting={false}
       />

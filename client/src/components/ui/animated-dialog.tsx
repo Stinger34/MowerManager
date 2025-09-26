@@ -88,35 +88,63 @@ AnimatedDialogContent.displayName = DialogPrimitive.Content.displayName
 const AnimatedDialogHeader = ({
   className,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <motion.div
-    className={cn(
-      "flex flex-col space-y-1.5 text-center sm:text-left",
-      className
-    )}
-    initial={{ opacity: 0, y: -10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: 0.1, duration: 0.2 }}
-    {...props}
-  />
-)
+}: React.HTMLAttributes<HTMLDivElement>) => {
+  // Filter out all HTML event handlers that conflict with Framer Motion
+  const {
+    onAnimationStart,
+    onAnimationEnd,
+    onAnimationIteration,
+    onTransitionEnd,
+    onDragStart,
+    onDrag,
+    onDragEnd,
+    ...htmlProps
+  } = props;
+  
+  return (
+    <motion.div
+      className={cn(
+        "flex flex-col space-y-1.5 text-center sm:text-left",
+        className
+      )}
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.1, duration: 0.2 }}
+      {...htmlProps}
+    />
+  );
+};
 AnimatedDialogHeader.displayName = "AnimatedDialogHeader"
 
 const AnimatedDialogFooter = ({
   className,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <motion.div
-    className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
-      className
-    )}
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: 0.1, duration: 0.2 }}
-    {...props}
-  />
-)
+}: React.HTMLAttributes<HTMLDivElement>) => {
+  // Filter out all HTML event handlers that conflict with Framer Motion
+  const {
+    onAnimationStart,
+    onAnimationEnd,
+    onAnimationIteration,
+    onTransitionEnd,
+    onDragStart,
+    onDrag,
+    onDragEnd,
+    ...htmlProps
+  } = props;
+  
+  return (
+    <motion.div
+      className={cn(
+        "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+        className
+      )}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.1, duration: 0.2 }}
+      {...htmlProps}
+    />
+  );
+};
 AnimatedDialogFooter.displayName = "AnimatedDialogFooter"
 
 const AnimatedDialogTitle = React.forwardRef<

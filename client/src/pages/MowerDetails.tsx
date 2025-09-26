@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import ServiceHistoryTable from "@/components/ServiceHistoryTable";
 import MaintenanceOverview from "@/components/MaintenanceOverview";
 import AttachmentGallery from "@/components/AttachmentGallery";
+import UnifiedFileUploadArea from "@/components/UnifiedFileUploadArea";
 import AttachmentMetadataDialog from "@/components/AttachmentMetadataDialog";
 import EditAttachmentDialog from "@/components/EditAttachmentDialog";
 import TaskList from "@/components/TaskList";
@@ -17,14 +18,26 @@ import ComponentFormModal from "@/components/ComponentFormModal";
 import AllocateComponentModal from "@/components/AllocateComponentModal";
 import AllocatePartModal from "@/components/AllocatePartModal";
 import PartFormModal from "@/components/PartFormModal";
-import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench } from "lucide-react";
+import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench, Camera, FolderOpen } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMowerThumbnail } from "@/hooks/useThumbnails";
+import { useCameraCapture } from "@/hooks/useCameraCapture";
+import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Component, Part, AssetPart, AssetPartWithDetails } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
 import { motion } from "framer-motion";
+
+interface AttachmentFile {
+  file: File;
+  metadata: {
+    title: string;
+    description: string;
+  };
+  previewUrl?: string;
+  isThumbnail?: boolean;
+}
 
 export default function MowerDetails() {
   const [, params] = useRoute("/mowers/:id");
@@ -32,19 +45,67 @@ export default function MowerDetails() {
   const mowerId = params?.id;
   const { toast } = useToast();
   
+  // Check for tab parameter in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const tabParam = urlParams.get('tab');
+  
+  // Initialize WebSocket for auto-refresh
+  const { isConnected: wsConnected, error: wsError } = useAssetEventsRefresh();
+  
   const [notes, setNotes] = useState("");
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState("notes");
+  const [activeTab, setActiveTab] = useState(tabParam || "notes");
   
   // File upload state
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [showMetadataDialog, setShowMetadataDialog] = useState(false);
   
+  // Unified upload state
+  const [unifiedAttachments, setUnifiedAttachments] = useState<AttachmentFile[]>([]);
+  const [unifiedThumbnail, setUnifiedThumbnail] = useState<AttachmentFile | null>(null);
+  
   // Edit attachment state
   const [showEditAttachmentDialog, setShowEditAttachmentDialog] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
+
+  // Camera capture functionality
+  const { isMobile, handleCameraCapture, handleGallerySelect } = useCameraCapture({
+    onFilesSelected: (files, isCameraCapture) => {
+      // Show compression info for camera captures
+      if (isCameraCapture && files.some(f => f.type.startsWith('image/'))) {
+        toast({
+          title: "Camera photos processed",
+          description: "Images have been optimized for upload",
+          variant: "default",
+        });
+      }
+      
+      const validFiles: File[] = [];
+      
+      files.forEach(file => {
+        // Check file size (30MB limit)
+        if (file.size > 30 * 1024 * 1024) {
+          toast({
+            title: "File Too Large",
+            description: `${file.name} is larger than 30MB limit`,
+            variant: "destructive"
+          });
+          return;
+        }
+        validFiles.push(file);
+      });
+      
+      if (validFiles.length > 0) {
+        setPendingFiles(validFiles);
+        setCurrentFileIndex(0);
+        setShowMetadataDialog(true);
+      }
+    },
+    accept: '*/*',
+    multiple: true
+  });
 
   // Modal states for components and parts
   const [showComponentModal, setShowComponentModal] = useState(false);
@@ -312,7 +373,7 @@ export default function MowerDetails() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
       queryClient.invalidateQueries({ queryKey: ['/api/components'] });
-      toast({ title: "Success", description: "Component deleted successfully" });
+      toast({ title: "Success", description: "Engine deleted successfully" });
       setShowDeleteComponentDialog(false);
       setComponentToDelete(null);
     },
@@ -345,7 +406,7 @@ export default function MowerDetails() {
     },
   });
 
-  // File upload handler
+  // File upload handler (legacy)
   const handleFileUpload = () => {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -379,6 +440,66 @@ export default function MowerDetails() {
     };
     
     fileInput.click();
+  };
+
+  // Handle unified attachment uploads
+  const handleUnifiedAttachmentsUpload = async (attachments: AttachmentFile[]) => {
+    if (attachments.length === 0) return;
+    
+    // Upload each attachment sequentially
+    for (const attachment of attachments) {
+      try {
+        await uploadAttachmentMutation.mutateAsync({
+          file: attachment.file,
+          metadata: attachment.metadata
+        });
+      } catch (error) {
+        console.error('Failed to upload attachment:', error);
+        break; // Stop uploading on first error
+      }
+    }
+    
+    // Clear the unified attachments after successful upload
+    setUnifiedAttachments([]);
+    setUnifiedThumbnail(null);
+  };
+
+  // Handle unified thumbnail change
+  const handleUnifiedThumbnailChange = (thumbnail: AttachmentFile | null) => {
+    setUnifiedThumbnail(thumbnail);
+    
+    // If a thumbnail is set and we have a mower, update the server
+    if (thumbnail && mower) {
+      // First upload the thumbnail attachment, then set it as thumbnail
+      uploadAttachmentMutation.mutate({
+        file: thumbnail.file,
+        metadata: thumbnail.metadata
+      });
+    }
+  };
+
+  // Wrapper for AttachmentGallery onUpload callback
+  const handleAttachmentGalleryUpload = (files: FileList) => {
+    const validFiles: File[] = [];
+    
+    Array.from(files).forEach(file => {
+      // Check file size (30MB limit)
+      if (file.size > 30 * 1024 * 1024) {
+        toast({
+          title: "File Too Large",
+          description: `${file.name} is larger than 30MB limit`,
+          variant: "destructive"
+        });
+        return;
+      }
+      validFiles.push(file);
+    });
+    
+    if (validFiles.length > 0) {
+      setPendingFiles(validFiles);
+      setCurrentFileIndex(0);
+      setShowMetadataDialog(true);
+    }
   };
   
   // Handle metadata submission for file upload
@@ -587,10 +708,10 @@ export default function MowerDetails() {
             </div>
           )}
           <div className="flex-1">
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-3xl font-bold tracking-tight text-text-dark">
               {mower.make} {mower.model}
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-text-muted">
               {mower.year} • Serial: {mower.serialNumber}
             </p>
           </div>
@@ -599,6 +720,7 @@ export default function MowerDetails() {
         <div className="flex gap-2">
           <Button
             onClick={() => setLocation(`/mowers/${mowerId}/edit`)}
+            className="bg-accent-teal text-white hover:bg-accent-teal/90 rounded-button"
             data-testid="button-edit-mower"
           >
             <Edit className="h-4 w-4 mr-2" />
@@ -648,7 +770,7 @@ export default function MowerDetails() {
       </div>
 
       <motion.div 
-        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, staggerChildren: 0.1 }}
@@ -736,21 +858,23 @@ export default function MowerDetails() {
               <Plus className="h-4 w-4 mr-2" />
               Add Service Record
             </Button>
-            <Button 
-              className="w-full justify-start" 
-              variant="outline"
-              onClick={handleFileUpload}
-              disabled={uploadAttachmentMutation.isPending}
-              data-testid="button-upload-attachment"
-            >
-              <ButtonLoading 
-                isLoading={uploadAttachmentMutation.isPending} 
-                loadingText="Uploading..."
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Upload Attachment
-              </ButtonLoading>
-            </Button>
+            
+            {/* Unified Upload Component */}
+            <div className="pt-2">
+              <UnifiedFileUploadArea
+                onAttachmentsChange={(attachments) => {
+                  setUnifiedAttachments(attachments);
+                  // Auto-upload when attachments are added
+                  if (attachments.length > 0) {
+                    handleUnifiedAttachmentsUpload(attachments);
+                  }
+                }}
+                onThumbnailChange={handleUnifiedThumbnailChange}
+                disabled={uploadAttachmentMutation.isPending}
+                showThumbnailSelection={true}
+                mode="details"
+              />
+            </div>
           </CardContent>
         </Card>
         </motion.div>
@@ -765,9 +889,9 @@ export default function MowerDetails() {
           <TabsTrigger value="tasks" data-testid="tab-tasks">
             Tasks ({tasks.length})
           </TabsTrigger>
-          <TabsTrigger value="parts-components" data-testid="tab-parts-components">
+          <TabsTrigger value="parts-engines" data-testid="tab-parts-engines">
             <Wrench className="h-4 w-4 mr-2" />
-            Parts/Components ({components.length + mowerParts.length})
+            Parts/Engines ({components.length + mowerParts.length})
           </TabsTrigger>
           <TabsTrigger value="service-history" data-testid="tab-service-history">
             Service History
@@ -889,7 +1013,7 @@ export default function MowerDetails() {
           )}
         </TabsContent>
         
-        <TabsContent value="parts-components">
+        <TabsContent value="parts-engines">
           {componentsError || mowerPartsError ? (
             <Card>
               <CardContent className="pt-6">
@@ -922,16 +1046,16 @@ export default function MowerDetails() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <Wrench className="h-5 w-5" />
-                      Components ({components.length})
+                      Engines ({components.length})
                     </CardTitle>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={handleAllocateComponent} data-testid="button-allocate-component">
                         <Wrench className="h-4 w-4 mr-2" />
-                        Allocate Component
+                        Allocate Engine
                       </Button>
                       <Button variant="outline" size="sm" onClick={handleAddComponent} data-testid="button-add-component">
                         <Plus className="h-4 w-4 mr-2" />
-                        Create Component
+                        Create Engine
                       </Button>
                     </div>
                   </div>
@@ -939,7 +1063,7 @@ export default function MowerDetails() {
                 <CardContent>
                   {components.length === 0 ? (
                     <p className="text-muted-foreground text-center py-8">
-                      No components yet. Use "Allocate Component" to select from existing components or "Create Component" to create a new one.
+                      No engines yet. Use "Allocate Engine" to select from existing engines or "Create Engine" to create a new one.
                     </p>
                   ) : (
                     <div className="space-y-3">
@@ -949,9 +1073,9 @@ export default function MowerDetails() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <Button 
-                                  variant="link" 
+                                  variant="ghost" 
                                   className="p-0 h-auto font-medium text-left justify-start"
-                                  onClick={() => setLocation(`/catalog/components/${component.id}`)}
+                                  onClick={() => setLocation(`/catalog/engines/${component.id}`)}
                                 >
                                   {component.name}
                                 </Button>
@@ -1047,7 +1171,7 @@ export default function MowerDetails() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <Button 
-                                  variant="link" 
+                                  variant="ghost" 
                                   className="p-0 h-auto font-medium text-left justify-start"
                                   onClick={() => setLocation(`/catalog/parts/${assetPart.partId}`)}
                                 >
@@ -1071,12 +1195,12 @@ export default function MowerDetails() {
                               
                               {assetPart.componentId && (
                                 <div className="text-sm text-muted-foreground mt-1">
-                                  <span>Allocated to Component: </span>
+                                  <span>Allocated to Engine: </span>
                                   {assetPart.component ? (
                                     <Button 
-                                      variant="link" 
+                                      variant="ghost" 
                                       className="p-0 h-auto text-sm text-blue-600 underline"
-                                      onClick={() => setLocation(`/catalog/components/${assetPart.componentId}`)}
+                                      onClick={() => setLocation(`/catalog/engines/${assetPart.componentId}`)}
                                     >
                                       {assetPart.component.name}
                                     </Button>
@@ -1158,7 +1282,7 @@ export default function MowerDetails() {
                 title: attachment.title ?? undefined,
                 description: attachment.description ?? undefined,
               }))}
-              onUpload={handleFileUpload}
+              onUpload={handleAttachmentGalleryUpload}
               onView={(id) => {
                 const attachment = attachments.find(a => a.id === id);
                 if (attachment) {
@@ -1185,19 +1309,20 @@ export default function MowerDetails() {
       {/* Attachment Metadata Dialog */}
       {showMetadataDialog && pendingFiles[currentFileIndex] && (
         <AttachmentMetadataDialog
-          isOpen={showMetadataDialog}
-          onClose={handleMetadataCancel}
+          open={showMetadataDialog}
+          onOpenChange={setShowMetadataDialog}
           onSubmit={handleMetadataSubmit}
+          onCancel={handleMetadataCancel}
           fileName={pendingFiles[currentFileIndex].name}
         />
       )}
 
       {/* Edit Attachment Dialog */}
       <EditAttachmentDialog
-        isOpen={showEditAttachmentDialog}
-        onClose={() => {
-          setShowEditAttachmentDialog(false);
-          setEditingAttachment(null);
+        open={showEditAttachmentDialog}
+        onOpenChange={(open) => {
+          setShowEditAttachmentDialog(open);
+          if (!open) setEditingAttachment(null);
         }}
         onSubmit={handleEditAttachmentSubmit}
         attachment={editingAttachment}
@@ -1250,9 +1375,9 @@ export default function MowerDetails() {
       <AlertDialog open={showDeleteComponentDialog} onOpenChange={setShowDeleteComponentDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Component</AlertDialogTitle>
+            <AlertDialogTitle>Delete Engine</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the component "{componentToDelete?.name}"? This action cannot be undone and will also remove any part allocations to this component.
+              Are you sure you want to delete the engine "{componentToDelete?.name}"? This action cannot be undone and will also remove any part allocations to this engine.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1267,7 +1392,7 @@ export default function MowerDetails() {
               disabled={deleteComponentMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteComponentMutation.isPending ? "Deleting..." : "Delete Component"}
+              {deleteComponentMutation.isPending ? "Deleting..." : "Delete Engine"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

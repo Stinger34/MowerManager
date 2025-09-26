@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { X, Upload, FileText, Image, File, Archive } from 'lucide-react';
+import { X, Upload, FileText, Image, File, Archive, Camera, FolderOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useCameraCapture } from '@/hooks/useCameraCapture';
 import AttachmentMetadataDialog from './AttachmentMetadataDialog';
 
 interface AttachmentFile {
@@ -27,13 +28,19 @@ export default function AttachmentUploadArea({
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [showMetadataDialog, setShowMetadataDialog] = useState(false);
+  
+  // Camera capture functionality
+  const { isMobile, handleCameraCapture, handleGallerySelect } = useCameraCapture({
+    onFilesSelected: (files, isCameraCapture) => {
+      if (files.length > 0) {
+        handleFilesSelected(files[0], isCameraCapture);
+      }
+    },
+    accept: '.pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.txt,.zip',
+    multiple: false
+  });
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    const file = files[0];
-    
+  const handleFilesSelected = (file: File, isCameraCapture: boolean = false) => {
     // Validate file size (30MB limit)
     if (file.size > 30 * 1024 * 1024) {
       toast({
@@ -69,8 +76,25 @@ export default function AttachmentUploadArea({
       return;
     }
 
+    // Show compression info for camera captures
+    if (isCameraCapture && file.type.startsWith('image/')) {
+      toast({
+        title: "Camera photo processed",
+        description: "Image has been optimized for upload",
+        variant: "default",
+      });
+    }
+
     setPendingFile(file);
     setShowMetadataDialog(true);
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    handleFilesSelected(file, false);
     
     // Reset input
     event.target.value = '';
@@ -140,20 +164,52 @@ export default function AttachmentUploadArea({
               onChange={handleFileSelect}
               disabled={disabled}
               className="hidden"
-              accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.txt"
+              accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.txt,.zip"
             />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => document.getElementById('attachment-upload')?.click()}
-              disabled={disabled}
-              className="gap-2"
-            >
-              <Upload className="h-4 w-4" />
-              Add Attachment
-            </Button>
+            
+            {isMobile ? (
+              // Mobile: Show camera and gallery options
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCameraCapture}
+                  disabled={disabled}
+                  className="gap-2"
+                >
+                  <Camera className="h-4 w-4" />
+                  Take Photo
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGallerySelect}
+                  disabled={disabled}
+                  className="gap-2"
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  Choose File
+                </Button>
+              </>
+            ) : (
+              // Desktop: Show single upload button
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById('attachment-upload')?.click()}
+                disabled={disabled}
+                className="gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Add Attachment
+              </Button>
+            )}
+            
             <span className="text-sm text-muted-foreground">
               Max 30MB • PDF, Images, Documents, ZIP
+              {isMobile && (
+                <div className="text-xs">Camera photos auto-compressed</div>
+              )}
             </span>
           </div>
         </div>
@@ -200,9 +256,10 @@ export default function AttachmentUploadArea({
 
       {showMetadataDialog && pendingFile && (
         <AttachmentMetadataDialog
-          isOpen={showMetadataDialog}
-          onClose={handleMetadataCancel}
+          open={showMetadataDialog}
+          onOpenChange={setShowMetadataDialog}
           onSubmit={handleMetadataSubmit}
+          onCancel={handleMetadataCancel}
           fileName={pendingFile.name}
         />
       )}

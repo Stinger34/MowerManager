@@ -13,6 +13,7 @@ import { format, addMonths } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import UnifiedFileUploadArea from "@/components/UnifiedFileUploadArea";
 import type { InsertMower } from "@shared/schema";
 
 const mowerFormSchema = z.object({
@@ -31,9 +32,19 @@ const mowerFormSchema = z.object({
 
 type MowerFormData = z.infer<typeof mowerFormSchema>;
 
+interface AttachmentFile {
+  file: File;
+  metadata: {
+    title: string;
+    description: string;
+  };
+  previewUrl?: string;
+  isThumbnail?: boolean;
+}
+
 interface MowerFormProps {
   initialData?: Partial<MowerFormData>;
-  onSubmit: (data: InsertMower) => void;
+  onSubmit: (data: InsertMower, attachments?: AttachmentFile[], thumbnail?: AttachmentFile) => void;
   onCancel: () => void;
   isEditing?: boolean;
 }
@@ -45,6 +56,8 @@ export default function MowerForm({
   isEditing = false 
 }: MowerFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
+  const [thumbnail, setThumbnail] = useState<AttachmentFile | null>(null);
 
   const form = useForm<MowerFormData>({
     resolver: zodResolver(mowerFormSchema),
@@ -86,7 +99,7 @@ export default function MowerForm({
       nextServiceDate: data.nextServiceDate ? format(data.nextServiceDate, 'yyyy-MM-dd') : null,
     };
     
-    onSubmit(apiData as any);
+    onSubmit(apiData as any, attachments, thumbnail || undefined);
     setIsSubmitting(false);
   };
 
@@ -261,7 +274,7 @@ export default function MowerForm({
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                        <SelectItem value="maintenance">In Maintenance</SelectItem>
                         <SelectItem value="retired">Retired</SelectItem>
                       </SelectContent>
                     </Select>
@@ -383,6 +396,26 @@ export default function MowerForm({
                 </FormItem>
               )}
             />
+
+            {/* Files & Thumbnail Section - Only show for new mowers */}
+            {!isEditing && (
+              <div className="border-t pt-6 space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Optional Files & Thumbnail</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    You can add files and set a thumbnail for this mower. These are optional and can also be added later.
+                  </p>
+                </div>
+
+                <UnifiedFileUploadArea
+                  onAttachmentsChange={setAttachments}
+                  onThumbnailChange={setThumbnail}
+                  disabled={isSubmitting}
+                  showThumbnailSelection={true}
+                  mode="creation"
+                />
+              </div>
+            )}
 
             <div className="flex gap-4 justify-end">
               <Button 

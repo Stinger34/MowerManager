@@ -69,7 +69,7 @@ export default function DashboardStats({
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {stats.map((stat, index) => (
         <StatCard
           key={index}
@@ -80,6 +80,7 @@ export default function DashboardStats({
           clickable={stat.clickable}
           onClick={stat.clickable ? () => handleStatClick(stat.title) : undefined}
           testId={`card-stat-${stat.title.toLowerCase().replace(/\s+/g, '-')}`}
+          className="h-32"
         />
       ))}
       
@@ -92,7 +93,7 @@ export default function DashboardStats({
           clickable={true}
           onClick={() => setLocation("/mowers?filter=overdue-services")}
           badge={{ text: "Urgent", variant: "destructive" }}
-          className="border-destructive"
+          className="border-destructive h-32"
           testId="card-overdue-services"
         />
       )}

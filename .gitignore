@@ -4,6 +4,8 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+.env
+migrations-old/
 
 # Auto-generated version file (regenerated at build time)
 client/src/version.ts
