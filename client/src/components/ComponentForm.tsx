@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import type { Component, InsertComponent } from "@shared/schema";
+import type { Engine, InsertEngine } from "@shared/schema";
 
 const componentFormSchema = z.object({
   name: z.string().min(1, "Engine name is required"),

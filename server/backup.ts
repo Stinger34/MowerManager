@@ -14,7 +14,7 @@ export interface BackupManifest {
     serviceRecords: number;
     attachments: number;
     tasks: number;
-    components: number;
+    engines: number;
     parts: number;
     assetParts: number;
   };
@@ -25,7 +25,7 @@ export interface BackupData {
   serviceRecords: any[];
   attachments: any[];
   tasks: any[];
-  components: any[];
+  engines: any[];
   parts: any[];
   assetParts: any[];
 }
@@ -61,7 +61,7 @@ export async function createBackup(res: Response): Promise<void> {
       serviceRecords, 
       attachments,
       tasks,
-      components,
+      engines,
       parts,
       assetParts
     ] = await Promise.all([
@@ -69,7 +69,7 @@ export async function createBackup(res: Response): Promise<void> {
       storage.getAllServiceRecords(), 
       storage.getAllAttachments(),
       storage.getAllTasks(),
-      storage.getAllComponents(),
+      storage.getAllEngines(),
       storage.getAllParts(),
       storage.getAllAssetParts()
     ]);
@@ -79,7 +79,7 @@ export async function createBackup(res: Response): Promise<void> {
       serviceRecords: serviceRecords.length,
       attachments: attachments.length,
       tasks: tasks.length,
-      components: components.length,
+      engines: engines.length,
       parts: parts.length,
       assetParts: assetParts.length
     });
@@ -90,7 +90,7 @@ export async function createBackup(res: Response): Promise<void> {
       serviceRecords,
       attachments: attachments.map(att => ({ ...att, fileData: undefined })), // Exclude file data from JSON
       tasks,
-      components,
+      engines,
       parts,
       assetParts
     };
@@ -100,13 +100,13 @@ export async function createBackup(res: Response): Promise<void> {
       version: '1.3.4',
       timestamp: new Date().toISOString(),
       schemaVersion: '1.3.4',
-      totalRecords: mowers.length + serviceRecords.length + attachments.length + tasks.length + components.length + parts.length + assetParts.length,
+      totalRecords: mowers.length + serviceRecords.length + attachments.length + tasks.length + engines.length + parts.length + assetParts.length,
       tables: {
         mowers: mowers.length,
         serviceRecords: serviceRecords.length,
         attachments: attachments.length,
         tasks: tasks.length,
-        components: components.length,
+        engines: engines.length,
         parts: parts.length,
         assetParts: assetParts.length
       }
@@ -130,8 +130,8 @@ export async function createBackup(res: Response): Promise<void> {
           let folderPath = 'attachments/orphaned';
           if (attachment.mowerId) {
             folderPath = `attachments/mowers/${attachment.mowerId}`;
-          } else if (attachment.componentId) {
-            folderPath = `attachments/components/${attachment.componentId}`;
+          } else if (attachment.engineId) {
+            folderPath = `attachments/engines/${attachment.engineId}`;
           } else if (attachment.partId) {
             folderPath = `attachments/parts/${attachment.partId}`;
           }
@@ -292,15 +292,15 @@ export async function restoreFromBackup(buffer: Buffer): Promise<{success: boole
               }
             }
 
-            // 3. Restore components (depends on mowers)
-            if (backupData.components && backupData.components.length > 0) {
-              console.log(`Restoring ${backupData.components.length} components...`);
-              for (const componentData of backupData.components) {
+            // 3. Restore engines (depends on mowers)
+            if (backupData.engines && backupData.engines.length > 0) {
+              console.log(`Restoring ${backupData.engines.length} engines...`);
+              for (const engineData of backupData.engines) {
                 try {
-                  await storage.createComponent(componentData);
+                  await storage.createEngine(engineData);
                   totalRestored++;
                 } catch (error) {
-                  console.warn('Failed to restore component:', error);
+                  console.warn('Failed to restore engine:', error);
                 }
               }
             }
@@ -350,7 +350,7 @@ export async function restoreFromBackup(buffer: Buffer): Promise<{success: boole
               }
             }
 
-            // 7. Restore asset parts (depends on parts, mowers, components)
+            // 7. Restore asset parts (depends on parts, mowers, engines)
             if (backupData.assetParts && backupData.assetParts.length > 0) {
               console.log(`Restoring ${backupData.assetParts.length} asset parts...`);
               for (const assetPartData of backupData.assetParts) {

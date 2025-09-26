@@ -2,12 +2,12 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 
 export interface WebSocketMessage {
-  type: 'asset-created' | 'asset-updated' | 'asset-deleted' | 'service-created' | 'service-updated' | 'service-deleted' | 'task-created' | 'task-updated' | 'task-deleted' | 'component-created' | 'component-updated' | 'component-deleted' | 'part-created' | 'part-updated' | 'part-deleted' | 'asset-part-created' | 'asset-part-updated' | 'asset-part-deleted';
+  type: 'asset-created' | 'asset-updated' | 'asset-deleted' | 'service-created' | 'service-updated' | 'service-deleted' | 'task-created' | 'task-updated' | 'task-deleted' | 'engine-created' | 'engine-updated' | 'engine-deleted' | 'part-created' | 'part-updated' | 'part-deleted' | 'asset-part-created' | 'asset-part-updated' | 'asset-part-deleted';
   data: {
     id: string | number;
-    entityType: 'mower' | 'component' | 'part' | 'asset-part' | 'task' | 'service-record';
+    entityType: 'mower' | 'engine' | 'part' | 'asset-part' | 'task' | 'service-record';
     mowerId?: string | number;
-    componentId?: string | number;
+    engineId?: string | number;
     [key: string]: any;
   };
   timestamp: string;

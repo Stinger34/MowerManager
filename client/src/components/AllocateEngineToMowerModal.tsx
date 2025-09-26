@@ -16,7 +16,7 @@ import { CalendarIcon, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Mower, Component, InsertComponent } from "@shared/schema";
+import type { Mower, Engine, InsertEngine } from "@shared/schema";
 
 const engineAllocationFormSchema = z.object({
   mowerId: z.number().min(1, "Mower selection is required"),

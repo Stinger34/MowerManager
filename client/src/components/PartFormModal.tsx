@@ -121,7 +121,7 @@ export default function PartFormModal({
         const assetPartData: InsertAssetPart = {
           partId: createdPart.id,
           mowerId: parseInt(mowerId),
-          componentId: null,
+          engineId: null,
           quantity: 1, // Default quantity
           installDate: null,
           notes: null,
