@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MowerManager deploy.sh — Robust, with environment sanity checks, Node/pg setup, and safe helper scripts
+# MowerManager deploy.sh — Simple version using npm install, no Vite hacks, no npx, no manual cleaning
 
 set -euo pipefail
 
@@ -35,7 +35,7 @@ usage() {
     cat << EOF
 Usage: $0 [OPTIONS]
 
-Deploy MowerManager application with enhanced features and automated migration checks.
+Deploy MowerManager application.
 
 OPTIONS:
     --dry-run           Simulate deployment without making changes
@@ -156,36 +156,27 @@ execute() {
     fi
 }
 
-# ---- Load .env file if present ----
 if [ -f "${APP_DIR}/.env" ]; then
     set -a
     source "${APP_DIR}/.env"
     set +a
 fi
 
-# ---- ENVIRONMENT SANITY CHECKS ----
 env_sanity_checks() {
-    # 1. Check DATABASE_URL
     if [[ -z "${DATABASE_URL:-}" ]]; then
         log ERROR "DATABASE_URL is not set!"
         echo "Export it with: export DATABASE_URL='postgresql://user:pass@host:port/db'"
         exit 1
     fi
-
-    # 2. Check pg module (local OR global)
     if ! node -e "require('pg')" 2>/dev/null; then
         log ERROR "Node.js 'pg' module not found."
         echo "Run: npm install pg OR npm install -g pg"
         exit 1
     fi
-
-    # 3. Set NODE_PATH so ESM scripts find 'pg' if only globally installed
     export NODE_PATH="${NODE_PATH:-$(npm root -g)}"
 }
 
-# ---- HELPER SCRIPTS ----
 create_helper_scripts() {
-    # COUNT_SCRIPT
     cat > "$COUNT_SCRIPT" << 'EOF'
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -213,7 +204,6 @@ async function countTables() {
 countTables();
 EOF
 
-    # DEBUG_SCRIPT
     cat > "$DEBUG_SCRIPT" << 'EOF'
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -241,7 +231,6 @@ debugListTables();
 EOF
 }
 
-# ---- DATABASE CHECK ----
 is_database_empty() {
     if [[ "$DRY_RUN" == "true" ]]; then
         log INFO "[DRY-RUN] Would check if database is empty"
@@ -287,43 +276,12 @@ step_git_pull() {
 step_install_deps() {
     show_progress 2 7 "Installing dependencies..."
 
-    # Always fully clean before install (prevents lockfile and modules corruption)
-    echo "Cleaning up node_modules and package-lock.json for fresh install..."
-    rm -rf node_modules package-lock.json
-
-    echo "Current directory: $(pwd)"
-    echo "User: $(whoami)"
-    echo "Vite in package.json:"
-    grep vite package.json || echo "Vite NOT FOUND in package.json"
-    echo "Vite in package-lock.json:"
-    grep vite package-lock.json || echo "Vite NOT FOUND in package-lock.json"
-
-    # Use npm install -- NOT npm ci
+    # Use npm install only (no cleaning, no ci, no manual Vite install)
     if execute "Install dependencies" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
         log SUCCESS "Dependencies installed successfully"
     else
         log ERROR "Failed to install dependencies"
         return $EXIT_ERROR_DEPS
-    fi
-
-    # Check for vite binary or npx
-    if [ ! -f node_modules/.bin/vite ]; then
-      log WARN "Vite binary missing after npm install! Checking npx vite..."
-      if npx vite --version >/dev/null 2>&1; then
-        log SUCCESS "Vite is available via npx, proceeding."
-        return 0
-      fi
-      log WARN "Trying direct install of Vite..."
-      if execute "Install Vite explicitly" "npm install --save-dev vite"; then
-        log SUCCESS "Vite installed successfully after manual install"
-        if [ ! -f node_modules/.bin/vite ] && ! npx vite --version >/dev/null 2>&1; then
-          log ERROR "Vite binary STILL missing after manual install!"
-          return $EXIT_ERROR_DEPS
-        fi
-      else
-        log ERROR "Vite could not be installed. Check your package.json and lockfile."
-        return $EXIT_ERROR_DEPS
-      fi
     fi
     return 0
 }
