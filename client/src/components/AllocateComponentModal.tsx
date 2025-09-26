@@ -20,6 +20,10 @@ import { useToast } from "@/hooks/use-toast";
 import ComponentFormModal from "./ComponentFormModal";
 import type { Engine, InsertEngine } from "@shared/schema";
 
+// Type alias for backwards compatibility
+type Component = Engine;
+type InsertComponent = InsertEngine;
+
 const componentAllocationFormSchema = z.object({
   componentId: z.number().min(1, "Engine selection is required"),
   installDate: z.date().optional(),

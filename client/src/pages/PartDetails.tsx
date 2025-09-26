@@ -298,7 +298,7 @@ export default function PartDetails() {
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <div className="font-medium">
-                              {allocation.component ? allocation.component.name : allocation.mower?.make + ' ' + allocation.mower?.model}
+                              {allocation.engine ? allocation.engine.name : allocation.mower?.make + ' ' + allocation.mower?.model}
                             </div>
                             <div className="text-sm text-muted-foreground">
                               Quantity: {allocation.quantity}
@@ -316,8 +316,8 @@ export default function PartDetails() {
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              if (allocation.component) {
-                                setLocation(`/catalog/engines/${allocation.component.id}`);
+                              if (allocation.engine) {
+                                setLocation(`/catalog/engines/${allocation.engine.id}`);
                               } else if (allocation.mower) {
                                 setLocation(`/mowers/${allocation.mower.id}`);
                               }

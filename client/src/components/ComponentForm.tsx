@@ -15,6 +15,10 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Engine, InsertEngine } from "@shared/schema";
 
+// Type alias for backwards compatibility
+type Component = Engine;
+type InsertComponent = InsertEngine;
+
 const componentFormSchema = z.object({
   name: z.string().min(1, "Engine name is required"),
   description: z.string().optional(),
@@ -70,7 +74,7 @@ export default function ComponentForm({
     try {
       const componentData: InsertComponent = {
         ...data,
-        mowerId: null, // Global component type
+        mowerId: 1, // TODO: This should be selected from a mower dropdown
         installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
         warrantyExpires: data.warrantyExpires ? format(data.warrantyExpires, "yyyy-MM-dd") : null,
         cost: data.cost || null,

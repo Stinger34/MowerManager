@@ -19,6 +19,9 @@ import type { Engine, Attachment, AssetPartWithDetails, AssetPart } from "@share
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
 
+// Type alias for backwards compatibility
+type Component = Engine;
+
 export default function ComponentDetails() {
   const [, params] = useRoute("/catalog/engines/:componentId");
   const [, setLocation] = useLocation();
@@ -486,7 +489,7 @@ export default function ComponentDetails() {
           setEditingAssetPart(null);
         }}
         mowerId={component?.mowerId?.toString() || ""}
-        componentId={componentId}
+        engineId={componentId}
         assetPart={editingAssetPart}
         onSuccess={handleModalSuccess}
       />

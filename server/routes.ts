@@ -963,6 +963,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Components compatibility routes (map to engines)
+  // These routes provide backward compatibility for frontend code that uses /api/components
+  app.get('/api/components', async (_req: Request, res: Response) => {
+    try {
+      const engines = await storage.getAllEngines();
+      res.json(engines);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch components' });
+    }
+  });
+
+  app.get('/api/components/:id', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching component (engine) with ID:', req.params.id);
+      const engine = await storage.getEngine(req.params.id);
+      console.log('Component (engine) result:', engine);
+      if (!engine) {
+        return res.status(404).json({ error: 'Component not found' });
+      }
+      res.json(engine);
+    } catch (error) {
+      console.error('Error fetching component (engine):', error);
+      res.status(500).json({ error: 'Failed to fetch component' });
+    }
+  });
+
+  app.post('/api/components', async (req: Request, res: Response) => {
+    try {
+      console.log('Creating component (engine) with data:', req.body);
+      
+      // Validate and sanitize input
+      const engineData = req.body;
+
+      // Insert using your storage/ORM
+      const validatedData = insertEngineSchema.parse(engineData);
+      const engine = await storage.createEngine(validatedData);
+
+      // Create notification for new engine
+      await NotificationService.createEngineNotification('created', engine.name, engine.id.toString());
+
+      // Broadcast WebSocket event
+      webSocketService.broadcastAssetEvent('engine-created', 'engine', engine.id, { 
+        engine, 
+        mowerId: engine.mowerId 
+      });
+
+      res.status(201).json(engine);
+    } catch (error) {
+      console.error('Component (engine) creation error:', error);
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid component data' });
+    }
+  });
+
+  app.get('/api/mowers/:mowerId/components', async (req: Request, res: Response) => {
+    try {
+      const engines = await storage.getEnginesByMowerId(req.params.mowerId);
+      res.json(engines);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch mower components' });
+    }
+  });
+
+  app.post('/api/mowers/:mowerId/components', async (req: Request, res: Response) => {
+    try {
+      const engineData = {
+        ...req.body,
+        mowerId: parseInt(req.params.mowerId)
+      };
+      const validatedData = insertEngineSchema.parse(engineData);
+      const engine = await storage.createEngine(validatedData);
+      
+      // Get mower details for notification
+      const mower = await storage.getMower(req.params.mowerId);
+      const mowerDisplayName = mower ? `${mower.make} ${mower.model}` : undefined;
+      
+      // Create notification for new engine allocated to mower
+      await NotificationService.createEngineNotification('allocated', engine.name, engine.id.toString(), mowerDisplayName, req.params.mowerId);
+      
+      res.status(201).json(engine);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid component data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.put('/api/components/:id', async (req: Request, res: Response) => {
+    try {
+      const engine = await storage.updateEngine(req.params.id, req.body);
+      if (!engine) {
+        return res.status(404).json({ error: 'Component not found' });
+      }
+      
+      // Broadcast WebSocket event for engine update
+      webSocketService.broadcastAssetEvent('engine-updated', 'engine', engine.id, { 
+        engine, 
+        mowerId: engine.mowerId 
+      });
+      
+      res.json(engine);
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid component data', details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.delete('/api/components/:id', async (req: Request, res: Response) => {
+    try {
+      // Get engine details before deletion for notification
+      const engine = await storage.getEngine(req.params.id);
+      
+      const deleted = await storage.deleteEngine(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Component not found' });
+      }
+      
+      // Create notification for deleted engine
+      if (engine) {
+        await NotificationService.createEngineNotification('deleted', engine.name, engine.id.toString());
+      }
+      
+      // Broadcast WebSocket event for engine deletion
+      webSocketService.broadcastAssetEvent('engine-deleted', 'engine', parseInt(req.params.id), { 
+        engineId: parseInt(req.params.id),
+        mowerId: engine?.mowerId 
+      });
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete component' });
+    }
+  });
+
+  app.get('/api/components/:id/attachments', async (req: Request, res: Response) => {
+    try {
+      console.log('Fetching attachments for component (engine) ID:', req.params.id);
+      const attachments = await storage.getAttachmentsByEngineId(req.params.id);
+      
+      // Return attachments without file data for list view
+      const attachmentsResponse = attachments.map(({ fileData, ...attachment }) => attachment);
+      console.log('Component (engine) attachments result:', attachmentsResponse.length, 'attachments found');
+      res.json(attachmentsResponse);
+    } catch (error) {
+      console.error('Error fetching component (engine) attachments:', error);
+      res.status(500).json({ error: 'Failed to fetch component attachments' });
+    }
+  });
+
+  app.get('/api/components/:componentId/parts', async (req: Request, res: Response) => {
+    try {
+      const assetParts = await storage.getAssetPartsByEngineId(req.params.componentId);
+      res.json(assetParts);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch component parts' });
+    }
+  });
+
   // Part routes
   app.get('/api/parts', async (_req: Request, res: Response) => {
     try {
