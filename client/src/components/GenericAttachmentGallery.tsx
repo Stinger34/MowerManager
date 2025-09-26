@@ -8,7 +8,7 @@ import EditAttachmentDialog from './EditAttachmentDialog';
 interface GenericAttachmentGalleryProps {
   attachments: any[];
   entityId: string;
-  entityType: 'mowers' | 'components' | 'parts';
+  entityType: 'mowers' | 'engines' | 'parts';
   isLoading?: boolean;
   onSetThumbnail?: (id: string) => void;
   thumbnailAttachmentId?: string | null;

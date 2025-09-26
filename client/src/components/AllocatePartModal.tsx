@@ -16,7 +16,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Part, Component, AssetPart, InsertAssetPart } from "@shared/schema";
+import type { Part, Engine, AssetPart, InsertAssetPart } from "@shared/schema";
 
 const assetPartFormSchema = z.object({
   partId: z.number().min(1, "Part selection is required"),
@@ -61,9 +61,9 @@ export default function AllocatePartModal({
     queryKey: ['/api/parts'],
   });
 
-  // Fetch components for this mower if not allocating to a specific component
-  const { data: components = [] } = useQuery<Component[]>({
-    queryKey: ['/api/mowers', mowerId, 'components'],
+  // Fetch engines for this mower if not allocating to a specific engine
+  const { data: engines = [] } = useQuery<Engine[]>({
+    queryKey: ['/api/mowers', mowerId, 'engines'],
     enabled: !componentId,
   });
 
@@ -277,7 +277,7 @@ export default function AllocatePartModal({
                 name="componentId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Allocate to Component (Optional)</FormLabel>
+                    <FormLabel>Allocate to Engine (Optional)</FormLabel>
                     <Select 
                       onValueChange={(value) => {
                         if (value === "none") {
@@ -292,15 +292,15 @@ export default function AllocatePartModal({
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select component or allocate to mower directly" />
+                          <SelectValue placeholder="Select engine or allocate to mower directly" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="none">Allocate to Mower Directly</SelectItem>
-                        {components.map((component) => (
-                          <SelectItem key={component.id} value={component.id.toString()}>
-                            {component.name}
-                            {component.partNumber && ` (${component.partNumber})`}
+                        {engines.map((engine) => (
+                          <SelectItem key={engine.id} value={engine.id.toString()}>
+                            {engine.name}
+                            {engine.partNumber && ` (${engine.partNumber})`}
                           </SelectItem>
                         ))}
                       </SelectContent>

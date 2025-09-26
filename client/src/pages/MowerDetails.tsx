@@ -7,23 +7,23 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import ServiceHistoryTable from "@/components/ServiceHistoryTable";
-import MaintenanceOverview from "@/components/MaintenanceOverview";
-import AttachmentGallery from "@/components/AttachmentGallery";
-import AttachmentMetadataDialog from "@/components/AttachmentMetadataDialog";
-import EditAttachmentDialog from "@/components/EditAttachmentDialog";
-import TaskList from "@/components/TaskList";
-import ComponentFormModal from "@/components/ComponentFormModal";
-import AllocateComponentModal from "@/components/AllocateComponentModal";
-import AllocatePartModal from "@/components/AllocatePartModal";
-import PartFormModal from "@/components/PartFormModal";
+import ServiceHistoryTable from "@/engines/ServiceHistoryTable";
+import MaintenanceOverview from "@/engines/MaintenanceOverview";
+import AttachmentGallery from "@/engines/AttachmentGallery";
+import AttachmentMetadataDialog from "@/engines/AttachmentMetadataDialog";
+import EditAttachmentDialog from "@/engines/EditAttachmentDialog";
+import TaskList from "@/engines/TaskList";
+import EngineFormModal from "@/engines/EngineFormModal";
+import AllocateEngineModal from "@/engines/AllocateEngineModal";
+import AllocatePartModal from "@/engines/AllocatePartModal";
+import PartFormModal from "@/engines/PartFormModal";
 import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMowerThumbnail } from "@/hooks/useThumbnails";
-import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Component, Part, AssetPart, AssetPartWithDetails } from "@shared/schema";
+import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Engine, Part, AssetPart, AssetPartWithDetails } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
+import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-engines";
 import { motion } from "framer-motion";
 
 export default function MowerDetails() {
@@ -46,7 +46,7 @@ export default function MowerDetails() {
   const [showEditAttachmentDialog, setShowEditAttachmentDialog] = useState(false);
   const [editingAttachment, setEditingAttachment] = useState<Attachment | null>(null);
 
-  // Modal states for components and parts
+  // Modal states for engines and parts
   const [showComponentModal, setShowComponentModal] = useState(false);
   const [showAllocateComponentModal, setShowAllocateComponentModal] = useState(false);
   const [showAllocatePartModal, setShowAllocatePartModal] = useState(false);
@@ -83,9 +83,9 @@ export default function MowerDetails() {
     enabled: !!mowerId,
   });
 
-  // Fetch components data
-  const { data: components = [], isLoading: isComponentsLoading, error: componentsError } = useQuery<Component[]>({
-    queryKey: ['/api/mowers', mowerId, 'components'],
+  // Fetch engines data
+  const { data: engines = [], isLoading: isEnginesLoading, error: enginesError } = useQuery<Engine[]>({
+    queryKey: ['/api/mowers', mowerId, 'engines'],
     enabled: !!mowerId,
   });
 
@@ -307,11 +307,11 @@ export default function MowerDetails() {
   // Component mutations
   const deleteComponentMutation = useMutation({
     mutationFn: async (componentId: number) => {
-      await apiRequest('DELETE', `/api/components/${componentId}`);
+      await apiRequest('DELETE', `/api/engines/${componentId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'engines'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
       toast({ title: "Success", description: "Component deleted successfully" });
       setShowDeleteComponentDialog(false);
       setComponentToDelete(null);
@@ -469,14 +469,14 @@ export default function MowerDetails() {
     setShowAllocateComponentModal(true);
   };
 
-  const handleEditComponent = (component: Component) => {
-    setEditingComponent(component);
-    setShowComponentModal(true);
+  const handleEditEngine = (engine: Engine) => {
+    setEditingEngine(engine);
+    setShowEngineModal(true);
   };
 
-  const handleDeleteComponent = (component: Component) => {
-    setComponentToDelete(component);
-    setShowDeleteComponentDialog(true);
+  const handleDeleteEngine = (engine: Engine) => {
+    setEngineToDelete(engine);
+    setShowDeleteEngineDialog(true);
   };
 
   const handleConfirmDeleteComponent = () => {
@@ -522,7 +522,7 @@ export default function MowerDetails() {
 
   const handleModalSuccess = () => {
     // Refresh data after successful operations
-    queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'engines'] });
     queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'parts'] });
   };
 
@@ -765,9 +765,9 @@ export default function MowerDetails() {
           <TabsTrigger value="tasks" data-testid="tab-tasks">
             Tasks ({tasks.length})
           </TabsTrigger>
-          <TabsTrigger value="parts-components" data-testid="tab-parts-components">
+          <TabsTrigger value="parts-engines" data-testid="tab-parts-engines">
             <Wrench className="h-4 w-4 mr-2" />
-            Parts/Components ({components.length + mowerParts.length})
+            Parts/Engines ({engines.length + mowerParts.length})
           </TabsTrigger>
           <TabsTrigger value="service-history" data-testid="tab-service-history">
             Service History
@@ -889,18 +889,18 @@ export default function MowerDetails() {
           )}
         </TabsContent>
         
-        <TabsContent value="parts-components">
-          {componentsError || mowerPartsError ? (
+        <TabsContent value="parts-engines">
+          {enginesError || mowerPartsError ? (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center py-8">
-                  <p className="text-destructive">Failed to load parts and components data</p>
+                  <p className="text-destructive">Failed to load parts and engines data</p>
                   <Button 
                     variant="outline" 
                     size="sm" 
                     className="mt-2"
                     onClick={() => {
-                      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
+                      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'engines'] });
                       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'parts'] });
                     }}
                   >
@@ -909,20 +909,20 @@ export default function MowerDetails() {
                 </div>
               </CardContent>
             </Card>
-          ) : (isComponentsLoading || isMowerPartsLoading) ? (
+          ) : (isEnginesLoading || isMowerPartsLoading) ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              <span>Loading parts and components...</span>
+              <span>Loading parts and engines...</span>
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Components Section */}
+              {/* Engines Section */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <Wrench className="h-5 w-5" />
-                      Components ({components.length})
+                      Engines ({engines.length})
                     </CardTitle>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={handleAllocateComponent} data-testid="button-allocate-component">
@@ -937,13 +937,13 @@ export default function MowerDetails() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {components.length === 0 ? (
+                  {engines.length === 0 ? (
                     <p className="text-muted-foreground text-center py-8">
-                      No components yet. Use "Allocate Component" to select from existing components or "Create Component" to create a new one.
+                      No engines yet. Use "Allocate Component" to select from existing engines or "Create Component" to create a new one.
                     </p>
                   ) : (
                     <div className="space-y-3">
-                      {components.map((component) => (
+                      {engines.map((component) => (
                         <div key={component.id} className="border rounded-lg p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -951,7 +951,7 @@ export default function MowerDetails() {
                                 <Button 
                                   variant="link" 
                                   className="p-0 h-auto font-medium text-left justify-start"
-                                  onClick={() => setLocation(`/catalog/components/${component.id}`)}
+                                  onClick={() => setLocation(`/catalog/engines/${component.id}`)}
                                 >
                                   {component.name}
                                 </Button>
@@ -1076,7 +1076,7 @@ export default function MowerDetails() {
                                     <Button 
                                       variant="link" 
                                       className="p-0 h-auto text-sm text-blue-600 underline"
-                                      onClick={() => setLocation(`/catalog/components/${assetPart.componentId}`)}
+                                      onClick={() => setLocation(`/catalog/engines/${assetPart.componentId}`)}
                                     >
                                       {assetPart.component.name}
                                     </Button>

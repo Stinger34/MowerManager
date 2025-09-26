@@ -1,39 +1,39 @@
 import { Button } from "@/components/ui/button";
-import ComponentForm from "@/components/ComponentForm";
+import EngineForm from "@/components/EngineForm";
 import { ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { InsertComponent } from "@shared/schema";
+import type { InsertEngine } from "@shared/schema";
 
-export default function AddComponent() {
+export default function AddEngine() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   const createMutation = useMutation({
-    mutationFn: async (data: InsertComponent) => {
-      const response = await apiRequest("POST", "/api/components", data);
+    mutationFn: async (data: InsertEngine) => {
+      const response = await apiRequest("POST", "/api/engines", data);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
       toast({
         title: "Success",
-        description: "Component created successfully",
+        description: "Engine created successfully",
       });
       setLocation('/catalog');
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create component",
+        description: error.message || "Failed to create engine",
         variant: "destructive",
       });
     },
   });
 
-  const handleSubmit = (data: InsertComponent) => {
+  const handleSubmit = (data: InsertEngine) => {
     createMutation.mutate(data);
   };
 
@@ -54,15 +54,15 @@ export default function AddComponent() {
         </Button>
         
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Add New Component Type</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Add New Engine Type</h1>
           <p className="text-muted-foreground">
-            Add a new global component type to the parts catalog
+            Add a new global engine type to the parts catalog
           </p>
         </div>
       </div>
 
       <div className="max-w-2xl">
-        <ComponentForm 
+        <EngineForm 
           onSubmit={handleSubmit}
           onCancel={handleCancel}
           isEditing={false}

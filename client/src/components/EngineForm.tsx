@@ -13,10 +13,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import type { Component, InsertComponent } from "@shared/schema";
+import type { Engine, InsertEngine } from "@shared/schema";
 
-const componentFormSchema = z.object({
-  name: z.string().min(1, "Component name is required"),
+const engineFormSchema = z.object({
+  name: z.string().min(1, "Engine name is required"),
   description: z.string().optional(),
   partNumber: z.string().optional(),
   manufacturer: z.string().optional(),
@@ -30,25 +30,25 @@ const componentFormSchema = z.object({
   notes: z.string().optional(),
 });
 
-type ComponentFormData = z.infer<typeof componentFormSchema>;
+type EngineFormData = z.infer<typeof engineFormSchema>;
 
-interface ComponentFormProps {
-  initialData?: Component;
-  onSubmit: (data: InsertComponent) => void;
+interface EngineFormProps {
+  initialData?: Engine;
+  onSubmit: (data: InsertEngine) => void;
   onCancel: () => void;
   isEditing?: boolean;
 }
 
-export default function ComponentForm({ 
+export default function EngineForm({ 
   initialData, 
   onSubmit, 
   onCancel, 
   isEditing = false 
-}: ComponentFormProps) {
+}: EngineFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<ComponentFormData>({
-    resolver: zodResolver(componentFormSchema),
+  const form = useForm<EngineFormData>({
+    resolver: zodResolver(engineFormSchema),
     defaultValues: {
       name: initialData?.name || "",
       description: initialData?.description || "",
@@ -65,12 +65,12 @@ export default function ComponentForm({
     },
   });
 
-  const handleSubmit = async (data: ComponentFormData) => {
+  const handleSubmit = async (data: EngineFormData) => {
     setIsSubmitting(true);
     try {
-      const componentData: InsertComponent = {
+      const engineData: InsertEngine = {
         ...data,
-        mowerId: null, // Global component type
+        mowerId: null, // Global engine type
         installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
         warrantyExpires: data.warrantyExpires ? format(data.warrantyExpires, "yyyy-MM-dd") : null,
         cost: data.cost || null,
@@ -81,7 +81,7 @@ export default function ComponentForm({
         serialNumber: data.serialNumber || null,
         notes: data.notes || null,
       };
-      await onSubmit(componentData);
+      await onSubmit(engineData);
     } finally {
       setIsSubmitting(false);
     }
@@ -91,7 +91,7 @@ export default function ComponentForm({
     <Card>
       <CardHeader>
         <CardTitle>
-          {isEditing ? "Edit Component" : "New Component Type"}
+          {isEditing ? "Edit Engine" : "New Engine Type"}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -105,7 +105,7 @@ export default function ComponentForm({
                   <FormItem>
                     <FormLabel>Name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Component name..." {...field} data-testid="input-name" />
+                      <Input placeholder="Engine name..." {...field} data-testid="input-name" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -134,7 +134,7 @@ export default function ComponentForm({
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Component description..." {...field} data-testid="textarea-description" />
+                    <Textarea placeholder="Engine description..." {...field} data-testid="textarea-description" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -359,7 +359,7 @@ export default function ComponentForm({
                 disabled={isSubmitting}
                 data-testid="button-submit"
               >
-                {isSubmitting ? "Creating..." : isEditing ? "Update Component" : "Create Component"}
+                {isSubmitting ? "Creating..." : isEditing ? "Update Engine" : "Create Engine"}
               </Button>
             </div>
           </form>

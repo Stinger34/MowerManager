@@ -9,7 +9,7 @@ interface AttachmentFile {
 }
 
 export async function uploadAttachmentsForEntity(
-  entityType: 'parts' | 'components',
+  entityType: 'parts' | 'engines',
   entityId: string,
   attachments: AttachmentFile[]
 ): Promise<void> {
