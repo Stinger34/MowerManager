@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Search } from "lucide-react";
+import { CalendarIcon, Search, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -48,6 +48,15 @@ export default function AllocatePartToMowerModal({
     queryKey: ['/api/mowers'],
     enabled: isOpen,
   });
+
+  // For Engine parts, check if already allocated
+  const { data: allAssetParts = [] } = useQuery({
+    queryKey: ['/api/asset-parts'],
+    enabled: isOpen && part?.category?.toLowerCase() === 'engine',
+  });
+
+  const isEngineAlreadyAllocated = part?.category?.toLowerCase() === 'engine' && 
+    allAssetParts.some((allocation: any) => allocation.partId === part?.id);
 
   // Filter mowers based on search
   const filteredMowers = mowers.filter(mower =>
@@ -110,9 +119,18 @@ export default function AllocatePartToMowerModal({
       onSuccess?.();
     },
     onError: (error: Error) => {
+      console.error('Allocation error:', error);
+      let errorMessage = error.message || "Failed to allocate part to mower";
+      
+      // Handle specific Engine allocation errors
+      if (errorMessage.includes('Engine Asset Allocation Error') || 
+          errorMessage.includes('already allocated')) {
+        errorMessage = "This Engine asset is already allocated to another mower. Engine assets can only be allocated to one mower at a time.";
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to allocate part to mower",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -144,6 +162,20 @@ export default function AllocatePartToMowerModal({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            {/* Engine Already Allocated Warning */}
+            {isEngineAlreadyAllocated && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-amber-800">
+                  <AlertTriangle className="h-5 w-5" />
+                  <h3 className="font-medium">Engine Already Allocated</h3>
+                </div>
+                <p className="text-sm text-amber-700 mt-1">
+                  This Engine asset is already allocated to another mower. Engine assets can only be allocated to one mower at a time.
+                  You cannot proceed with this allocation.
+                </p>
+              </div>
+            )}
+
             {/* Part Information Display */}
             <div className="bg-muted/50 rounded-lg p-4">
               <h3 className="font-medium mb-2">Part Details</h3>
@@ -332,11 +364,13 @@ export default function AllocatePartToMowerModal({
               </Button>
               <Button 
                 type="submit" 
-                disabled={createAllocationMutation.isPending}
+                disabled={createAllocationMutation.isPending || isEngineAlreadyAllocated}
               >
                 {createAllocationMutation.isPending 
                   ? "Allocating..." 
-                  : "Allocate to Mower"
+                  : isEngineAlreadyAllocated 
+                    ? "Already Allocated"
+                    : "Allocate to Mower"
                 }
               </Button>
             </div>

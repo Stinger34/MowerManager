@@ -1001,9 +1001,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/asset-parts', async (req: Request, res: Response) => {
+    try {
+      const assetParts = await storage.getAllAssetParts();
+      res.json(assetParts);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch asset parts' });
+    }
+  });
+
   app.post('/api/asset-parts', async (req: Request, res: Response) => {
     try {
       const validatedData = insertAssetPartSchema.parse(req.body);
+      
+      // Special handling for Engine parts
+      const part = await storage.getPart(validatedData.partId.toString());
+      if (part && part.category?.toLowerCase() === 'engine') {
+        // Check if this Engine part is already allocated
+        const existingAllocations = await storage.getAllAssetParts();
+        const engineAlreadyAllocated = existingAllocations.some(
+          allocation => allocation.partId === validatedData.partId
+        );
+        
+        if (engineAlreadyAllocated) {
+          return res.status(400).json({ 
+            error: 'Engine Asset Allocation Error', 
+            details: 'This Engine part is already allocated to a mower. Engine assets can only be allocated to one mower at a time.' 
+          });
+        }
+        
+        // Force Engine parts to have quantity 1
+        validatedData.quantity = 1;
+      }
+      
       const assetPart = await storage.createAssetPart(validatedData);
       res.status(201).json(assetPart);
     } catch (error) {
@@ -1013,6 +1043,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put('/api/asset-parts/:id', async (req: Request, res: Response) => {
     try {
+      // Get the existing asset part to check if it's an Engine
+      const existingAssetPart = await storage.getAllAssetParts();
+      const currentAssetPart = existingAssetPart.find(ap => ap.id.toString() === req.params.id);
+      
+      if (currentAssetPart) {
+        const part = await storage.getPart(currentAssetPart.partId.toString());
+        if (part && part.category?.toLowerCase() === 'engine') {
+          // Force Engine parts to maintain quantity 1
+          if (req.body.quantity !== undefined) {
+            req.body.quantity = 1;
+          }
+        }
+      }
+      
       const assetPart = await storage.updateAssetPart(req.params.id, req.body);
       if (!assetPart) {
         return res.status(404).json({ error: 'Asset part allocation not found' });
