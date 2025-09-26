@@ -737,152 +737,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Component routes
-  app.get('/api/components', async (_req: Request, res: Response) => {
+  // Engine routes
+  app.get('/api/engines', async (_req: Request, res: Response) => {
     try {
-      const components = await storage.getAllComponents();
-      res.json(components);
+      const engines = await storage.getAllEngines();
+      res.json(engines);
     } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch components' });
+      res.status(500).json({ error: 'Failed to fetch engines' });
     }
   });
 
-  app.get('/api/components/:id', async (req: Request, res: Response) => {
+  app.get('/api/engines/:id', async (req: Request, res: Response) => {
     try {
-      console.log('Fetching component with ID:', req.params.id);
-      const component = await storage.getComponent(req.params.id);
-      console.log('Component result:', component);
-      if (!component) {
-        return res.status(404).json({ error: 'Component not found' });
+      console.log('Fetching engine with ID:', req.params.id);
+      const engine = await storage.getEngine(req.params.id);
+      console.log('Engine result:', engine);
+      if (!engine) {
+        return res.status(404).json({ error: 'Engine not found' });
       }
-      res.json(component);
+      res.json(engine);
     } catch (error) {
-      console.error('Error fetching component:', error);
-      res.status(500).json({ error: 'Failed to fetch component' });
+      console.error('Error fetching engine:', error);
+      res.status(500).json({ error: 'Failed to fetch engine' });
     }
   });
 
-  // Create global component (not attached to a mower)
-  app.post('/api/components', async (req: Request, res: Response) => {
+  // Create engine for a specific mower
+  app.post('/api/engines', async (req: Request, res: Response) => {
     try {
       // Validate and sanitize input
-      const componentData = req.body;
+      const engineData = req.body;
 
-      // If mowerId is present, ensure it's valid or set to null for global
-      if (componentData.mowerId === undefined || componentData.mowerId === null || componentData.mowerId === "") {
-        componentData.mowerId = null;
+      // Engines must be attached to a mower
+      if (!engineData.mowerId) {
+        return res.status(400).json({ error: 'Engine must be attached to a mower' });
       }
 
       // Insert using your storage/ORM
-      const validatedData = insertComponentSchema.parse(componentData);
-      const component = await storage.createComponent(validatedData);
+      const validatedData = insertEngineSchema.parse(engineData);
+      const engine = await storage.createEngine(validatedData);
 
-      // Create notification for new component
-      await NotificationService.createComponentNotification('created', component.name, component.id.toString());
+      // Create notification for new engine
+      await NotificationService.createEngineNotification('created', engine.name, engine.id.toString());
 
       // Broadcast WebSocket event
-      webSocketService.broadcastAssetEvent('component-created', 'component', component.id, { 
-        component, 
-        mowerId: component.mowerId 
+      webSocketService.broadcastAssetEvent('engine-created', 'engine', engine.id, { 
+        engine, 
+        mowerId: engine.mowerId 
       });
 
-      res.status(201).json(component);
+      res.status(201).json(engine);
     } catch (error) {
-      console.error('Component creation error:', error);
-      res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid component data' });
+      console.error('Engine creation error:', error);
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid engine data' });
     }
   });
 
-  app.get('/api/mowers/:mowerId/components', async (req: Request, res: Response) => {
+  app.get('/api/mowers/:mowerId/engines', async (req: Request, res: Response) => {
     try {
-      const components = await storage.getComponentsByMowerId(req.params.mowerId);
-      res.json(components);
+      const engines = await storage.getEnginesByMowerId(req.params.mowerId);
+      res.json(engines);
     } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch mower components' });
+      res.status(500).json({ error: 'Failed to fetch mower engines' });
     }
   });
 
-  app.post('/api/mowers/:mowerId/components', async (req: Request, res: Response) => {
+  app.post('/api/mowers/:mowerId/engines', async (req: Request, res: Response) => {
     try {
-      const componentData = {
+      const engineData = {
         ...req.body,
         mowerId: parseInt(req.params.mowerId)
       };
-      const validatedData = insertComponentSchema.parse(componentData);
-      const component = await storage.createComponent(validatedData);
+      const validatedData = insertEngineSchema.parse(engineData);
+      const engine = await storage.createEngine(validatedData);
       
       // Get mower details for notification
       const mower = await storage.getMower(req.params.mowerId);
       const mowerDisplayName = mower ? `${mower.make} ${mower.model}` : undefined;
       
-      // Create notification for new component allocated to mower
-      await NotificationService.createComponentNotification('allocated', component.name, component.id.toString(), mowerDisplayName, req.params.mowerId);
+      // Create notification for new engine allocated to mower
+      await NotificationService.createEngineNotification('allocated', engine.name, engine.id.toString(), mowerDisplayName, req.params.mowerId);
       
-      res.status(201).json(component);
+      res.status(201).json(engine);
     } catch (error) {
-      res.status(400).json({ error: 'Invalid component data', details: error instanceof Error ? error.message : String(error) });
+      res.status(400).json({ error: 'Invalid engine data', details: error instanceof Error ? error.message : String(error) });
     }
   });
 
-  app.put('/api/components/:id', async (req: Request, res: Response) => {
+  app.put('/api/engines/:id', async (req: Request, res: Response) => {
     try {
-      const component = await storage.updateComponent(req.params.id, req.body);
-      if (!component) {
-        return res.status(404).json({ error: 'Component not found' });
+      const engine = await storage.updateEngine(req.params.id, req.body);
+      if (!engine) {
+        return res.status(404).json({ error: 'Engine not found' });
       }
       
-      // Broadcast WebSocket event for component update
-      webSocketService.broadcastAssetEvent('component-updated', 'component', component.id, { 
-        component, 
-        mowerId: component.mowerId 
+      // Broadcast WebSocket event for engine update
+      webSocketService.broadcastAssetEvent('engine-updated', 'engine', engine.id, { 
+        engine, 
+        mowerId: engine.mowerId 
       });
       
-      res.json(component);
+      res.json(engine);
     } catch (error) {
-      res.status(400).json({ error: 'Invalid component data', details: error instanceof Error ? error.message : String(error) });
+      res.status(400).json({ error: 'Invalid engine data', details: error instanceof Error ? error.message : String(error) });
     }
   });
 
-  app.delete('/api/components/:id', async (req: Request, res: Response) => {
+  app.delete('/api/engines/:id', async (req: Request, res: Response) => {
     try {
-      // Get component details before deletion for notification
-      const component = await storage.getComponent(req.params.id);
+      // Get engine details before deletion for notification
+      const engine = await storage.getEngine(req.params.id);
       
-      const deleted = await storage.deleteComponent(req.params.id);
+      const deleted = await storage.deleteEngine(req.params.id);
       if (!deleted) {
-        return res.status(404).json({ error: 'Component not found' });
+        return res.status(404).json({ error: 'Engine not found' });
       }
       
-      // Create notification for deleted component
-      if (component) {
-        await NotificationService.createComponentNotification('deleted', component.name, component.id.toString());
+      // Create notification for deleted engine
+      if (engine) {
+        await NotificationService.createEngineNotification('deleted', engine.name, engine.id.toString());
         
-        // Broadcast WebSocket event for component deletion
-        webSocketService.broadcastAssetEvent('component-deleted', 'component', component.id, { 
-          component, 
-          mowerId: component.mowerId 
+        // Broadcast WebSocket event for engine deletion
+        webSocketService.broadcastAssetEvent('engine-deleted', 'engine', engine.id, { 
+          engine, 
+          mowerId: engine.mowerId 
         });
       }
       
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ error: 'Failed to delete component' });
+      res.status(500).json({ error: 'Failed to delete engine' });
     }
   });
 
-  // Component attachment routes
-  app.post('/api/components/:id/attachments', upload.single('file'), async (req: Request, res: Response) => {
+  // Engine attachment routes
+  app.post('/api/engines/:id/attachments', upload.single('file'), async (req: Request, res: Response) => {
     try {
-      console.log('Component attachment upload request:', { params: req.params, file: req.file, body: req.body });
+      console.log('Engine attachment upload request:', { params: req.params, file: req.file, body: req.body });
       
       if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
       }
 
-      // Verify component exists
-      const component = await storage.getComponent(req.params.id);
-      if (!component) {
-        return res.status(404).json({ error: 'Component not found' });
+      // Verify engine exists
+      const engine = await storage.getEngine(req.params.id);
+      if (!engine) {
+        return res.status(404).json({ error: 'Engine not found' });
       }
 
       // Convert file buffer to base64
@@ -922,7 +922,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const attachment = await storage.createAttachment({
-        componentId: parseInt(req.params.id),
+        engineId: parseInt(req.params.id),
         mowerId: null,
         partId: null,
         fileName: req.file.originalname,
@@ -948,18 +948,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/components/:id/attachments', async (req: Request, res: Response) => {
+  app.get('/api/engines/:id/attachments', async (req: Request, res: Response) => {
     try {
-      console.log('Fetching attachments for component ID:', req.params.id);
-      const attachments = await storage.getAttachmentsByComponentId(req.params.id);
+      console.log('Fetching attachments for engine ID:', req.params.id);
+      const attachments = await storage.getAttachmentsByEngineId(req.params.id);
       
       // Return attachments without file data for list view
       const attachmentsResponse = attachments.map(({ fileData, ...attachment }) => attachment);
-      console.log('Component attachments result:', attachmentsResponse.length, 'attachments found');
+      console.log('Engine attachments result:', attachmentsResponse.length, 'attachments found');
       res.json(attachmentsResponse);
     } catch (error) {
-      console.error('Error fetching component attachments:', error);
-      res.status(500).json({ error: 'Failed to fetch component attachments' });
+      console.error('Error fetching engine attachments:', error);
+      res.status(500).json({ error: 'Failed to fetch engine attachments' });
     }
   });
 
@@ -1099,7 +1099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const attachment = await storage.createAttachment({
         partId: parseInt(req.params.id),
         mowerId: null,
-        componentId: null,
+        engineId: null,
         fileName: req.file.originalname,
         title: req.body.title || req.file.originalname,
         fileType,
@@ -1159,12 +1159,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/components/:componentId/parts', async (req: Request, res: Response) => {
+  app.get('/api/engines/:engineId/parts', async (req: Request, res: Response) => {
     try {
-      const assetParts = await storage.getAssetPartsByComponentId(req.params.componentId);
+      const assetParts = await storage.getAssetPartsByEngineId(req.params.engineId);
       res.json(assetParts);
     } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch component parts' });
+      res.status(500).json({ error: 'Failed to fetch engine parts' });
     }
   });
 
@@ -1195,7 +1195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       webSocketService.broadcastAssetEvent('asset-part-created', 'asset-part', assetPart.id, { 
         assetPart, 
         mowerId: assetPart.mowerId,
-        componentId: assetPart.componentId 
+        engineId: assetPart.engineId 
       });
       
       res.status(201).json(assetPart);
@@ -1215,7 +1215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       webSocketService.broadcastAssetEvent('asset-part-updated', 'asset-part', assetPart.id, { 
         assetPart, 
         mowerId: assetPart.mowerId,
-        componentId: assetPart.componentId 
+        engineId: assetPart.engineId 
       });
       
       res.json(assetPart);
@@ -1239,7 +1239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         webSocketService.broadcastAssetEvent('asset-part-deleted', 'asset-part', assetPart.id, { 
           assetPart, 
           mowerId: assetPart.mowerId,
-          componentId: assetPart.componentId 
+          engineId: assetPart.engineId 
         });
       }
       

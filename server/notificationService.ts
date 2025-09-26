@@ -49,7 +49,7 @@ export class NotificationService {
     }
   }
 
-  static async createComponentNotification(action: 'created' | 'allocated' | 'deleted', componentName: string, componentId: string, mowerName?: string, mowerId?: string) {
+  static async createEngineNotification(action: 'created' | 'allocated' | 'deleted', engineName: string, engineId: string, mowerName?: string, mowerId?: string) {
     let title: string;
     let message: string;
     let type: 'success' | 'info' | 'warning' | 'error';
@@ -58,20 +58,20 @@ export class NotificationService {
 
     switch (action) {
       case 'created':
-        title = 'Component Created';
-        message = `New component "${componentName}" has been created${mowerName ? ` for ${mowerName}` : ''}`;
+        title = 'Engine Created';
+        message = `New engine "${engineName}" has been created${mowerName ? ` for ${mowerName}` : ''}`;
         type = 'success';
-        detailUrl = `/catalog/components/${componentId}`;
+        detailUrl = `/catalog/engines/${engineId}`;
         break;
       case 'allocated':
-        title = 'Component Allocated';
-        message = `Component "${componentName}" has been allocated${mowerName ? ` to ${mowerName}` : ''}`;
+        title = 'Engine Allocated';
+        message = `Engine "${engineName}" has been allocated${mowerName ? ` to ${mowerName}` : ''}`;
         type = 'info';
-        detailUrl = mowerId ? `/mowers/${mowerId}` : `/catalog/components/${componentId}`;
+        detailUrl = mowerId ? `/mowers/${mowerId}` : `/catalog/engines/${engineId}`;
         break;
       case 'deleted':
-        title = 'Component Deleted';
-        message = `Component "${componentName}" has been removed`;
+        title = 'Engine Deleted';
+        message = `Engine "${engineName}" has been removed`;
         type = 'warning';
         priority = 'high';
         detailUrl = '/catalog';
@@ -83,16 +83,16 @@ export class NotificationService {
       title,
       message,
       priority,
-      entityType: 'component',
-      entityId: componentId,
-      entityName: componentName,
+      entityType: 'engine',
+      entityId: engineId,
+      entityName: engineName,
       detailUrl,
     };
 
     try {
       await storage.createNotification(notification);
     } catch (error) {
-      console.error('Failed to create component notification:', error);
+      console.error('Failed to create engine notification:', error);
     }
   }
 

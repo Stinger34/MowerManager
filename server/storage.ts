@@ -1023,11 +1023,11 @@ export class DbStorage implements IStorage {
           year: mowers.year,
           serialNumber: mowers.serialNumber,
         },
-        component: {
-          id: components.id,
-          name: components.name,
-          partNumber: components.partNumber,
-          manufacturer: components.manufacturer,
+        engine: {
+          id: engines.id,
+          name: engines.name,
+          partNumber: engines.partNumber,
+          manufacturer: engines.manufacturer,
         }
       })
       .from(assetParts)
