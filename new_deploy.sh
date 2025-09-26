@@ -1,21 +1,19 @@
 #!/usr/bin/env bash
-# new_deploy.sh — Enhanced deployment script for MowerManager application (multi-schema version)
-# Based on deploy.sh with modifications to operate across ALL non-system schemas (excludes pg_catalog & information_schema)
-# Changes from original deploy.sh:
-#  - Database emptiness, table existence, and existing tables queries now consider ALL non-system schemas
-#  - Usage/documentation text updated to reflect multi-schema support
-#  - Idempotency / detection logs updated
-#  - check_table_exists no longer restricted to 'public' schema
-#  - get_existing_tables returns distinct table names across all non-system schemas
-#  - is_database_empty counts all tables across non-system schemas
-#  - Step migration messaging updated
-#
-# NOTE: All other logic remains identical to original deploy.sh unless required for the schema scope change.
+# new_deploy.sh — Enhanced deployment script for MowerManager (multi-schema aware, restored resiliency)
+# Enhancements applied:
+# - Multi-schema awareness (all non-system schemas)
+# - Restored comprehensive migration validation (files + history + orphan detection)
+# - Implemented restoration from migrations-old
+# - Schema-qualified table enumeration (schema.table_name)
+# - Robust SCRIPT_DIR resolution fixed
+# - Expanded mismatch diagnostics
+# - Optional FAST_VALIDATION mode (export FAST_VALIDATION=true to skip orphan scan)
+# - Improved idempotency handling & safer pattern matching
 
 set -euo pipefail
 
 # Script configuration
-SCRIPT_DIR="$(cd ""$(dirname ""); pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="${SCRIPT_DIR}/deploy.log"
 MIGRATION_DIR="${SCRIPT_DIR}/migrations"
 TEMP_MIGRATION_FILE=""
@@ -26,12 +24,15 @@ AUTO_CONFIRM=false
 VERBOSE=false
 SKIP_GIT_PULL=false
 
-# Colors for output
+# Optional performance flag (skip orphan scan if true)
+FAST_VALIDATION="${FAST_VALIDATION:-false}"
+
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # Exit codes
 EXIT_SUCCESS=0
@@ -47,59 +48,25 @@ usage() {
     cat << EOF
 Usage: $0 [OPTIONS]
 
-Deploy MowerManager application with enhanced features and automated migration checks.
+Deploy MowerManager with multi-schema database migration automation.
 
 OPTIONS:
-    --dry-run           Simulate deployment without making changes
-    --auto-confirm      Skip confirmation prompts (for automation)
-    --verbose           Enable verbose logging
-    --skip-git-pull     Skip git pull step
-    --help              Show this help message
+  --dry-run           Simulate deployment
+  --auto-confirm      Skip interactive confirmations
+  --verbose           Verbose logging
+  --skip-git-pull     Skip git pull
+  --help              Show this help
 
 FEATURES:
-    • Dry-run capability with user confirmation
-    • Empty database detection and initialization
-    • Smart migration handling for empty vs non-empty databases
-    • Schema-aware migrations with automatic detection
-    • Automated migration file validation and gap detection
-    • Database migration history validation against actual database state
-    • Automatic recovery of missing migration files from backups
-    • Idempotent database migrations (safe to run multiple times)
-    • Automatic handling of existing database tables and objects
-    • CREATE TABLE IF NOT EXISTS conversion for safety
-    • Enhanced error messaging with manual intervention guidance
-    • Comprehensive logging for troubleshooting migration issues
-    • Fallback strategies when migration automation fails
-
-DATABASE INITIALIZATION:
-    • Detects if target database is empty (no tables in ANY non-system schema)
-    • For empty databases: runs 'npm run db:push' to initialize schema
-    • For non-empty databases: uses standard migration workflow
-    • Works with PostgreSQL connection strings via psql/node-postgres
-
-AUTOMATED MIGRATION CHECKS:
-    • Detects missing migration files and gaps in migration sequence
-    • Validates migration journal against actual database state
-    • Attempts to restore missing files from migrations-old directory
-    • Provides clear guidance when manual intervention is required
-    • Supports fresh database setup and existing database validation
-
-FALLBACK STRATEGIES:
-    • Uses db:push when regular migrations fail
-    • Provides detailed error messages for troubleshooting
-    • Guides developers through manual recovery steps
-    • Ensures deployment can continue even with migration issues
-    • Dynamic user prompts for safe deployment
-    • Robust error handling and rollback support
-    • Detailed logging and progress indicators
-    • Database connectivity verification before/after migrations
-
-IDEMPOTENCY SAFETY:
-    • Checks existing database tables before creating new ones
-    • Converts migration files to use IF NOT EXISTS statements
-    • Skips operations that would fail due to existing objects
-    • Continues deployment even when migrations are skipped
-    • Provides comprehensive logging of all skipped operations
+  • Multi-schema awareness (all non-system schemas)
+  • Empty DB detection vs existing schema
+  • Migration gap / missing file / orphan detection
+  • Automatic attempt to restore missing migrations (migrations-old/)
+  • Idempotent migration transformation (CREATE ... IF NOT EXISTS)
+  • Schema change detection + hooks for new tables/columns
+  • Fallback strategies (db:push) on recoverable failures
+  • Post-migration validation and diagnostics
+  • FAST_VALIDATION mode (export FAST_VALIDATION=true) to skip orphan scan
 
 EOF
 }
@@ -107,7 +74,8 @@ EOF
 log() {
     local level="$1"; shift
     local message="$*"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     case "$level" in
         INFO)    echo -e "${BLUE}[INFO]${NC} $message" ;;
         WARN)    echo -e "${YELLOW}[WARN]${NC} $message" ;;
@@ -118,22 +86,28 @@ log() {
 }
 
 show_progress() {
-    local step="$1"; local total="$2"; local description="$3"
+    local step="$1" total="$2" description="$3"
     local percentage=$((step * 100 / total))
     printf "\r[%3d%%] %s" "$percentage" "$description"
     if [[ $step -eq $total ]]; then echo; fi
 }
 
 confirm() {
-    local prompt="$1"; local timeout="${2:-30}"; local default="${3:-n}"
+    local prompt="$1" timeout="${2:-30}" default="${3:-n}"
     if [[ "$AUTO_CONFIRM" == "true" ]]; then
-        log INFO "Auto-confirming: $prompt"; return 0; fi
+        log INFO "Auto-confirming: $prompt"
+        return 0
+    fi
     local response
-    echo -n "$prompt [y/N] (timeout: ${timeout}s): "
+    echo -n "$prompt [y/N] (timeout ${timeout}s): "
     if read -t "$timeout" -r response; then
-        case "$response" in [Yy]|[Yy][Ee][Ss]) return 0 ;; *) return 1 ;; esac
+        case "$response" in
+            [Yy]|[Yy][Ee][Ss]) return 0 ;;
+            *) return 1 ;;
+        esac
     else
-        echo; log WARN "Confirmation timed out, using default: $default"
+        echo
+        log WARN "Confirmation timed out, default: $default"
         [[ "$default" == "y" ]] && return 0 || return 1
     fi
 }
@@ -141,21 +115,21 @@ confirm() {
 cleanup() {
     local exit_code=$?
     if [[ -n "$TEMP_MIGRATION_FILE" && -f "$TEMP_MIGRATION_FILE" ]]; then
-        log INFO "Cleaning up temporary migration file: $TEMP_MIGRATION_FILE"
+        log INFO "Cleaning temporary migration file: $TEMP_MIGRATION_FILE"
         rm -f "$TEMP_MIGRATION_FILE"
     fi
     if [[ $exit_code -ne 0 ]]; then
-        log ERROR "Deployment failed with exit code $exit_code"
-        log INFO "Check the log file: $LOG_FILE"
+        log ERROR "Deployment failed (exit $exit_code)"
+        log INFO "See log file: $LOG_FILE"
     fi
     exit $exit_code
 }
 trap cleanup EXIT
-trap 'log ERROR "Script interrupted by user"; exit $EXIT_USER_ABORT' INT TERM
+trap 'log ERROR "Interrupted by user"; exit $EXIT_USER_ABORT' INT TERM
 
 parse_args() {
     while [[ $# -gt 0 ]]; do
-        case $1 in
+        case "$1" in
             --dry-run) DRY_RUN=true; shift ;;
             --auto-confirm) AUTO_CONFIRM=true; shift ;;
             --verbose) VERBOSE=true; shift ;;
@@ -166,364 +140,731 @@ parse_args() {
     done
 }
 
-# =============================
-# MULTI-SCHEMA AWARE DB HELPERS
-# =============================
-# These replace the public-only versions in original deploy.sh
-
-check_table_exists() {
-    local table_name="$1"
+execute() {
+    local description="$1"; shift
+    local cmd="$*"
     if [[ "$DRY_RUN" == "true" ]]; then
-        log INFO "[DRY-RUN] Would check if table '$table_name' exists (any non-system schema)"; return 1; fi
+        log INFO "[DRY-RUN] $description -> $cmd"
+        return 0
+    fi
+    log INFO "Executing: $description"
+    [[ "$VERBOSE" == "true" ]] && log INFO "Command: $cmd"
+    eval "$cmd"
+}
 
-    local temp_check_script="/tmp/check_table_${table_name}.js"
-    cat > "$temp_check_script" << 'EOF'
+# --------------------------
+# Multi-schema aware helpers
+# --------------------------
+
+# Accepts table or schema.table. If schema omitted, searches all non-system.
+check_table_exists() {
+    local identifier="$1"
+    local schema="" table=""
+    if [[ "$identifier" == *.* ]]; then
+        schema="${identifier%%.*}"
+        table="${identifier##*.}"
+    else
+        table="$identifier"
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log INFO "[DRY-RUN] Would check existence of table '$identifier'"
+        return 1
+    fi
+
+    local temp_js="/tmp/check_table_$$.js"
+    cat > "$temp_js" << 'EOF'
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { Pool } = require('pg');
 
-const tableName = process.argv[2];
+const raw = process.argv[2];
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) { console.log('false'); process.exit(0); }
-const pool = new Pool({ connectionString: databaseUrl });
-async function checkTable() {
-  try {
-    const query = `SELECT COUNT(*) AS found FROM information_schema.tables
-                   WHERE table_type = 'BASE TABLE'
-                   AND table_schema NOT IN ('pg_catalog','information_schema')
-                   AND table_name = $1;`;
-    const result = await pool.query(query, [tableName]);
-    console.log(result.rows[0].found > 0 ? 'true' : 'false');
-  } catch { console.log('false'); } finally { await pool.end(); }
+
+let schema=null, table=null;
+if (raw.includes('.')) {
+  const parts = raw.split('.');
+  schema = parts[0];
+  table = parts[1];
+} else {
+  table = raw;
 }
-checkTable();
+
+const pool = new Pool({ connectionString: databaseUrl });
+
+(async () => {
+  try {
+    let query, params;
+    if (schema) {
+      query = `SELECT COUNT(*) AS found
+               FROM information_schema.tables
+               WHERE table_type='BASE TABLE'
+                 AND table_schema NOT IN ('pg_catalog','information_schema')
+                 AND table_schema=$1 AND table_name=$2`;
+      params = [schema, table];
+    } else {
+      query = `SELECT COUNT(*) AS found
+               FROM information_schema.tables
+               WHERE table_type='BASE TABLE'
+                 AND table_schema NOT IN ('pg_catalog','information_schema')
+                 AND table_name=$1`;
+      params = [table];
+    }
+    const r = await pool.query(query, params);
+    console.log(Number(r.rows[0].found) > 0 ? 'true' : 'false');
+  } catch {
+    console.log('false');
+  } finally {
+    await pool.end();
+  }
+})();
 EOF
+
     local result
-    result=$(node "$temp_check_script" "$table_name" 2>/dev/null || echo "false")
-    rm -f "$temp_check_script"
+    result=$(node "$temp_js" "$identifier" 2>/dev/null || echo "false")
+    rm -f "$temp_js"
     if [[ "$result" == "true" ]]; then
-        log INFO "Table '$table_name' exists (non-system schema)"; return 0
+        log INFO "Table exists: $identifier"
+        return 0
     else
-        log INFO "Table '$table_name' does NOT exist (non-system schema scope)"; return 1
+        log INFO "Table missing: $identifier"
+        return 1
     fi
 }
 
+# Outputs schema.table_name per line
 get_existing_tables() {
-    if [[ "$DRY_RUN" == "true" ]]; then log INFO "[DRY-RUN] Would list existing tables (non-system schemas)"; echo ""; return 0; fi
-    local temp_list_script="/tmp/list_tables.js"
-    cat > "$temp_list_script" << 'EOF'
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log INFO "[DRY-RUN] Would enumerate existing tables"
+        echo ""
+        return 0
+    fi
+    local temp_js="/tmp/list_tables_$$.js"
+    cat > "$temp_js" << 'EOF'
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { Pool } = require('pg');
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) process.exit(0);
-const pool = new Pool({ connectionString: databaseUrl });
-async function listTables() {
+const db = process.env.DATABASE_URL;
+if (!db) process.exit(0);
+const pool = new Pool({ connectionString: db });
+(async () => {
   try {
-    const query = `SELECT DISTINCT table_name FROM information_schema.tables
-                   WHERE table_type='BASE TABLE'
-                   AND table_schema NOT IN ('pg_catalog','information_schema')
-                   ORDER BY table_name;`;
-    const result = await pool.query(query);
-    result.rows.forEach(r => console.log(r.table_name));
-  } catch {/* silent */} finally { await pool.end(); }
-}
-listTables();
+    const q = `SELECT table_schema, table_name
+               FROM information_schema.tables
+               WHERE table_type='BASE TABLE'
+                 AND table_schema NOT IN ('pg_catalog','information_schema')
+               ORDER BY table_schema, table_name`;
+    const r = await pool.query(q);
+    r.rows.forEach(row => console.log(row.table_schema + '.' + row.table_name));
+  } catch {
+  } finally {
+    await pool.end();
+  }
+})();
 EOF
     local tables
-    tables=$(node "$temp_list_script" 2>/dev/null || echo "")
-    rm -f "$temp_list_script"
+    tables=$(node "$temp_js" 2>/dev/null || echo "")
+    rm -f "$temp_js"
     echo "$tables"
 }
 
 is_database_empty() {
-    if [[ "$DRY_RUN" == "true" ]]; then log INFO "[DRY-RUN] Would check database empty (non-system schemas)"; return 1; fi
-    log INFO "Checking if database is empty (no tables in ANY non-system schema)..."
-    local temp_count_script="/tmp/count_tables.js"
-    cat > "$temp_count_script" << 'EOF'
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log INFO "[DRY-RUN] Would check emptiness (multi-schema)"
+        return 1
+    fi
+    local temp_js="/tmp/count_tables_$$.js"
+    cat > "$temp_js" << 'EOF'
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { Pool } = require('pg');
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) { console.log('0'); process.exit(0); }
-const pool = new Pool({ connectionString: databaseUrl });
-async function countTables() {
+const db = process.env.DATABASE_URL;
+if (!db) { console.log('0'); process.exit(0); }
+const pool = new Pool({ connectionString: db });
+(async () => {
   try {
-    const query = `SELECT COUNT(*) AS cnt FROM information_schema.tables
-                   WHERE table_type='BASE TABLE'
-                   AND table_schema NOT IN ('pg_catalog','information_schema');`;
-    const result = await pool.query(query);
-    console.log(result.rows[0].cnt);
-  } catch { console.log('0'); } finally { await pool.end(); }
-}
-countTables();
+    const q = `SELECT COUNT(*) AS c
+               FROM information_schema.tables
+               WHERE table_type='BASE TABLE'
+                 AND table_schema NOT IN ('pg_catalog','information_schema')`;
+    const r = await pool.query(q);
+    console.log(r.rows[0].c);
+  } catch {
+    console.log('0');
+  } finally {
+    await pool.end();
+  }
+})();
 EOF
-    local table_count
-    table_count=$(node "$temp_count_script" 2>/dev/null || echo "0")
-    rm -f "$temp_count_script"
-    log INFO "Found $table_count tables across non-system schemas"
-    if [[ "$table_count" == "0" ]]; then
-        log INFO "Database is empty (multi-schema check)"; return 0
-    else
-        log INFO "Database is NOT empty (multi-schema check)"; return 1
+    local count
+    count=$(node "$temp_js" 2>/dev/null || echo "0")
+    rm -f "$temp_js"
+    log INFO "Detected $count existing base tables (non-system schemas)"
+    if [[ "$count" == "0" ]]; then
+        return 0
     fi
+    return 1
 }
 
-# --------------
-# ORIGINAL LOGIC (unaltered except where referencing helpers or wording)
-# --------------
-
+# ----------------------
+# Idempotency adjustment
+# ----------------------
 make_migration_idempotent() {
     local migration_file="$1"
-    local backup_file="${migration_file}.backup"
-    [[ ! -f "$migration_file" ]] && { log WARN "Migration file not found: $migration_file"; return 1; }
-    log INFO "Making migration file idempotent: $(basename "$migration_file")"
-    cp "$migration_file" "$backup_file"
-    sed -i 's/^CREATE TABLE /CREATE TABLE IF NOT EXISTS /g' "$migration_file"
-    sed -i 's/^CREATE UNIQUE INDEX /CREATE UNIQUE INDEX IF NOT EXISTS /g' "$migration_file"
-    sed -i 's/^CREATE INDEX /CREATE INDEX IF NOT EXISTS /g' "$migration_file"
-    if ! diff -q "$backup_file" "$migration_file" >/dev/null; then
-        log INFO "Migration file modified for idempotency"
-        [[ "$VERBOSE" == "true" ]] && diff "$backup_file" "$migration_file" | head -20
-        log INFO "Original migration backed up to: $(basename "$backup_file")"
+    local backup="${migration_file}.backup"
+    [[ ! -f "$migration_file" ]] && { log WARN "Missing migration file: $migration_file"; return 1; }
+    cp "$migration_file" "$backup"
+
+    # Replace plain CREATE TABLE with IF NOT EXISTS (avoid double applying)
+    perl -0777 -pi -e 's/\bCREATE\s+TABLE\s+(?!IF\s+NOT\s+EXISTS)/CREATE TABLE IF NOT EXISTS /gi' "$migration_file"
+    perl -0777 -pi -e 's/\bCREATE\s+UNIQUE\s+INDEX\s+(?!IF\s+NOT\s+EXISTS)/CREATE UNIQUE INDEX IF NOT EXISTS /gi' "$migration_file"
+    perl -0777 -pi -e 's/\bCREATE\s+INDEX\s+(?!IF\s+NOT\s+EXISTS)/CREATE INDEX IF NOT EXISTS /gi' "$migration_file"
+
+    if ! diff -q "$backup" "$migration_file" >/dev/null; then
+        log INFO "Idempotency transformations applied to $(basename "$migration_file")"
+        [[ "$VERBOSE" == "true" ]] && diff -u "$backup" "$migration_file" | head -40
         return 0
     else
-        log INFO "No idempotency changes needed"
-        rm -f "$backup_file"; return 1
+        rm -f "$backup"
+        log INFO "No idempotent changes needed"
+        return 1
     fi
 }
 
+# ------------------------
+# Schema change detection
+# ------------------------
 detect_schema_changes() {
     local migration_file="$1"
-    local changes=(); local skipped_changes=()
     [[ ! -f "$migration_file" ]] && return 0
-    log INFO "Analyzing migration file for schema changes (idempotency/multi-schema)"
-    local existing_tables; existing_tables=$(get_existing_tables)
+
+    local existing
+    existing=$(get_existing_tables)
+
+    local changes=()
+    local skipped=()
+
     while IFS= read -r line; do
-        if [[ "$line" =~ ^CREATE\ TABLE\ (IF\ NOT\ EXISTS\ )?"?([^\"\ ]+)"? ]]; then
-            local table_name="${BASH_REMATCH[2]}"
-            if echo "$existing_tables" | grep -qx "$table_name"; then
-                skipped_changes+=("SKIP_TABLE:$table_name")
-                log WARN "Table '$table_name' exists (skip)"
+        # Match CREATE TABLE [IF NOT EXISTS] ["]?schema?."?table
+        if [[ "$line" =~ CREATE[[:space:]]+TABLE[[:space:]]+(IF[[:space:]]+NOT[[:space:]]+EXISTS[[:space:]]+)?(\"?[A-Za-z0-9_]+\"?\.)?\"?([A-Za-z0-9_]+)\"? ]]; then
+            local schema_part="${BASH_REMATCH[2]}"
+            local table_name="${BASH_REMATCH[3]}"
+            local schema_clean=""
+            if [[ -n "$schema_part" ]]; then
+                schema_clean=$(echo "$schema_part" | sed 's/[\".]//g')
             else
-                changes+=("NEW_TABLE:$table_name")
-                log INFO "Detected new table: $table_name"
+                schema_clean="public"  # default assumption if omitted
+            fi
+            local fq="${schema_clean}.${table_name}"
+            if echo "$existing" | grep -qx "$fq"; then
+                skipped+=("SKIP_TABLE:$fq")
+            else
+                changes+=("NEW_TABLE:$fq")
             fi
         fi
     done < "$migration_file"
+
     while IFS= read -r line; do
-        if [[ "$line" =~ ^ALTER\ TABLE\ "([^"]+)"\ ADD\ COLUMN\ "([^"]+)" ]]; then
-            local table_name="${BASH_REMATCH[1]}"; local column_name="${BASH_REMATCH[2]}"
-            changes+=("NEW_COLUMN:${table_name}.${column_name}")
-            log INFO "Detected new column: ${table_name}.${column_name}"
+        if [[ "$line" =~ ALTER[[:space:]]+TABLE[[:space:]]+\"?([A-Za-z0-9_]+)\"?\.\"?([A-Za-z0-9_]+)\"?[[:space:]]+ADD[[:space:]]+COLUMN[[:space:]]+\"?([A-Za-z0-9_]+)\"? ]]; then
+            local schema="${BASH_REMATCH[1]}"
+            local table="${BASH_REMATCH[2]}"
+            local column="${BASH_REMATCH[3]}"
+            changes+=("NEW_COLUMN:${schema}.${table}.${column}")
+        elif [[ "$line" =~ ALTER[[:space:]]+TABLE[[:space:]]+\"?([A-Za-z0-9_]+)\"?\.\"?([A-Za-z0-9_]+)\"?[[:space:]]+ALTER[[:space:]]+COLUMN ]]; then
+            local schema="${BASH_REMATCH[1]}"
+            local table="${BASH_REMATCH[2]}"
+            changes+=("ALTER_COLUMN:${schema}.${table}")
         fi
     done < "$migration_file"
-    while IFS= read -r line; do
-        if [[ "$line" =~ ^ALTER\ TABLE\ "([^"]+)"\ ALTER\ COLUMN ]]; then
-            changes+=("ALTER_COLUMN:${BASH_REMATCH[1]}")
-            log INFO "Detected column alteration in table: ${BASH_REMATCH[1]}"
-        fi
-    done < "$migration_file"
+
     printf '%s\n' "${changes[@]}" > "${SCRIPT_DIR}/.detected_changes"
-    printf '%s\n' "${skipped_changes[@]}" > "${SCRIPT_DIR}/.skipped_changes"
-    [[ ${#skipped_changes[@]} -gt 0 ]] && log INFO "Skipped ${#skipped_changes[@]} operations (already exist)"
-    if [[ ${#changes[@]} -gt 0 ]]; then log INFO "Detected ${#changes[@]} schema changes"; return 0; else log INFO "No new schema changes"; return 1; fi
+    printf '%s\n' "${skipped[@]}" > "${SCRIPT_DIR}/.skipped_changes"
+
+    [[ ${#skipped[@]} -gt 0 ]] && log INFO "Skipped ${#skipped[@]} existing table creations"
+    if [[ ${#changes[@]} -gt 0 ]]; then
+        log INFO "Detected ${#changes[@]} schema operations"
+        return 0
+    else
+        log INFO "No actionable schema changes detected"
+        return 1
+    fi
 }
 
 execute_schema_actions() {
-    local changes_file="${SCRIPT_DIR}/.detected_changes"; local skipped_file="${SCRIPT_DIR}/.skipped_changes"
-    if [[ -f "$skipped_file" ]]; then
-        while IFS= read -r change; do
-            case "$change" in SKIP_TABLE:*) log INFO "Skipped creation for ${change#SKIP_TABLE:}" ;; esac
-        done < "$skipped_file"; rm -f "$skipped_file"
+    local f_changes="${SCRIPT_DIR}/.detected_changes"
+    local f_skipped="${SCRIPT_DIR}/.skipped_changes"
+    if [[ -f "$f_skipped" ]]; then
+        while IFS= read -r line; do
+            case "$line" in
+                SKIP_TABLE:*) log INFO "Skipped existing table: ${line#SKIP_TABLE:}" ;;
+            esac
+        done < "$f_skipped"
+        rm -f "$f_skipped"
     fi
-    [[ ! -f "$changes_file" ]] && return 0
-    while IFS= read -r change; do
-        case "$change" in
-            NEW_TABLE:*) execute_new_table_actions "${change#NEW_TABLE:}" ;;
-            NEW_COLUMN:*) local info="${change#NEW_COLUMN:}"; execute_new_column_actions "${info%.*}" "${info##*.}" ;;
-            ALTER_COLUMN:*) execute_alter_column_actions "${change#ALTER_COLUMN:}" ;;
+    [[ ! -f "$f_changes" ]] && return 0
+    while IFS= read -r line; do
+        case "$line" in
+            NEW_TABLE:*) execute_new_table_actions "${line#NEW_TABLE:}" ;;
+            NEW_COLUMN:*) local data="${line#NEW_COLUMN:}"; execute_new_column_actions "${data%.*.*}" ;; # simplified hook
+            ALTER_COLUMN:*) execute_alter_column_actions "${line#ALTER_COLUMN:}" ;;
         esac
-    done < "$changes_file"
-    rm -f "$changes_file"
+    done < "$f_changes"
+    rm -f "$f_changes"
 }
 
-execute_new_table_actions() { local table_name="$1"; log INFO "(Hook) New table: $table_name"; }
-execute_new_column_actions() { local t="$1"; local c="$2"; log INFO "(Hook) New column: $t.$c"; }
-execute_alter_column_actions() { local t="$1"; log INFO "(Hook) Altered columns in: $t"; }
+execute_new_table_actions() {
+    local fq="$1"
+    log INFO "(Hook) New table created: $fq"
+}
 
-# (Remaining functions below are copied verbatim from original deploy.sh unless schema wording adjusted)
+execute_new_column_actions() {
+    # Parameter format schema.table.column (simplified for demonstration)
+    local composite="$1"
+    log INFO "(Hook) New column detected: $composite"
+}
 
-validate_migration_files() { # shortened identical logic for brevity of this commit representation
-    log INFO "Validating migration files and checking for gaps..."
-    local journal_file="${MIGRATION_DIR}/meta/_journal.json"
-    if [[ ! -f "$journal_file" ]]; then log WARN "Migration journal not found"; return 1; fi
-    local journal_content; journal_content=$(cat "$journal_file")
-    local missing_files=(); while IFS= read -r line; do
-        if [[ "$line" =~ \"tag\":\"([^"]+)\" ]]; then
-           local tag="${BASH_REMATCH[1]}"; local expected="${MIGRATION_DIR}/${tag}.sql"; [[ ! -f "$expected" ]] && { missing_files+=("$expected"); log WARN "Missing migration: $(basename "$expected")"; }
+execute_alter_column_actions() {
+    local target="$1"
+    log INFO "(Hook) Column alteration on: $target"
+}
+
+# --------------------------------------------
+# Migration file validation & restoration logic
+# --------------------------------------------
+validate_migration_files() {
+    log INFO "Validating migration files..."
+    local journal="${MIGRATION_DIR}/meta/_journal.json"
+    if [[ ! -f "$journal" ]]; then
+        log WARN "Migration journal missing: $(realpath -m "$journal")"
+        return 1
+    fi
+
+    local tags=()
+    local missing=()
+    local case_insensitive="false"
+
+    # Extract tags (simple JSON parsing)
+    while IFS= read -r line; do
+        if [[ "$line" =~ \"tag\":\"([^\"]+)\" ]]; then
+            tags+=("${BASH_REMATCH[1]}")
         fi
-    done <<< "$journal_content"
-    if [[ ${#missing_files[@]} -gt 0 ]]; then log ERROR "Missing migration files detected"; return 1; fi
-    log SUCCESS "Migration file validation passed"; return 0
+    done < "$journal"
+
+    if [[ ${#tags[@]} -eq 0 ]]; then
+        log WARN "No migration entries found in journal"
+        return 1
+    fi
+
+    local found_count=0
+    for t in "${tags[@]}"; do
+        local file="${MIGRATION_DIR}/${t}.sql"
+        if [[ -f "$file" ]]; then
+            ((found_count++))
+            [[ "$VERBOSE" == "true" ]] && log INFO "Found migration: $(basename "$file")"
+        else
+            log WARN "Missing migration file for tag: $t"
+            missing+=("$t")
+        fi
+    done
+
+    # Gap detection if tags start with numeric prefix (e.g. 0001_*)
+    local numeric_tags=()
+    for t in "${tags[@]}"; do
+        if [[ "$t" =~ ^([0-9]{4,})_ ]]; then
+            numeric_tags+=("${BASH_REMATCH[1]}")
+        fi
+    done
+    if [[ ${#numeric_tags[@]} -gt 1 ]]; then
+        IFS=$'\n' read -r -d '' -a sorted_nums < <(printf "%s\n" "${numeric_tags[@]}" | sort && printf '\0')
+        local expected=${sorted_nums[0]}
+        for n in "${sorted_nums[@]}"; do
+            if [[ "$n" != "$expected" ]]; then
+                log WARN "Gap in numeric migration sequence around $expected -> $n"
+                expected="$n"
+            fi
+            expected=$(printf "%0${#n}d" $((10#$n + 1)))
+        done
+    fi
+
+    # Orphan detection (unless FAST_VALIDATION)
+    local orphans=()
+    if [[ "$FAST_VALIDATION" != "true" ]]; then
+        while IFS= read -r sqlfile; do
+            local base
+            base=$(basename "$sqlfile" .sql)
+            local present="false"
+            for t in "${tags[@]}"; do
+                if [[ "$t" == "$base" ]]; then
+                    present="true"; break
+                fi
+            done
+            if [[ "$present" == "false" ]]; then
+                orphans+=("$base")
+            fi
+        done < <(find "$MIGRATION_DIR" -maxdepth 1 -type f -name "*.sql" -not -path "*/meta/*" | sort)
+    else
+        log INFO "FAST_VALIDATION enabled: skipping orphan scan"
+    fi
+
+    log INFO "Migration journal entries: ${#tags[@]}"
+    log INFO "Migration files found: $found_count"
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        log ERROR "Missing files: ${missing[*]}"
+        return 1
+    fi
+
+    if [[ ${#orphans[@]} -gt 0 ]]; then
+        log WARN "Orphaned migration files not in journal: ${orphans[*]}"
+    fi
+
+    log SUCCESS "Migration file validation passed"
+    return 0
 }
 
+restore_missing_migrations() {
+    log INFO "Attempting restoration of missing migration files..."
+    local journal="${MIGRATION_DIR}/meta/_journal.json"
+    [[ ! -f "$journal" ]] && { log WARN "No journal for restoration"; return 1; }
+
+    local missing_tags=()
+    while IFS= read -r line; do
+        if [[ "$line" =~ \"tag\":\"([^\"]+)\" ]]; then
+            local tag="${BASH_REMATCH[1]}"
+            local file="${MIGRATION_DIR}/${tag}.sql"
+            [[ ! -f "$file" ]] && missing_tags+=("$tag")
+        fi
+    done < "$journal"
+
+    [[ ${#missing_tags[@]} -eq 0 ]] && { log INFO "No missing migrations to restore"; return 0; }
+
+    if [[ ! -d "${SCRIPT_DIR}/migrations-old" ]]; then
+        log WARN "No migrations-old directory for restoration"
+        return 1
+    fi
+
+    local restored=0
+    for tag in "${missing_tags[@]}"; do
+        local candidate
+        candidate=$(find "${SCRIPT_DIR}/migrations-old" -type f -name "${tag}.sql" | head -1 || true)
+        if [[ -n "$candidate" ]]; then
+            if [[ "$DRY_RUN" == "true" ]]; then
+                log INFO "[DRY-RUN] Would restore $tag.sql"
+            else
+                cp "$candidate" "${MIGRATION_DIR}/${tag}.sql"
+                log SUCCESS "Restored migration $tag.sql"
+            fi
+            ((restored++))
+        else
+            log WARN "No backup found for $tag.sql"
+        fi
+    done
+
+    if [[ $restored -gt 0 ]]; then
+        log INFO "Restored $restored migration(s)"
+        return 0
+    fi
+    return 1
+}
+
+# ----------------------------------
+# Migration history / DB consistency
+# ----------------------------------
 validate_migration_history() {
-    log INFO "Validating migration history against database state..."
-    if [[ "$DRY_RUN" == "true" ]]; then log INFO "[DRY-RUN] Would validate migration history"; return 0; fi
-    local temp_history_script="/tmp/check_migration_history.js"
-    cat > "$temp_history_script" << 'EOF'
+    log INFO "Validating migration history against database..."
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log INFO "[DRY-RUN] Skipping live migration history check"
+        return 0
+    fi
+
+    local temp_js="/tmp/history_validate_$$.js"
+    cat > "$temp_js" << 'EOF'
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { Pool } = require('pg');
 const fs = require('fs');
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) { console.log('{"error":"DATABASE_URL not set"}'); process.exit(0); }
-const pool = new Pool({ connectionString: databaseUrl });
-async function run() {
- try {
-  const tableExists = await pool.query(`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema') AND table_name='__drizzle_migrations');`);
-  if (!tableExists.rows[0].exists) { console.log('{"status":"no_migration_table"}'); return; }
-  const applied = await pool.query('SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY created_at;');
-  const journal = JSON.parse(fs.readFileSync('./migrations/meta/_journal.json','utf8'));
-  const appliedIds = new Set(applied.rows.map(r=>r.id));
-  const journalIds = new Set(journal.entries.map(e=>e.tag));
-  const mismatches=[];
-  for (const e of journal.entries) if(!appliedIds.has(e.tag)) mismatches.push({type:'not_applied',migration:e.tag});
-  for (const r of applied.rows) if(!journalIds.has(r.id)) mismatches.push({type:'not_in_journal',migration:r.id});
-  console.log(JSON.stringify({status:'success', applied_count:applied.rows.length, journal_count:journal.entries.length, mismatches}, null, 2));
- } catch (e){ console.log(JSON.stringify({error:e.message})); } finally { await pool.end(); }
-}
-run();
-EOF
-    local validation_result; validation_result=$(cd "$SCRIPT_DIR" && node "$temp_history_script" 2>/dev/null || echo '{}')
-    rm -f "$temp_history_script"
-    if grep -q '"status":"success"' <<< "$validation_result"; then
-        if grep -q '"mismatches": \[\s*\]' <<< "$validation_result"; then log SUCCESS "Migration history consistent"; return 0; else log WARN "Migration history mismatches"; return 1; fi
-    elif grep -q '"status":"no_migration_table"' <<< "$validation_result"; then log WARN "No migration tracking table (fresh DB)"; return 2; else log ERROR "Migration history validation failed"; return 1; fi
-}
 
-restore_missing_migrations() { log INFO "Attempting to restore missing migrations (not modified for multi-schema)"; return 1; }
+const db = process.env.DATABASE_URL;
+if (!db) { console.log(JSON.stringify({error:"DATABASE_URL not set"})); process.exit(0); }
+
+const pool = new Pool({ connectionString: db });
+
+(async () => {
+  const result = { status: 'unknown', mismatches: [] };
+  try {
+    const t = await pool.query(`SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema NOT IN ('pg_catalog','information_schema')
+          AND table_name='__drizzle_migrations'
+    ) AS exists;`);
+    if (!t.rows[0].exists) {
+      result.status = 'no_migration_table';
+      console.log(JSON.stringify(result)); 
+      return;
+    }
+    let journal=null;
+    try {
+      journal = JSON.parse(fs.readFileSync('./migrations/meta/_journal.json','utf8'));
+    } catch {
+      result.status = 'journal_missing';
+    }
+    const applied = await pool.query('SELECT id, hash, created_at FROM __drizzle_migrations ORDER BY created_at, id;');
+    result.applied = applied.rows;
+    if (journal && journal.entries) {
+      result.journal_count = journal.entries.length;
+      result.applied_count = applied.rows.length;
+      const journalMap = new Map(journal.entries.map(e => [e.tag, e.hash || null]));
+      const appliedSet = new Set(applied.rows.map(r => r.id));
+      // In journal but not applied
+      for (const e of journal.entries) {
+        if (!appliedSet.has(e.tag)) {
+          result.mismatches.push({ type: 'journal_only', id: e.tag });
+        }
+      }
+      // Applied but not in journal OR hash mismatch
+      for (const r of applied.rows) {
+        if (!journalMap.has(r.id)) {
+          result.mismatches.push({ type: 'db_only', id: r.id });
+        } else {
+            const jHash = journalMap.get(r.id);
+            if (jHash && r.hash && jHash !== r.hash) {
+              result.mismatches.push({ type: 'hash_mismatch', id: r.id });
+            }
+        }
+      }
+      result.status = result.mismatches.length === 0 ? 'success' : 'divergent';
+    } else {
+      result.status = result.status === 'journal_missing' ? 'journal_missing' : 'indeterminate';
+    }
+    console.log(JSON.stringify(result));
+  } catch (e) {
+    console.log(JSON.stringify({error: e.message}));
+  } finally {
+    await pool.end();
+  }
+})();
+EOF
+
+    local output
+    output=$( (cd "$SCRIPT_DIR" && node "$temp_js") 2>/dev/null || echo '{"error":"execution failed"}')
+    rm -f "$temp_js"
+
+    if grep -q '"error"' <<< "$output"; then
+        log WARN "Migration history validation error: $output"
+        return 1
+    fi
+    if grep -q '"status":"no_migration_table"' <<< "$output"; then
+        log WARN "No migration tracking table (fresh database likely)"
+        return 2
+    fi
+    if grep -q '"status":"journal_missing"' <<< "$output"; then
+        log WARN "Journal missing but migration table exists"
+        return 1
+    fi
+    if grep -q '"status":"success"' <<< "$output"; then
+        log SUCCESS "Migration history consistent"
+        return 0
+    fi
+    if grep -q '"status":"divergent"' <<< "$output"; then
+        log WARN "Migration history divergence detected"
+        # List mismatches succinctly
+        echo "$output" | sed -n 's/.*"mismatches":\[\(.*\)\].*/\1/p' >/dev/null || true
+        return 1
+    fi
+    log WARN "Indeterminate migration history state"
+    return 1
+}
 
 comprehensive_migration_check() {
-    log INFO "=== Starting Comprehensive Migration Check ==="
-    local validation_passed=true; local history_valid=true; local fresh_database=false
-    validate_migration_files || validation_passed=false
-    validate_migration_history; local hr=$?
-    case $hr in 0) ;; 1) history_valid=false ;; 2) fresh_database=true ;; esac
-    if [[ "$validation_passed" == "true" && "$history_valid" == "true" ]]; then log SUCCESS "=== All migration checks passed ==="; return 0
-    elif [[ "$fresh_database" == "true" ]]; then log INFO "=== Fresh database detected ==="; return 0
-    else log WARN "=== Migration issues detected; proceeding with safeguards ==="; return 1; fi
+    log INFO "=== Comprehensive Migration Check ==="
+    local files_ok=true
+    validate_migration_files || files_ok=false
+    if [[ "$files_ok" == "false" ]]; then
+        log WARN "File validation failed – attempting restoration"
+        if restore_missing_migrations; then
+            log INFO "Re-validating after restoration"
+            validate_migration_files || files_ok=false
+        fi
+    fi
+    local hist_status=0
+    validate_migration_history || hist_status=$?
+    if [[ "$files_ok" == "true" && $hist_status -eq 0 ]]; then
+        log SUCCESS "All migration checks passed"
+        return 0
+    fi
+    if [[ $hist_status -eq 2 ]]; then
+        log INFO "Fresh database scenario recognized"
+        return 0
+    fi
+    log WARN "Proceeding despite migration inconsistencies (safeguards will apply)"
+    return 1
 }
 
 generate_migration() {
-    log INFO "Checking for schema changes that require migration..."
-    local DIFF_OUTPUT; DIFF_OUTPUT=$(npx drizzle-kit diff 2>&1 || true)
-    if echo "$DIFF_OUTPUT" | grep -q "No changes detected"; then log INFO "No schema changes detected."; return 1; fi
-    log INFO "Schema changes detected, generating migration."; TEMP_MIGRATION_FILE=$(mktemp "${MIGRATION_DIR}/temp_migration_XXXXXX.sql")
-    if execute "Generate migration file" "npm run db:generate -- --name deployment_$(date +%Y%m%d_%H%M%S)"; then
-        local latest_migration=$(find "$MIGRATION_DIR" -name "*.sql" -not -path "*/meta/*" | grep -v temp | sort | tail -1)
-        if [[ -n "$latest_migration" && -f "$latest_migration" ]]; then
-            if [[ -s "$latest_migration" ]] && grep -Eq "CREATE|ALTER|DROP" "$latest_migration"; then
-                log INFO "Schema changes in: $(basename "$latest_migration")"
-                make_migration_idempotent "$latest_migration" || true
-                detect_schema_changes "$latest_migration" || true
-                return 0
-            else log INFO "Migration file has no actionable changes."; return 1; fi
-        else log INFO "No new migration file generated - schema up to date"; return 1; fi
-    else log ERROR "Failed to generate migration"; return 1; fi
+    log INFO "Checking for pending schema changes (drizzle diff)"
+    local diff_output
+    diff_output=$(npx drizzle-kit diff 2>&1 || true)
+    if grep -qi "No changes detected" <<< "$diff_output"; then
+        log INFO "No pending schema changes"
+        return 1
+    fi
+    log INFO "Schema changes detected – generating migration"
+    TEMP_MIGRATION_FILE=$(mktemp "${MIGRATION_DIR}/_temp_migration_XXXXXX.sql")
+    if ! execute "Generate migration" "npm run db:generate -- --name deployment_$(date +%Y%m%d_%H%M%S)"; then
+        log ERROR "Migration generation failed"
+        return 1
+    fi
+    local latest
+    latest=$(find "$MIGRATION_DIR" -maxdepth 1 -type f -name "*.sql" -not -path "*/meta/*" | sort | tail -1 || true)
+    if [[ -z "$latest" ]]; then
+        log WARN "No migration file produced"
+        return 1
+    fi
+    if grep -Eq '\b(CREATE|ALTER|DROP)\b' "$latest"; then
+        make_migration_idempotent "$latest" || true
+        detect_schema_changes "$latest" || true
+        return 0
+    else
+        log INFO "Generated migration contains no actionable DDL"
+        return 1
+    fi
 }
 
 apply_migrations() {
-    log INFO "Applying database migrations (multi-schema aware)..."
-    if [[ "$DRY_RUN" == "false" ]]; then
-        log INFO "Verifying database connectivity before migration"
-        local existing_tables; existing_tables=$(get_existing_tables)
-        if [[ -n "$existing_tables" ]]; then log INFO "Connectivity OK. Tables detected: $(echo "$existing_tables" | wc -l)"; else log WARN "No tables found or DB inaccessible"; fi
+    log INFO "Applying migrations"
+    if execute "Run drizzle migrations" "npm run db:migrate"; then
+        log SUCCESS "Migrations applied"
+        return 0
     fi
-    if execute "Apply database migrations" "npm run db:migrate"; then log SUCCESS "Database migrations applied"; return 0
-    else
-        log WARN "Migration command returned non-zero; verifying schema state..."
-        if [[ "$DRY_RUN" == "false" ]]; then
-            local post_tables; post_tables=$(get_existing_tables)
-            if [[ -n "$post_tables" ]]; then log INFO "Schema objects present; treating errors as idempotency warnings"; return 0
-            else log ERROR "Schema verification failed after migration attempt"; return 1; fi
-        else log ERROR "Failed migrations in dry-run"; return 1; fi
+    log WARN "Primary migration apply reported issues – verifying state"
+    local tables
+    tables=$(get_existing_tables)
+    if [[ -n "$tables" ]]; then
+        log INFO "Tables detected post-failure; assuming idempotent conflict and continuing"
+        return 0
     fi
+    log ERROR "No tables detected after migration failure – critical"
+    return 1
 }
 
+# -------------
+# Deployment steps
+# -------------
 step_git_pull() {
-    git config --global --add safe.directory /opt/mowerm8
-    local CURRENT_BRANCH; CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-    show_progress 1 7 "Pulling latest changes from $CURRENT_BRANCH branch..."
-    if [[ "$SKIP_GIT_PULL" == "true" ]]; then log INFO "Skipping git pull"; return 0; fi
-    execute "Pull latest changes from $CURRENT_BRANCH branch" "git pull origin $CURRENT_BRANCH" && { log SUCCESS "Git pull complete"; return 0; } || { log ERROR "Git pull failed"; return $EXIT_ERROR_GIT; }
+    git config --global --add safe.directory /opt/mowerm8 || true
+    local branch
+    branch=$(git rev-parse --abbrev-ref HEAD)
+    show_progress 1 7 "Pulling latest changes ($branch)"
+    [[ "$SKIP_GIT_PULL" == "true" ]] && { log INFO "Skipping git pull"; return 0; }
+    execute "Git pull" "git pull origin $branch" || return $EXIT_ERROR_GIT
 }
 
 step_install_deps() {
-    show_progress 2 7 "Installing dependencies..."
+    show_progress 2 7 "Installing dependencies"
     local run_updates="n"
-    if [[ "$AUTO_CONFIRM" == "true" ]]; then log INFO "Auto-confirming: Skip dependency update steps"; run_updates="n"; else read -p "Do you want to run dependency update steps? (y/N): " run_updates; fi
+    if [[ "$AUTO_CONFIRM" == "true" ]]; then
+        log INFO "Auto-confirm: skipping dependency updates"
+    else
+        read -r -p "Run dependency update steps? (y/N): " run_updates || true
+    fi
     if [[ "$run_updates" =~ ^[Yy]$ ]]; then
         execute "Update npm" "npm install -g npm@latest"
         execute "Update Browserslist DB" "npx update-browserslist-db@latest"
-        execute "Update all dependencies" "npm update"
-    else echo "Skipping dependency update steps."; fi
-    execute "Install dependencies" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install" && { log SUCCESS "Dependencies installed"; } || { log ERROR "Dependency install failed"; return $EXIT_ERROR_DEPS; }
+        execute "Update dependencies" "npm update"
+    else
+        log INFO "Skipping dependency update steps"
+    fi
+    execute "Install dependencies" "NODE_OPTIONS='--max-old-space-size=4096' npm install" || return $EXIT_ERROR_DEPS
 }
 
-step_build() { show_progress 3 7 "Building application..."; execute "Build application" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm run build" && { log SUCCESS "Build succeeded"; } || { log ERROR "Build failed"; return $EXIT_ERROR_BUILD; } }
+step_build() {
+    show_progress 3 7 "Building application"
+    execute "Build" "NODE_OPTIONS='--max-old-space-size=4096' npm run build" || return $EXIT_ERROR_BUILD
+}
 
 step_migration() {
-    show_progress 4 7 "Processing database schema changes..."; log INFO "Starting database schema processing (multi-schema aware)..."
+    show_progress 4 7 "Processing database schema"
     if is_database_empty; then
-        log INFO "Empty database detected (no tables in any non-system schema) - initializing schema with db:push"
-        if [[ "$DRY_RUN" == "false" ]]; then
-            if confirm "Initialize empty database schema?"; then
-                execute "Initialize database schema" "npm run db:push" && { log SUCCESS "Database initialized"; return 0; } || { log ERROR "Initialization failed"; return $EXIT_ERROR_MIGRATION; }
-            else log WARN "User declined initialization"; return $EXIT_USER_ABORT; fi
-        else log INFO "[DRY-RUN] Would initialize database schema (db:push)"; return 0; fi
-    else
-        log INFO "Non-empty database detected - proceeding with migration workflow"
-        comprehensive_migration_check || log WARN "Proceeding despite migration check warnings"
-        if generate_migration; then
-            log INFO "Applying detected schema changes"
-            if [[ "$DRY_RUN" == "false" ]]; then
-                if confirm "Apply detected schema changes?"; then
-                    if apply_migrations; then
-                        execute_schema_actions
-                        log SUCCESS "Schema updated successfully"
-                        validate_migration_history || log WARN "Post-migration history inconsistencies"
-                        return 0
-                    else
-                        log WARN "Migration issues - attempting fallback db:push"
-                        if execute "Fallback schema sync" "npm run db:push"; then log SUCCESS "Fallback schema sync succeeded"; return 0; else log ERROR "Fallback schema sync failed"; return $EXIT_ERROR_MIGRATION; fi
-                    fi
-                else log WARN "User declined to apply schema changes"; return $EXIT_USER_ABORT; fi
-            else log INFO "[DRY-RUN] Would apply migrations"; return 0; fi
-        else
-            log INFO "No schema changes; verifying schema with db:push"
-            execute "Schema verification (no-op push)" "npm run db:push" && { log SUCCESS "Schema verified"; validate_migration_history || true; return 0; } || { log ERROR "Schema verification failed"; return $EXIT_ERROR_MIGRATION; }
+        log INFO "Empty database detected – initializing via db:push"
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log INFO "[DRY-RUN] Would run: npm run db:push"
+            return 0
         fi
+        if confirm "Initialize schema on empty database?"; then
+            execute "Initialize schema" "npm run db:push" || return $EXIT_ERROR_MIGRATION
+            log SUCCESS "Schema initialized"
+            return 0
+        else
+            log WARN "User declined initialization"
+            return $EXIT_USER_ABORT
+        fi
+    fi
+
+    log INFO "Existing database detected – running comprehensive validation"
+    comprehensive_migration_check || log WARN "Continuing with fallback-safe path"
+
+    if generate_migration; then
+        log INFO "Generated migration – applying"
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log INFO "[DRY-RUN] Would apply migrations"
+            return 0
+        fi
+        if confirm "Apply detected schema changes?"; then
+            if apply_migrations; then
+                execute_schema_actions
+                log INFO "Post-apply validation"
+                validate_migration_history || log WARN "Post-migration mismatches"
+                return 0
+            else
+                log WARN "Migration apply issues – attempting fallback db:push"
+                if execute "Fallback db:push" "npm run db:push"; then
+                    log SUCCESS "Fallback succeeded"
+                    return 0
+                else
+                    log ERROR "Fallback path failed"
+                    return $EXIT_ERROR_MIGRATION
+                fi
+            fi
+        else
+            log WARN "User declined applying new migrations"
+            return $EXIT_USER_ABORT
+        fi
+    else
+        log INFO "No new migrations – performing verification (db:push no-op)"
+        execute "Schema verification" "npm run db:push" || return $EXIT_ERROR_MIGRATION
+        validate_migration_history || log WARN "Verification detected divergence"
+        return 0
     fi
 }
 
-step_restart_service() { show_progress 5 7 "Restarting mower-app service..."; execute "Restart mower-app service" "systemctl restart mower-app" && { log SUCCESS "Service restarted"; } || { log ERROR "Service restart failed"; return $EXIT_ERROR_SERVICE; } }
+step_restart_service() {
+    show_progress 5 7 "Restarting service"
+    execute "Restart mower-app" "systemctl restart mower-app" || return $EXIT_ERROR_SERVICE
+}
 
-step_clear_cache() { show_progress 6 7 "Clearing application cache..."; log INFO "Cache clearing step (add commands as needed)"; }
+step_clear_cache() {
+    show_progress 6 7 "Clearing cache"
+    log INFO "Cache clearing hook (add commands if needed)"
+}
 
 step_verify_deployment() {
-    show_progress 7 7 "Verifying deployment..."
+    show_progress 7 7 "Verifying deployment"
     if [[ "$DRY_RUN" == "false" ]]; then
-        execute "Check service status" "systemctl is-active mower-app" && log SUCCESS "Service active" || log WARN "Service not active"
+        if execute "Check service active" "systemctl is-active mower-app"; then
+            log SUCCESS "Service is active"
+        else
+            log WARN "Service not reported active"
+        fi
     fi
-    log SUCCESS "Deployment verification completed"
+    log SUCCESS "Verification step complete"
 }
 
 main_deploy() {
-    local start_time=$(date +%s)
-    log INFO "Starting MowerManager deployment"
-    log INFO "Dry run mode: $DRY_RUN"; log INFO "Auto confirm mode: $AUTO_CONFIRM"; log INFO "Log file: $LOG_FILE"
+    local start
+    start=$(date +%s)
+    log INFO "Starting deployment"
+    log INFO "Dry run: $DRY_RUN | Auto confirm: $AUTO_CONFIRM | FAST_VALIDATION: $FAST_VALIDATION"
     step_git_pull || exit $?
     step_install_deps || exit $?
     step_build || exit $?
@@ -531,21 +872,35 @@ main_deploy() {
     step_restart_service || exit $?
     step_clear_cache || exit $?
     step_verify_deployment || exit $?
-    local end_time=$(date +%s); local duration=$((end_time - start_time))
+    local end
+    end=$(date +%s)
+    local duration=$((end - start))
     echo
     if [[ "$DRY_RUN" == "true" ]]; then
         log SUCCESS "Dry run completed in ${duration}s"
-        if confirm "Dry run successful. Proceed with actual deployment?"; then
-            log INFO "Re-running in live mode"; DRY_RUN=false; main_deploy
-        else log INFO "Deployment cancelled after dry run"; fi
+        if confirm "Execute real deployment now?"; then
+            DRY_RUN=false
+            main_deploy
+        else
+            log INFO "Exiting after dry run"
+        fi
     else
         log SUCCESS "Deployment completed in ${duration}s"
     fi
 }
 
-mkdir -p "$(dirname "$LOG_FILE")"; echo "=== MowerManager Deployment Log ===" > "$LOG_FILE"
+# Initialize logging
+mkdir -p "$(dirname "$LOG_FILE")"
+echo "=== MowerManager Deployment Log ===" > "$LOG_FILE"
+
 parse_args "$@"
-[[ ! -f "package.json" ]] && { log ERROR "package.json not found"; exit $EXIT_ERROR_GENERAL; }
-[[ ! -d "$MIGRATION_DIR" ]] && { log ERROR "Migration directory not found: $MIGRATION_DIR"; exit $EXIT_ERROR_GENERAL; }
-if [[ "$DRY_RUN" == "true" ]]; then log INFO "=== DRY RUN MODE ==="; confirm "Proceed with dry run deployment simulation?" || { log INFO "Dry run cancelled"; exit $EXIT_SUCCESS; }; fi
+
+[[ ! -f "${SCRIPT_DIR}/package.json" ]] && { log ERROR "package.json not found in $SCRIPT_DIR"; exit $EXIT_ERROR_GENERAL; }
+[[ ! -d "$MIGRATION_DIR" ]] && { log ERROR "Migration directory missing: $MIGRATION_DIR"; exit $EXIT_ERROR_GENERAL; }
+
+if [[ "$DRY_RUN" == "true" ]]; then
+    log INFO "=== DRY RUN MODE ==="
+    confirm "Proceed with dry run?" || { log INFO "Dry run aborted"; exit $EXIT_SUCCESS; }
+fi
+
 main_deploy
