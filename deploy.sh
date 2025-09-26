@@ -4,6 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 LOG_FILE="${SCRIPT_DIR}/deploy.log"
 MIGRATION_DIR="${SCRIPT_DIR}/migrations"
 COUNT_SCRIPT="$SCRIPT_DIR/count_tables.js"
