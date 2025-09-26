@@ -287,35 +287,34 @@ step_git_pull() {
 step_install_deps() {
     show_progress 2 7 "Installing dependencies..."
 
-    # Clean node_modules if corrupted or missing vite
-    if [ -d node_modules ] && [ ! -f node_modules/.bin/vite ]; then
-        log WARN "node_modules seems corrupted or missing vite, cleaning up..."
-        rm -rf node_modules
+    # Diagnostics
+    echo "Current directory: $(pwd)"
+    echo "User: $(whoami)"
+    echo "Vite in package.json:"
+    grep vite package.json || echo "Vite NOT FOUND in package.json"
+    echo "Vite in package-lock.json:"
+    grep vite package-lock.json || echo "Vite NOT FOUND in package-lock.json"
+
+    # Clean up node_modules and lockfile if vite is missing
+    if [ ! -f node_modules/.bin/vite ]; then
+      echo "Cleaning up node_modules and package-lock.json for fresh install..."
+      rm -rf node_modules package-lock.json
     fi
 
-    if [ -f package-lock.json ]; then
-        if execute "Install dependencies (npm ci)" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm ci"; then
-            log SUCCESS "Dependencies installed successfully (npm ci)"
-            return 0
-        else
-            log WARN "npm ci failed, trying npm install..."
-            if execute "Install dependencies (npm install)" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
-                log SUCCESS "Dependencies installed successfully (npm install fallback)"
-                return 0
-            else
-                log ERROR "Failed to install dependencies"
-                return $EXIT_ERROR_DEPS
-            fi
-        fi
+    # Install dependencies
+    if execute "Install dependencies" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
+        log SUCCESS "Dependencies installed successfully"
     else
-        if execute "Install dependencies" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
-            log SUCCESS "Dependencies installed successfully"
-            return 0
-        else
-            log ERROR "Failed to install dependencies"
-            return $EXIT_ERROR_DEPS
-        fi
+        log ERROR "Failed to install dependencies"
+        return $EXIT_ERROR_DEPS
     fi
+
+    # Verify vite binary exists
+    if [ ! -f node_modules/.bin/vite ]; then
+      log ERROR "Vite binary missing after install! Check package.json and lockfile."
+      return $EXIT_ERROR_DEPS
+    fi
+    return 0
 }
 
 step_build() {
