@@ -3,14 +3,13 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
-NODE_OPTIONS="--max-old-space-size=4096" npm install
+APP_DIR="/opt/mowerm8"
+cd "$APP_DIR"
 
-LOG_FILE="${SCRIPT_DIR}/deploy.log"
-MIGRATION_DIR="${SCRIPT_DIR}/migrations"
-COUNT_SCRIPT="$SCRIPT_DIR/count_tables.js"
-DEBUG_SCRIPT="$SCRIPT_DIR/debug_list_tables.js"
+LOG_FILE="${APP_DIR}/deploy.log"
+MIGRATION_DIR="${APP_DIR}/migrations"
+COUNT_SCRIPT="$APP_DIR/count_tables.js"
+DEBUG_SCRIPT="$APP_DIR/debug_list_tables.js"
 
 DRY_RUN=false
 AUTO_CONFIRM=false
@@ -158,9 +157,9 @@ execute() {
 }
 
 # ---- Load .env file if present ----
-if [ -f "${SCRIPT_DIR}/.env" ]; then
+if [ -f "${APP_DIR}/.env" ]; then
     set -a
-    source "${SCRIPT_DIR}/.env"
+    source "${APP_DIR}/.env"
     set +a
 fi
 
@@ -268,7 +267,7 @@ is_database_empty() {
 }
 
 step_git_pull() {
-    git config --global --add safe.directory /opt/mowerm8
+    git config --global --add safe.directory "$APP_DIR"
     local CURRENT_BRANCH
     CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
     show_progress 1 7 "Pulling latest changes from $CURRENT_BRANCH branch..."
@@ -287,26 +286,35 @@ step_git_pull() {
 
 step_install_deps() {
     show_progress 2 7 "Installing dependencies..."
-    local run_updates="n"
-    if [[ "$AUTO_CONFIRM" == "true" ]]; then
-        log INFO "Auto-confirming: Skip dependency update steps"
-        run_updates="n"
-    else
-        read -p "Do you want to run dependency update steps? (y/N): " run_updates
+
+    # Clean node_modules if corrupted or missing vite
+    if [ -d node_modules ] && [ ! -f node_modules/.bin/vite ]; then
+        log WARN "node_modules seems corrupted or missing vite, cleaning up..."
+        rm -rf node_modules
     fi
-    if [[ "$run_updates" =~ ^[Yy]$ ]]; then
-        execute "Update npm to latest version" "npm install -g npm@latest"
-        execute "Update Browserslist DB" "npx update-browserslist-db@latest"
-        execute "Update all dependencies" "npm update"
+
+    if [ -f package-lock.json ]; then
+        if execute "Install dependencies (npm ci)" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm ci"; then
+            log SUCCESS "Dependencies installed successfully (npm ci)"
+            return 0
+        else
+            log WARN "npm ci failed, trying npm install..."
+            if execute "Install dependencies (npm install)" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
+                log SUCCESS "Dependencies installed successfully (npm install fallback)"
+                return 0
+            else
+                log ERROR "Failed to install dependencies"
+                return $EXIT_ERROR_DEPS
+            fi
+        fi
     else
-        echo "Skipping dependency update steps."
-    fi
-    if execute "Install dependencies" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
-        log SUCCESS "Dependencies installed successfully"
-        return 0
-    else
-        log ERROR "Failed to install dependencies"
-        return $EXIT_ERROR_DEPS
+        if execute "Install dependencies" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
+            log SUCCESS "Dependencies installed successfully"
+            return 0
+        else
+            log ERROR "Failed to install dependencies"
+            return $EXIT_ERROR_DEPS
+        fi
     fi
 }
 
@@ -334,7 +342,7 @@ step_migration() {
         done
         if [[ "$DRY_RUN" == "false" ]]; then
             if confirm "Initialize empty database schema?"; then
-                if execute "Initialize database schema" "npm run db:push"; then
+                if execute "Initialize database schema" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm run db:push"; then
                     log SUCCESS "Database schema initialized successfully"
                     for file in "$MIGRATION_DIR"/*.sql.skipped; do
                         mv "$file" "${file%.skipped}"
@@ -367,13 +375,13 @@ step_migration() {
         fi
     else
         log INFO "Database is not empty - proceeding with migration workflow"
-        if execute "Generate migration files" "npm run db:generate"; then
+        if execute "Generate migration files" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm run db:generate"; then
             log SUCCESS "Migration files generated"
-            if execute "Apply migrations" "npm run db:migrate"; then
+            if execute "Apply migrations" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm run db:migrate"; then
                 log SUCCESS "Migrations applied successfully"
             else
                 log ERROR "Migration application failed, attempting fallback migration (db:push)..."
-                if execute "Fallback migration" "npm run db:push"; then
+                if execute "Fallback migration" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm run db:push"; then
                     log SUCCESS "Fallback migration succeeded"
                 else
                     log ERROR "Fallback migration also failed - manual intervention required"
