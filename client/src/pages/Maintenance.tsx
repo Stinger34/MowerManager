@@ -28,6 +28,20 @@ interface UpcomingMaintenanceItem {
   status: 'overdue' | 'due_soon' | 'upcoming';
 }
 
+interface UnifiedMaintenanceItem {
+  id: string;
+  mowerId: number;
+  mowerName: string;
+  mowerSerialNumber?: string;
+  type: 'in_maintenance' | 'maintenance_item';
+  serviceType?: string; // Only for maintenance_item type
+  lastDate: Date | null;
+  nextDue?: Date;
+  daysUntilDue?: number;
+  status: 'in_maintenance' | 'overdue' | 'due_soon' | 'upcoming';
+  priority: number; // For sorting: 1 = In Maintenance, 2 = Overdue, 3 = Upcoming
+}
+
 const priorityColors = {
   low: "text-green-600 bg-green-100 border-green-200",
   medium: "text-yellow-600 bg-yellow-100 border-yellow-200", 
@@ -120,15 +134,124 @@ export default function Maintenance() {
 
   const upcomingMaintenance = getUpcomingMaintenance();
 
-  // Filter maintenance mowers and upcoming maintenance based on search
-  const filteredMaintenanceMowers = maintenanceMowers.filter(mower =>
-    `${mower.make} ${mower.model}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    mower.serialNumber?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Create unified maintenance list
+  const getUnifiedMaintenanceList = (): UnifiedMaintenanceItem[] => {
+    const unified: UnifiedMaintenanceItem[] = [];
+    const processedMowerIds = new Set<number>();
 
-  const filteredUpcomingMaintenance = upcomingMaintenance.filter(item =>
+    // Add mowers currently in maintenance (priority 1 - always at top)
+    maintenanceMowers.forEach(mower => {
+      unified.push({
+        id: `in-maintenance-${mower.id}`,
+        mowerId: mower.id,
+        mowerName: `${mower.make} ${mower.model}`,
+        mowerSerialNumber: mower.serialNumber || undefined,
+        type: 'in_maintenance',
+        lastDate: mower.lastServiceDate ? new Date(mower.lastServiceDate) : null,
+        status: 'in_maintenance',
+        priority: 1
+      });
+      processedMowerIds.add(mower.id);
+    });
+
+    // Add mowers with overdue nextServiceDate (priority 2)
+    mowers.forEach(mower => {
+      if (processedMowerIds.has(mower.id) || mower.status !== 'active' || !mower.nextServiceDate) {
+        return;
+      }
+
+      const nextServiceDate = new Date(mower.nextServiceDate);
+      const today = new Date();
+      const daysUntilDue = Math.ceil((nextServiceDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (nextServiceDate < today) {
+        unified.push({
+          id: `overdue-${mower.id}`,
+          mowerId: mower.id,
+          mowerName: `${mower.make} ${mower.model}`,
+          mowerSerialNumber: mower.serialNumber || undefined,
+          type: 'maintenance_item',
+          serviceType: 'overdue service',
+          lastDate: mower.lastServiceDate ? new Date(mower.lastServiceDate) : null,
+          nextDue: nextServiceDate,
+          daysUntilDue: daysUntilDue,
+          status: 'overdue',
+          priority: 2
+        });
+        processedMowerIds.add(mower.id);
+      }
+    });
+
+    // Add upcoming maintenance items based on service intervals (priority 3)
+    upcomingMaintenance.forEach(item => {
+      // Skip if this mower is already processed
+      if (processedMowerIds.has(item.mowerId)) {
+        return;
+      }
+
+      unified.push({
+        id: `maintenance-${item.mowerId}-${item.type}`,
+        mowerId: item.mowerId,
+        mowerName: item.mowerName,
+        type: 'maintenance_item',
+        serviceType: item.type,
+        lastDate: item.lastDate,
+        nextDue: item.nextDue,
+        daysUntilDue: item.daysUntilDue,
+        status: item.status,
+        priority: item.status === 'overdue' ? 2 : 3 // Overdue = 2, Upcoming = 3
+      });
+    });
+
+    // Add mowers with upcoming nextServiceDate (priority 3)
+    mowers.forEach(mower => {
+      if (processedMowerIds.has(mower.id) || mower.status !== 'active' || !mower.nextServiceDate) {
+        return;
+      }
+
+      const nextServiceDate = new Date(mower.nextServiceDate);
+      const today = new Date();
+      const thirtyDaysFromNow = new Date(today.getTime() + (30 * 24 * 60 * 60 * 1000));
+      const daysUntilDue = Math.ceil((nextServiceDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (nextServiceDate >= today && nextServiceDate <= thirtyDaysFromNow) {
+        unified.push({
+          id: `upcoming-${mower.id}`,
+          mowerId: mower.id,
+          mowerName: `${mower.make} ${mower.model}`,
+          mowerSerialNumber: mower.serialNumber || undefined,
+          type: 'maintenance_item',
+          serviceType: 'scheduled service',
+          lastDate: mower.lastServiceDate ? new Date(mower.lastServiceDate) : null,
+          nextDue: nextServiceDate,
+          daysUntilDue: daysUntilDue,
+          status: daysUntilDue <= 7 ? 'due_soon' : 'upcoming',
+          priority: 3
+        });
+        processedMowerIds.add(mower.id);
+      }
+    });
+
+    // Sort by priority first, then by days until due (for same priority items)
+    return unified.sort((a, b) => {
+      if (a.priority !== b.priority) {
+        return a.priority - b.priority;
+      }
+      // For same priority, sort by daysUntilDue (overdue first, then soonest)
+      if (a.daysUntilDue !== undefined && b.daysUntilDue !== undefined) {
+        return a.daysUntilDue - b.daysUntilDue;
+      }
+      return 0;
+    });
+  };
+
+  const unifiedMaintenanceList = getUnifiedMaintenanceList();
+
+  // Filter unified maintenance list based on search
+  const filteredUnifiedMaintenanceList = unifiedMaintenanceList.filter(item =>
     item.mowerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.type.toLowerCase().includes(searchQuery.toLowerCase())
+    item.mowerSerialNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.serviceType?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleMowerClick = (mowerId: number) => {
@@ -228,143 +351,97 @@ export default function Maintenance() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* In Maintenance Section */}
+      <div className="grid grid-cols-1 gap-6">
+        {/* Unified Maintenance List */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wrench className="h-5 w-5" />
-              In Maintenance ({filteredMaintenanceMowers.length})
+              All Maintenance ({filteredUnifiedMaintenanceList.length})
             </CardTitle>
             <CardDescription>
-              Mowers currently undergoing maintenance
+              Mowers in maintenance, overdue services, and upcoming maintenance
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {filteredMaintenanceMowers.length === 0 ? (
+            {filteredUnifiedMaintenanceList.length === 0 ? (
               <div className="text-center py-8 text-text-muted">
                 <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No mowers in maintenance</p>
-                <p className="text-sm">All mowers are currently active or retired</p>
+                <p>No maintenance items found</p>
+                <p className="text-sm">All mowers are up to date or try adjusting your search</p>
               </div>
             ) : (
-              filteredMaintenanceMowers.map((mower) => (
-                <Card key={mower.id} className="hover:shadow-md transition-shadow">
+              filteredUnifiedMaintenanceList.map((item) => (
+                <Card 
+                  key={item.id} 
+                  className={`hover:shadow-md transition-shadow ${
+                    item.status === 'in_maintenance' ? 'border-orange-200 bg-orange-50' : 
+                    item.status === 'overdue' ? 'border-red-200 bg-red-50' : 
+                    'hover:border-accent-teal'
+                  }`}
+                >
                   <CardContent className="pt-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-semibold text-lg text-text-primary">
-                            {mower.make} {mower.model}
-                          </h3>
-                          <Badge variant="outline" className="text-orange-600 bg-orange-100 border-orange-200">
-                            In Maintenance
-                          </Badge>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p className="text-text-muted">Serial Number</p>
-                            <p className="font-medium">{mower.serialNumber || 'N/A'}</p>
-                          </div>
-                          <div>
-                            <p className="text-text-muted">Last Service</p>
-                            <p className="font-medium">{mower.lastServiceDate ? new Date(mower.lastServiceDate).toLocaleDateString() : 'Never'}</p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 ml-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleMowerClick(mower.id)}
-                          className="flex items-center gap-1"
-                        >
-                          <Eye className="h-4 w-4" />
-                          View
-                        </Button>
-                        <Button
-                          onClick={() => handleScheduleService(mower.id)}
-                          className="bg-accent-teal text-white hover:bg-accent-teal/90 flex items-center gap-1"
-                          size="sm"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          Complete
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Upcoming Maintenance Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Upcoming Maintenance ({filteredUpcomingMaintenance.length})
-            </CardTitle>
-            <CardDescription>
-              Services scheduled for the next 12 months
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {filteredUpcomingMaintenance.length === 0 ? (
-              <div className="text-center py-8 text-text-muted">
-                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No upcoming maintenance</p>
-                <p className="text-sm">All maintenance is up to date</p>
-              </div>
-            ) : (
-              filteredUpcomingMaintenance.slice(0, 10).map((item, index) => (
-                <Card key={`${item.mowerId}-${item.type}-${index}`} className="hover:shadow-md transition-shadow">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-lg text-text-primary">
-                            {item.type}
+                            {item.mowerName}
                           </h3>
                           <Badge 
                             variant="outline" 
                             className={
+                              item.status === 'in_maintenance' ? 'text-orange-600 bg-orange-100 border-orange-200' : 
                               item.status === 'overdue' ? 'text-red-600 bg-red-100 border-red-200' : 
                               item.status === 'due_soon' ? 'text-yellow-600 bg-yellow-100 border-yellow-200' : 
                               'text-green-600 bg-green-100 border-green-200'
                             }
                           >
-                            {item.status === 'overdue' ? 'OVERDUE' : 
+                            {item.status === 'in_maintenance' ? 'IN MAINTENANCE' :
+                             item.status === 'overdue' ? 'OVERDUE' : 
                              item.status === 'due_soon' ? 'DUE SOON' : 
                              'SCHEDULED'}
                           </Badge>
+                          {item.serviceType && (
+                            <Badge variant="secondary" className="text-xs">
+                              {item.serviceType}
+                            </Badge>
+                          )}
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                           <div>
-                            <p className="text-text-muted">Mower</p>
-                            <p className="font-medium">{item.mowerName}</p>
+                            <p className="text-text-muted">Serial Number</p>
+                            <p className="font-medium">{item.mowerSerialNumber || 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="text-text-muted">Due Date</p>
-                            <div className="flex items-center gap-1">
-                              {item.status === 'overdue' && (
-                                <AlertTriangle className="h-4 w-4 text-red-500" />
+                            <p className="text-text-muted">Last Service</p>
+                            <p className="font-medium">{item.lastDate ? item.lastDate.toLocaleDateString() : 'Never'}</p>
+                          </div>
+                          {item.nextDue && item.daysUntilDue !== undefined && (
+                            <div>
+                              <p className="text-text-muted">
+                                {item.status === 'in_maintenance' ? 'Status' : 'Due Date'}
+                              </p>
+                              {item.status === 'in_maintenance' ? (
+                                <p className="font-medium text-orange-600">Currently in service</p>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  {item.status === 'overdue' && (
+                                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                                  )}
+                                  <span className={`font-medium ${
+                                    item.status === 'overdue' ? 'text-red-600' : 'text-text-primary'
+                                  }`}>
+                                    {item.nextDue.toLocaleDateString()} 
+                                    ({item.daysUntilDue <= 0 
+                                      ? `${Math.abs(item.daysUntilDue)} days overdue`
+                                      : `${item.daysUntilDue} days`
+                                    })
+                                  </span>
+                                </div>
                               )}
-                              <span className={`font-medium ${
-                                item.status === 'overdue' ? 'text-red-600' : 'text-text-primary'
-                              }`}>
-                                {item.nextDue.toLocaleDateString()} 
-                                ({item.daysUntilDue <= 0 
-                                  ? `${Math.abs(item.daysUntilDue)} days overdue`
-                                  : `${item.daysUntilDue} days`
-                                })
-                              </span>
                             </div>
-                          </div>
+                          )}
                         </div>
                       </div>
                       
@@ -376,15 +453,24 @@ export default function Maintenance() {
                           className="flex items-center gap-1"
                         >
                           <Eye className="h-4 w-4" />
-                          View Mower
+                          View
                         </Button>
                         <Button
                           onClick={() => handleScheduleService(item.mowerId)}
                           className="bg-accent-teal text-white hover:bg-accent-teal/90 flex items-center gap-1"
                           size="sm"
                         >
-                          <Calendar className="h-4 w-4" />
-                          Schedule
+                          {item.status === 'in_maintenance' ? (
+                            <>
+                              <CheckCircle className="h-4 w-4" />
+                              Complete
+                            </>
+                          ) : (
+                            <>
+                              <Calendar className="h-4 w-4" />
+                              Schedule
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>
