@@ -287,6 +287,10 @@ step_git_pull() {
 step_install_deps() {
     show_progress 2 7 "Installing dependencies..."
 
+    # Always fully clean before install (prevents lockfile and modules corruption)
+    echo "Cleaning up node_modules and package-lock.json for fresh install..."
+    rm -rf node_modules package-lock.json
+
     # Diagnostics
     echo "Current directory: $(pwd)"
     echo "User: $(whoami)"
@@ -294,12 +298,6 @@ step_install_deps() {
     grep vite package.json || echo "Vite NOT FOUND in package.json"
     echo "Vite in package-lock.json:"
     grep vite package-lock.json || echo "Vite NOT FOUND in package-lock.json"
-
-    # Clean up node_modules and lockfile if vite is missing
-    if [ ! -f node_modules/.bin/vite ]; then
-      echo "Cleaning up node_modules and package-lock.json for fresh install..."
-      rm -rf node_modules package-lock.json
-    fi
 
     # Install dependencies
     if execute "Install dependencies" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
@@ -309,7 +307,7 @@ step_install_deps() {
         return $EXIT_ERROR_DEPS
     fi
 
-    # Verify vite binary exists
+    # Check for vite binary
     if [ ! -f node_modules/.bin/vite ]; then
       log WARN "Vite binary missing after install! Attempting to install Vite directly..."
       if execute "Install Vite explicitly" "npm install --save-dev vite"; then
