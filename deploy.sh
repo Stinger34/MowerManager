@@ -311,8 +311,18 @@ step_install_deps() {
 
     # Verify vite binary exists
     if [ ! -f node_modules/.bin/vite ]; then
-      log ERROR "Vite binary missing after install! Check package.json and lockfile."
-      return $EXIT_ERROR_DEPS
+      log WARN "Vite binary missing after install! Attempting to install Vite directly..."
+      if execute "Install Vite explicitly" "npm install --save-dev vite"; then
+          log SUCCESS "Vite installed successfully after manual install"
+      else
+          log ERROR "Vite could not be installed. Check your package.json and lockfile."
+          return $EXIT_ERROR_DEPS
+      fi
+      # Check again
+      if [ ! -f node_modules/.bin/vite ]; then
+          log ERROR "Vite binary STILL missing after manual install!"
+          return $EXIT_ERROR_DEPS
+      fi
     fi
     return 0
 }
