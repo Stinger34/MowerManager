@@ -154,6 +154,13 @@ execute() {
     fi
 }
 
+# ---- Load .env file if present ----
+if [ -f "${SCRIPT_DIR}/.env" ]; then
+    set -a
+    source "${SCRIPT_DIR}/.env"
+    set +a
+fi
+
 # ---- ENVIRONMENT SANITY CHECKS ----
 env_sanity_checks() {
     # 1. Check DATABASE_URL
