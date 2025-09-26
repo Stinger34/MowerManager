@@ -6,25 +6,25 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Wrench, DollarSign, Hash, Building, FileText, AlertTriangle, Calendar, Paperclip } from "lucide-react";
 import { useLocation } from "wouter";
-import type { Component, Attachment } from "@shared/schema";
+import type { Engine, Attachment } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
 
-export default function ComponentDetails() {
-  const [, params] = useRoute("/catalog/components/:componentId");
+export default function EngineDetails() {
+  const [, params] = useRoute("/catalog/engines/:engineId");
   const [, setLocation] = useLocation();
-  const componentId = params?.componentId;
+  const engineId = params?.engineId;
 
-  // Fetch component data
-  const { data: component, isLoading, error } = useQuery<Component>({
-    queryKey: ['/api/components', componentId],
-    enabled: !!componentId,
+  // Fetch engine data
+  const { data: engine, isLoading, error } = useQuery<Engine>({
+    queryKey: ['/api/engines', engineId],
+    enabled: !!engineId,
   });
 
-  // Fetch component attachments
+  // Fetch engine attachments
   const { data: attachments = [], isLoading: isAttachmentsLoading } = useQuery<Omit<Attachment, 'fileData'>[]>({
-    queryKey: ['/api/components', componentId, 'attachments'],
-    enabled: !!componentId,
+    queryKey: ['/api/engines', engineId, 'attachments'],
+    enabled: !!engineId,
   });
 
   if (isLoading) {
@@ -46,7 +46,7 @@ export default function ComponentDetails() {
     );
   }
 
-  if (error || !component) {
+  if (error || !engine) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4 mb-6">
@@ -58,13 +58,13 @@ export default function ComponentDetails() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Catalog
           </Button>
-          <h1 className="text-2xl font-bold text-gray-900">Component Not Found</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Engine Not Found</h1>
         </div>
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-red-600">
               <AlertTriangle className="h-5 w-5" />
-              <p>The requested component could not be found.</p>
+              <p>The requested engine could not be found.</p>
             </div>
           </CardContent>
         </Card>
@@ -85,7 +85,7 @@ export default function ComponentDetails() {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Catalog
         </Button>
-        <h1 className="text-2xl font-bold text-gray-900">{component.name}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{engine.name}</h1>
       </div>
 
       <Tabs defaultValue="details" className="space-y-4">
@@ -108,49 +108,49 @@ export default function ComponentDetails() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Wrench className="h-5 w-5" />
-                  Component Information
+                  Engine Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {component.partNumber && (
+                {engine.partNumber && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Part Number</label>
                     <div className="flex items-center gap-2 mt-1">
                       <Hash className="h-4 w-4 text-gray-400" />
-                      <span className="font-mono text-sm">{component.partNumber}</span>
+                      <span className="font-mono text-sm">{engine.partNumber}</span>
                     </div>
                   </div>
                 )}
 
-                {component.manufacturer && (
+                {engine.manufacturer && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Manufacturer</label>
                     <div className="flex items-center gap-2 mt-1">
                       <Building className="h-4 w-4 text-gray-400" />
-                      <span>{component.manufacturer}</span>
+                      <span>{engine.manufacturer}</span>
                     </div>
                   </div>
                 )}
 
-                {component.model && (
+                {engine.model && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Model</label>
-                    <p className="text-sm text-gray-800 mt-1">{component.model}</p>
+                    <p className="text-sm text-gray-800 mt-1">{engine.model}</p>
                   </div>
                 )}
 
-                {component.serialNumber && (
+                {engine.serialNumber && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Serial Number</label>
-                    <p className="text-sm text-gray-800 mt-1 font-mono">{component.serialNumber}</p>
+                    <p className="text-sm text-gray-800 mt-1 font-mono">{engine.serialNumber}</p>
                   </div>
                 )}
 
                 <div>
                   <label className="text-sm font-medium text-gray-600">Status</label>
                   <div className="mt-1">
-                    <Badge variant={component.status === 'active' ? 'default' : 'secondary'} className="capitalize">
-                      {component.status}
+                    <Badge variant={engine.status === 'active' ? 'default' : 'secondary'} className="capitalize">
+                      {engine.status}
                     </Badge>
                   </div>
                 </div>
@@ -159,15 +159,15 @@ export default function ComponentDetails() {
                   <label className="text-sm font-medium text-gray-600">Condition</label>
                   <div className="mt-1">
                     <Badge variant="outline" className="capitalize">
-                      {component.condition}
+                      {engine.condition}
                     </Badge>
                   </div>
                 </div>
 
-                {component.description && (
+                {engine.description && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Description</label>
-                    <p className="text-sm text-gray-800 mt-1">{component.description}</p>
+                    <p className="text-sm text-gray-800 mt-1">{engine.description}</p>
                   </div>
                 )}
               </CardContent>
@@ -182,54 +182,54 @@ export default function ComponentDetails() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {component.cost && (
+                {engine.cost && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Cost</label>
                     <p className="text-lg font-semibold text-green-600 mt-1">
-                      ${parseFloat(component.cost).toFixed(2)}
+                      ${parseFloat(engine.cost).toFixed(2)}
                     </p>
                   </div>
                 )}
 
-                {component.installDate && (
+                {engine.installDate && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Install Date</label>
                     <div className="flex items-center gap-2 mt-1">
                       <Calendar className="h-4 w-4 text-gray-400" />
-                      <span>{new Date(component.installDate).toLocaleDateString()}</span>
+                      <span>{new Date(engine.installDate).toLocaleDateString()}</span>
                     </div>
                   </div>
                 )}
 
-                {component.warrantyExpires && (
+                {engine.warrantyExpires && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Warranty Expires</label>
                     <div className="flex items-center gap-2 mt-1">
                       <Calendar className="h-4 w-4 text-gray-400" />
-                      <span className={new Date(component.warrantyExpires) < new Date() ? 'text-red-600' : 'text-gray-800'}>
-                        {new Date(component.warrantyExpires).toLocaleDateString()}
+                      <span className={new Date(engine.warrantyExpires) < new Date() ? 'text-red-600' : 'text-gray-800'}>
+                        {new Date(engine.warrantyExpires).toLocaleDateString()}
                       </span>
-                      {new Date(component.warrantyExpires) < new Date() && (
+                      {new Date(engine.warrantyExpires) < new Date() && (
                         <Badge variant="destructive" className="ml-2">Expired</Badge>
                       )}
                     </div>
                   </div>
                 )}
 
-                {component.mowerId && (
+                {engine.mowerId && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Associated Mower</label>
                     <Button 
                       variant="link" 
                       className="p-0 h-auto text-blue-600 mt-1"
-                      onClick={() => setLocation(`/mowers/${component.mowerId}`)}
+                      onClick={() => setLocation(`/mowers/${engine.mowerId}`)}
                     >
                       View Mower Details
                     </Button>
                   </div>
                 )}
 
-                {!component.mowerId && (
+                {!engine.mowerId && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Component Type</label>
                     <p className="text-sm text-gray-800 mt-1">Global Component (not assigned to specific mower)</p>
@@ -240,7 +240,7 @@ export default function ComponentDetails() {
           </div>
 
           {/* Notes */}
-          {component.notes && (
+          {engine.notes && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -249,7 +249,7 @@ export default function ComponentDetails() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-800 whitespace-pre-wrap">{component.notes}</p>
+                <p className="text-gray-800 whitespace-pre-wrap">{engine.notes}</p>
               </CardContent>
             </Card>
           )}
@@ -264,13 +264,13 @@ export default function ComponentDetails() {
                 <div>
                   <label className="font-medium text-gray-600">Created</label>
                   <p className="text-gray-800 mt-1">
-                    {new Date(component.createdAt).toLocaleDateString()} at {new Date(component.createdAt).toLocaleTimeString()}
+                    {new Date(engine.createdAt).toLocaleDateString()} at {new Date(engine.createdAt).toLocaleTimeString()}
                   </p>
                 </div>
                 <div>
                   <label className="font-medium text-gray-600">Last Updated</label>
                   <p className="text-gray-800 mt-1">
-                    {new Date(component.updatedAt).toLocaleDateString()} at {new Date(component.updatedAt).toLocaleTimeString()}
+                    {new Date(engine.updatedAt).toLocaleDateString()} at {new Date(engine.updatedAt).toLocaleTimeString()}
                   </p>
                 </div>
               </div>
@@ -281,8 +281,8 @@ export default function ComponentDetails() {
         <TabsContent value="attachments">
           <GenericAttachmentGallery
             attachments={attachments}
-            entityId={componentId!}
-            entityType="components"
+            entityId={engineId!}
+            entityType="engines"
             isLoading={isAttachmentsLoading}
           />
         </TabsContent>

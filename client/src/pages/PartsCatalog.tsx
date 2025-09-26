@@ -10,9 +10,9 @@ import { Search, Plus, Package, Wrench, Edit, Trash2, AlertTriangle } from "luci
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import ComponentFormModal from "@/components/ComponentFormModal";
+import EngineFormModal from "@/components/EngineFormModal";
 import PartFormModal from "@/components/PartFormModal";
-import type { Part, Component } from "@shared/schema";
+import type { Part, Engine } from "@shared/schema";
 
 export default function PartsCatalog() {
   const [, setLocation] = useLocation();
@@ -22,22 +22,22 @@ export default function PartsCatalog() {
 
   // Modal states
   const [showPartModal, setShowPartModal] = useState(false);
-  const [showComponentModal, setShowComponentModal] = useState(false);
+  const [showEngineModal, setShowEngineModal] = useState(false);
   const [editingPart, setEditingPart] = useState<Part | null>(null);
-  const [editingComponent, setEditingComponent] = useState<Component | null>(null);
+  const [editingEngine, setEditingEngine] = useState<Engine | null>(null);
   const [showDeletePartDialog, setShowDeletePartDialog] = useState(false);
-  const [showDeleteComponentDialog, setShowDeleteComponentDialog] = useState(false);
+  const [showDeleteEngineDialog, setShowDeleteEngineDialog] = useState(false);
   const [partToDelete, setPartToDelete] = useState<Part | null>(null);
-  const [componentToDelete, setComponentToDelete] = useState<Component | null>(null);
+  const [engineToDelete, setEngineToDelete] = useState<Engine | null>(null);
 
   // Fetch all parts for inventory management
   const { data: parts = [], isLoading: isPartsLoading } = useQuery<Part[]>({
     queryKey: ['/api/parts'],
   });
 
-  // Fetch all components for management
-  const { data: allComponents = [], isLoading: isComponentsLoading } = useQuery<Component[]>({
-    queryKey: ['/api/components'],
+  // Fetch all engines for management
+  const { data: allEngines = [], isLoading: isEnginesLoading } = useQuery<Engine[]>({
+    queryKey: ['/api/engines'],
   });
 
   // Delete mutations
@@ -60,20 +60,20 @@ export default function PartsCatalog() {
     },
   });
 
-  const deleteComponentMutation = useMutation({
-    mutationFn: async (componentId: number) => {
-      await apiRequest('DELETE', `/api/components/${componentId}`);
+  const deleteEngineMutation = useMutation({
+    mutationFn: async (engineId: number) => {
+      await apiRequest('DELETE', `/api/engines/${engineId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/components'] });
-      toast({ title: "Success", description: "Component deleted successfully" });
-      setShowDeleteComponentDialog(false);
-      setComponentToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
+      toast({ title: "Success", description: "Engine deleted successfully" });
+      setShowDeleteEngineDialog(false);
+      setEngineToDelete(null);
     },
     onError: (error: Error) => {
       toast({ 
         title: "Error", 
-        description: error.message || "Failed to delete component", 
+        description: error.message || "Failed to delete engine", 
         variant: "destructive" 
       });
     },
@@ -112,42 +112,42 @@ export default function PartsCatalog() {
     setShowDeletePartDialog(true);
   };
 
-  const handleAddComponent = () => {
-    setEditingComponent(null);
-    setShowComponentModal(true);
+  const handleAddEngine = () => {
+    setEditingEngine(null);
+    setShowEngineModal(true);
   };
 
-  const handleEditComponent = (component: Component) => {
-    setEditingComponent(component);
-    setShowComponentModal(true);
+  const handleEditEngine = (engine: Engine) => {
+    setEditingEngine(engine);
+    setShowEngineModal(true);
   };
 
-  const handleDeleteComponent = (component: Component) => {
-    setComponentToDelete(component);
-    setShowDeleteComponentDialog(true);
+  const handleDeleteEngine = (engine: Engine) => {
+    setEngineToDelete(engine);
+    setShowDeleteEngineDialog(true);
   };
 
   const handleViewPartDetails = (partId: number) => {
     setLocation(`/catalog/parts/${partId}`);
   };
 
-  const handleViewComponentDetails = (componentId: number) => {
-    setLocation(`/catalog/components/${componentId}`);
+  const handleViewEngineDetails = (engineId: number) => {
+    setLocation(`/catalog/engines/${engineId}`);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Parts & Components Catalog</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Parts & Engines Catalog</h1>
           <p className="text-muted-foreground">
             Manage your inventory and component database
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleAddComponent}>
+          <Button variant="outline" onClick={handleAddEngine}>
             <Wrench className="h-4 w-4 mr-2" />
-            Add Component Type
+            Add Engine Type
           </Button>
           <Button onClick={handleAddPart}>
             <Plus className="h-4 w-4 mr-2" />
@@ -186,9 +186,9 @@ export default function PartsCatalog() {
             <Package className="h-4 w-4 mr-2" />
             Parts Inventory ({parts.length})
           </TabsTrigger>
-          <TabsTrigger value="components">
+          <TabsTrigger value="engines">
             <Wrench className="h-4 w-4 mr-2" />
-            Component Types ({allComponents.length})
+            Engine Types ({allEngines.length})
           </TabsTrigger>
         </TabsList>
 
@@ -315,9 +315,9 @@ export default function PartsCatalog() {
           )}
         </TabsContent>
 
-        <TabsContent value="components" className="space-y-4">
-          {/* Components Grid */}
-          {isComponentsLoading ? (
+        <TabsContent value="engines" className="space-y-4">
+          {/* Engines Grid */}
+          {isEnginesLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[...Array(6)].map((_, i) => (
                 <Card key={i} className="animate-pulse">
@@ -335,18 +335,18 @@ export default function PartsCatalog() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {allComponents.map((component) => (
-                <Card key={component.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardHeader onClick={() => handleViewComponentDetails(component.id)}>
+              {allEngines.map((engine) => (
+                <Card key={engine.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                  <CardHeader onClick={() => handleViewEngineDetails(engine.id)}>
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{component.name}</CardTitle>
+                      <CardTitle className="text-lg">{engine.name}</CardTitle>
                       <div className="flex items-center gap-1">
                         <Button 
                           variant="ghost" 
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleEditComponent(component);
+                            handleEditEngine(engine);
                           }}
                         >
                           <Edit className="h-4 w-4" />
@@ -356,7 +356,7 @@ export default function PartsCatalog() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteComponent(component);
+                            handleDeleteEngine(engine);
                           }}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -364,38 +364,38 @@ export default function PartsCatalog() {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent onClick={() => handleViewComponentDetails(component.id)}>
+                  <CardContent onClick={() => handleViewEngineDetails(engine.id)}>
                     <div className="space-y-2">
-                      {component.partNumber && (
+                      {engine.partNumber && (
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Part Number:</span>
-                          <span className="font-mono">{component.partNumber}</span>
+                          <span className="font-mono">{engine.partNumber}</span>
                         </div>
                       )}
-                      {component.manufacturer && (
+                      {engine.manufacturer && (
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Manufacturer:</span>
-                          <span>{component.manufacturer}</span>
+                          <span>{engine.manufacturer}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Status:</span>
-                        <Badge variant={component.status === 'active' ? 'default' : 'secondary'}>
-                          {component.status}
+                        <Badge variant={engine.status === 'active' ? 'default' : 'secondary'}>
+                          {engine.status}
                         </Badge>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Condition:</span>
-                        <Badge variant="outline">{component.condition}</Badge>
+                        <Badge variant="outline">{engine.condition}</Badge>
                       </div>
-                      {component.cost && (
+                      {engine.cost && (
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Cost:</span>
-                          <span className="font-medium">${component.cost}</span>
+                          <span className="font-medium">${engine.cost}</span>
                         </div>
                       )}
-                      {component.description && (
-                        <p className="text-sm text-muted-foreground mt-2">{component.description}</p>
+                      {engine.description && (
+                        <p className="text-sm text-muted-foreground mt-2">{engine.description}</p>
                       )}
                     </div>
                   </CardContent>
@@ -404,11 +404,11 @@ export default function PartsCatalog() {
             </div>
           )}
 
-          {allComponents.length === 0 && !isComponentsLoading && (
+          {allEngines.length === 0 && !isEnginesLoading && (
             <div className="text-center py-8 text-muted-foreground">
               <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No component types defined yet</p>
-              <p className="text-sm">Add component types to organize your mower components</p>
+              <p>No engine types defined yet</p>
+              <p className="text-sm">Add engine types to organize your mower engines</p>
             </div>
           )}
         </TabsContent>
@@ -427,17 +427,17 @@ export default function PartsCatalog() {
         }}
       />
 
-      {/* Component Form Modal */}
-      <ComponentFormModal
-        isOpen={showComponentModal}
+      {/* Engine Form Modal */}
+      <EngineFormModal
+        isOpen={showEngineModal}
         onClose={() => {
-          setShowComponentModal(false);
-          setEditingComponent(null);
+          setShowEngineModal(false);
+          setEditingEngine(null);
         }}
-        mowerId={null} // Global component type
-        component={editingComponent}
+        mowerId={null} // Global engine type
+        engine={editingEngine}
         onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
         }}
       />
 
@@ -468,28 +468,28 @@ export default function PartsCatalog() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete Component Confirmation Dialog */}
-      <AlertDialog open={showDeleteComponentDialog} onOpenChange={setShowDeleteComponentDialog}>
+      {/* Delete Engine Confirmation Dialog */}
+      <AlertDialog open={showDeleteEngineDialog} onOpenChange={setShowDeleteEngineDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Component</AlertDialogTitle>
+            <AlertDialogTitle>Delete Engine</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the component "{componentToDelete?.name}"? This action cannot be undone and will also remove any allocations of this component.
+              Are you sure you want to delete the engine "{engineToDelete?.name}"? This action cannot be undone and will also remove any allocations of this engine.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => {
-              setShowDeleteComponentDialog(false);
-              setComponentToDelete(null);
+              setShowDeleteEngineDialog(false);
+              setEngineToDelete(null);
             }}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => componentToDelete && deleteComponentMutation.mutate(componentToDelete.id)}
-              disabled={deleteComponentMutation.isPending}
+              onClick={() => engineToDelete && deleteEngineMutation.mutate(engineToDelete.id)}
+              disabled={deleteEngineMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteComponentMutation.isPending ? "Deleting..." : "Delete Component"}
+              {deleteEngineMutation.isPending ? "Deleting..." : "Delete Engine"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
