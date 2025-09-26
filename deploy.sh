@@ -298,6 +298,7 @@ step_install_deps() {
     echo "Vite in package-lock.json:"
     grep vite package-lock.json || echo "Vite NOT FOUND in package-lock.json"
 
+    # Use npm install -- NOT npm ci
     if execute "Install dependencies" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
         log SUCCESS "Dependencies installed successfully"
     else
