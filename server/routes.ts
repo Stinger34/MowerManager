@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
-import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertAttachmentSchema, insertComponentSchema, insertPartSchema, insertAssetPartSchema, insertNotificationSchema } from "@shared/schema";
+import { insertMowerSchema, insertTaskSchema, insertServiceRecordSchema, insertAttachmentSchema, insertEngineSchema, insertPartSchema, insertAssetPartSchema, insertNotificationSchema } from "@shared/schema";
 import { processPDF, getDocumentPageCount, generateTxtThumbnail } from "./pdfUtils";
 import { createBackup, validateBackupFile, restoreFromBackup } from "./backup";
 import { NotificationService } from "./notificationService";
