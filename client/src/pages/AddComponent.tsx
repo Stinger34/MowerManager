@@ -7,6 +7,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { InsertEngine } from "@shared/schema";
 
+// Type alias for backwards compatibility
+type InsertComponent = InsertEngine;
+
 export default function AddComponent() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();

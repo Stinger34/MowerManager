@@ -21,6 +21,10 @@ import type { Engine, InsertEngine } from "@shared/schema";
 import AttachmentUploadArea from "./AttachmentUploadArea";
 import { uploadAttachmentsForEntity } from "@/lib/attachmentUpload";
 
+// Type alias for backwards compatibility
+type Component = Engine;
+type InsertComponent = InsertEngine;
+
 const componentFormSchema = z.object({
   name: z.string().min(1, "Engine name is required"),
   description: z.string().optional(),
@@ -112,7 +116,7 @@ export default function ComponentFormModal({
     mutationFn: async (data: ComponentFormData) => {
       const componentData: InsertComponent = {
         ...data,
-        mowerId: isGlobalComponent ? null : parseInt(mowerId!),
+        mowerId: isGlobalComponent ? 1 : parseInt(mowerId!), // TODO: Global engines should not require mowerId
         installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
         warrantyExpires: data.warrantyExpires ? format(data.warrantyExpires, "yyyy-MM-dd") : null,
         cost: data.cost || null,

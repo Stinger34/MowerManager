@@ -15,6 +15,9 @@ import ComponentFormModal from "@/components/ComponentFormModal";
 import PartFormModal from "@/components/PartFormModal";
 import type { Part, Engine } from "@shared/schema";
 
+// Type alias for backwards compatibility
+type Component = Engine;
+
 export default function PartsCatalog() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");

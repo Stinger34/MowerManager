@@ -18,6 +18,10 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Mower, Engine, InsertEngine } from "@shared/schema";
 
+// Type alias for backwards compatibility
+type Component = Engine;
+type InsertComponent = InsertEngine;
+
 const engineAllocationFormSchema = z.object({
   mowerId: z.number().min(1, "Mower selection is required"),
   installDate: z.date().optional(),
