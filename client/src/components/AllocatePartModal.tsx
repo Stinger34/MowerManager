@@ -16,19 +16,19 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Part, Component, AssetPart, InsertAssetPart } from "@shared/schema";
+import type { Part, Engine, AssetPart, InsertAssetPart } from "@shared/schema";
 
 const assetPartFormSchema = z.object({
   partId: z.number().min(1, "Part selection is required"),
   mowerId: z.number().optional(),
-  componentId: z.number().optional(),
+  engineId: z.number().optional(),
   quantity: z.number().min(1, "Quantity must be at least 1").default(1),
   installDate: z.date().optional(),
   notes: z.string().optional(),
 }).refine(
-  (data) => data.mowerId || data.componentId,
+  (data) => data.mowerId || data.engineId,
   {
-    message: "Must allocate to either a mower or component",
+    message: "Must allocate to either a mower or engine",
     path: ["mowerId"],
   }
 );
@@ -39,7 +39,7 @@ interface AllocatePartModalProps {
   isOpen: boolean;
   onClose: () => void;
   mowerId: string;
-  componentId?: string | null;
+  engineId?: string | null;
   assetPart?: AssetPart | null;
   onSuccess?: () => void;
 }
@@ -48,7 +48,7 @@ export default function AllocatePartModal({
   isOpen, 
   onClose, 
   mowerId,
-  componentId = null,
+  engineId = null,
   assetPart = null,
   onSuccess 
 }: AllocatePartModalProps) {
@@ -61,18 +61,18 @@ export default function AllocatePartModal({
     queryKey: ['/api/parts'],
   });
 
-  // Fetch components for this mower if not allocating to a specific component
-  const { data: components = [] } = useQuery<Component[]>({
-    queryKey: ['/api/mowers', mowerId, 'components'],
-    enabled: !componentId,
+  // Fetch engines for this mower if not allocating to a specific engine
+  const { data: engines = [] } = useQuery<Engine[]>({
+    queryKey: ['/api/mowers', mowerId, 'engines'],
+    enabled: !engineId,
   });
 
   const form = useForm<AssetPartFormData>({
     resolver: zodResolver(assetPartFormSchema),
     defaultValues: {
       partId: assetPart?.partId || 0,
-      mowerId: componentId ? undefined : parseInt(mowerId),
-      componentId: componentId ? parseInt(componentId) : assetPart?.componentId || undefined,
+      mowerId: engineId ? undefined : parseInt(mowerId),
+      engineId: engineId ? parseInt(engineId) : assetPart?.engineId || undefined,
       quantity: assetPart?.quantity || 1,
       installDate: assetPart?.installDate ? new Date(assetPart.installDate) : undefined,
       notes: assetPart?.notes || "",
@@ -84,21 +84,21 @@ export default function AllocatePartModal({
     if (isOpen) {
       form.reset({
         partId: assetPart?.partId || 0,
-        mowerId: componentId ? undefined : parseInt(mowerId),
-        componentId: componentId ? parseInt(componentId) : assetPart?.componentId || undefined,
+        mowerId: engineId ? undefined : parseInt(mowerId),
+        engineId: engineId ? parseInt(engineId) : assetPart?.engineId || undefined,
         quantity: assetPart?.quantity || 1,
         installDate: assetPart?.installDate ? new Date(assetPart.installDate) : undefined,
         notes: assetPart?.notes || "",
       });
     }
-  }, [isOpen, assetPart, mowerId, componentId, form]);
+  }, [isOpen, assetPart, mowerId, engineId, form]);
 
   const createMutation = useMutation({
     mutationFn: async (data: AssetPartFormData) => {
       const assetPartData: InsertAssetPart = {
         partId: data.partId,
         mowerId: data.mowerId || null,
-        componentId: data.componentId || null,
+        engineId: data.engineId || null,
         quantity: data.quantity,
         installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
         notes: data.notes || null,
@@ -109,8 +109,8 @@ export default function AllocatePartModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'parts'] });
-      if (componentId) {
-        queryClient.invalidateQueries({ queryKey: ['/api/components', componentId, 'parts'] });
+      if (engineId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/engines', engineId, 'parts'] });
       }
       toast({
         title: "Success",
@@ -134,7 +134,7 @@ export default function AllocatePartModal({
       const assetPartData = {
         partId: data.partId,
         mowerId: data.mowerId || null,
-        componentId: data.componentId || null,
+        engineId: data.engineId || null,
         quantity: data.quantity,
         installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
         notes: data.notes || null,
@@ -145,8 +145,8 @@ export default function AllocatePartModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'parts'] });
-      if (componentId || assetPart?.componentId) {
-        queryClient.invalidateQueries({ queryKey: ['/api/components', componentId || assetPart?.componentId, 'parts'] });
+      if (engineId || assetPart?.engineId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/engines', engineId || assetPart?.engineId, 'parts'] });
       }
       toast({
         title: "Success",
@@ -271,10 +271,10 @@ export default function AllocatePartModal({
             </div>
 
             {/* Allocation Target */}
-            {!componentId && (
+            {!engineId && (
               <FormField
                 control={form.control}
-                name="componentId"
+                name="engineId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Allocate to Engine (Optional)</FormLabel>
@@ -292,15 +292,15 @@ export default function AllocatePartModal({
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select component or allocate to mower directly" />
+                          <SelectValue placeholder="Select engine or allocate to mower directly" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="none">Allocate to Mower Directly</SelectItem>
-                        {components.map((component) => (
-                          <SelectItem key={component.id} value={component.id.toString()}>
-                            {component.name}
-                            {component.partNumber && ` (${component.partNumber})`}
+                        {engines.map((engine) => (
+                          <SelectItem key={engine.id} value={engine.id.toString()}>
+                            {engine.name}
+                            {engine.partNumber && ` (${engine.partNumber})`}
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -5,7 +5,7 @@ import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { InsertComponent } from "@shared/schema";
+import type { InsertEngine } from "@shared/schema";
 
 export default function AddComponent() {
   const [, setLocation] = useLocation();

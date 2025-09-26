@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import ComponentFormModal from "./ComponentFormModal";
-import type { Component, InsertComponent } from "@shared/schema";
+import type { Engine, InsertEngine } from "@shared/schema";
 
 const componentAllocationFormSchema = z.object({
   componentId: z.number().min(1, "Engine selection is required"),

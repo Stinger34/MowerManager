@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import ComponentFormModal from "@/components/ComponentFormModal";
 import PartFormModal from "@/components/PartFormModal";
-import type { Part, Component } from "@shared/schema";
+import type { Part, Engine } from "@shared/schema";
 
 export default function PartsCatalog() {
   const [, setLocation] = useLocation();

@@ -24,7 +24,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMowerThumbnail } from "@/hooks/useThumbnails";
 import { useCameraCapture } from "@/hooks/useCameraCapture";
 import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
-import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Component, Part, AssetPart, AssetPartWithDetails } from "@shared/schema";
+import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Engine, Part, AssetPart, AssetPartWithDetails } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
 import { motion } from "framer-motion";
@@ -107,17 +107,17 @@ export default function MowerDetails() {
     multiple: true
   });
 
-  // Modal states for components and parts
-  const [showComponentModal, setShowComponentModal] = useState(false);
-  const [showAllocateComponentModal, setShowAllocateComponentModal] = useState(false);
+  // Modal states for engines and parts
+  const [showEngineModal, setShowEngineModal] = useState(false);
+  const [showAllocateEngineModal, setShowAllocateEngineModal] = useState(false);
   const [showAllocatePartModal, setShowAllocatePartModal] = useState(false);
   const [showPartModal, setShowPartModal] = useState(false);
-  const [editingComponent, setEditingComponent] = useState<Component | null>(null);
+  const [editingEngine, setEditingEngine] = useState<Engine | null>(null);
   const [editingAssetPart, setEditingAssetPart] = useState<AssetPart | null>(null);
-  const [selectedComponentForAllocation, setSelectedComponentForAllocation] = useState<string | null>(null);
-  const [showDeleteComponentDialog, setShowDeleteComponentDialog] = useState(false);
+  const [selectedEngineForAllocation, setSelectedEngineForAllocation] = useState<string | null>(null);
+  const [showDeleteEngineDialog, setShowDeleteEngineDialog] = useState(false);
   const [showDeleteAssetPartDialog, setShowDeleteAssetPartDialog] = useState(false);
-  const [componentToDelete, setComponentToDelete] = useState<Component | null>(null);
+  const [engineToDelete, setEngineToDelete] = useState<Engine | null>(null);
   const [assetPartToDelete, setAssetPartToDelete] = useState<AssetPart | null>(null);
 
   // Fetch mower data
@@ -144,9 +144,9 @@ export default function MowerDetails() {
     enabled: !!mowerId,
   });
 
-  // Fetch components data
-  const { data: components = [], isLoading: isComponentsLoading, error: componentsError } = useQuery<Component[]>({
-    queryKey: ['/api/mowers', mowerId, 'components'],
+  // Fetch engines data
+  const { data: engines = [], isLoading: isEnginesLoading, error: enginesError } = useQuery<Engine[]>({
+    queryKey: ['/api/mowers', mowerId, 'engines'],
     enabled: !!mowerId,
   });
 
@@ -366,16 +366,16 @@ export default function MowerDetails() {
   });
 
   // Component mutations
-  const deleteComponentMutation = useMutation({
-    mutationFn: async (componentId: number) => {
-      await apiRequest('DELETE', `/api/components/${componentId}`);
+  const deleteEngineMutation = useMutation({
+    mutationFn: async (engineId: number) => {
+      await apiRequest('DELETE', `/api/engines/${engineId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'engines'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
       toast({ title: "Success", description: "Engine deleted successfully" });
-      setShowDeleteComponentDialog(false);
-      setComponentToDelete(null);
+      setShowDeleteEngineDialog(false);
+      setEngineToDelete(null);
     },
     onError: (error: Error) => {
       toast({ 
@@ -580,29 +580,29 @@ export default function MowerDetails() {
     }
   };
 
-  // Component handlers
-  const handleAddComponent = () => {
-    setEditingComponent(null);
-    setShowComponentModal(true);
+  // Engine handlers
+  const handleAddEngine = () => {
+    setEditingEngine(null);
+    setShowEngineModal(true);
   };
 
-  const handleAllocateComponent = () => {
-    setShowAllocateComponentModal(true);
+  const handleAllocateEngine = () => {
+    setShowAllocateEngineModal(true);
   };
 
-  const handleEditComponent = (component: Component) => {
-    setEditingComponent(component);
-    setShowComponentModal(true);
+  const handleEditEngine = (engine: Engine) => {
+    setEditingEngine(engine);
+    setShowEngineModal(true);
   };
 
-  const handleDeleteComponent = (component: Component) => {
-    setComponentToDelete(component);
-    setShowDeleteComponentDialog(true);
+  const handleDeleteEngine = (engine: Engine) => {
+    setEngineToDelete(engine);
+    setShowDeleteEngineDialog(true);
   };
 
-  const handleConfirmDeleteComponent = () => {
-    if (componentToDelete) {
-      deleteComponentMutation.mutate(componentToDelete.id);
+  const handleConfirmDeleteEngine = () => {
+    if (engineToDelete) {
+      deleteEngineMutation.mutate(engineToDelete.id);
     }
   };
 
@@ -643,7 +643,7 @@ export default function MowerDetails() {
 
   const handleModalSuccess = () => {
     // Refresh data after successful operations
-    queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'engines'] });
     queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'parts'] });
   };
 

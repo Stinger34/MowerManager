@@ -15,7 +15,7 @@ import ComponentFormModal from "@/components/ComponentFormModal";
 import AllocateComponentModal from "@/components/AllocateComponentModal";
 import AllocatePartModal from "@/components/AllocatePartModal";
 import AllocateEngineToMowerModal from "@/components/AllocateEngineToMowerModal";
-import type { Component, Attachment, AssetPartWithDetails, AssetPart } from "@shared/schema";
+import type { Engine, Attachment, AssetPartWithDetails, AssetPart } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
 

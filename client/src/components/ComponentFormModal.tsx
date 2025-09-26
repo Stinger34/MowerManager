@@ -17,7 +17,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Component, InsertComponent } from "@shared/schema";
+import type { Engine, InsertEngine } from "@shared/schema";
 import AttachmentUploadArea from "./AttachmentUploadArea";
 import { uploadAttachmentsForEntity } from "@/lib/attachmentUpload";
 
