@@ -291,7 +291,6 @@ step_install_deps() {
     echo "Cleaning up node_modules and package-lock.json for fresh install..."
     rm -rf node_modules package-lock.json
 
-    # Diagnostics
     echo "Current directory: $(pwd)"
     echo "User: $(whoami)"
     echo "Vite in package.json:"
@@ -299,7 +298,6 @@ step_install_deps() {
     echo "Vite in package-lock.json:"
     grep vite package-lock.json || echo "Vite NOT FOUND in package-lock.json"
 
-    # Install dependencies
     if execute "Install dependencies" "NODE_OPTIONS=\"--max-old-space-size=4096\" npm install"; then
         log SUCCESS "Dependencies installed successfully"
     else
@@ -307,19 +305,23 @@ step_install_deps() {
         return $EXIT_ERROR_DEPS
     fi
 
-    # Check for vite binary
+    # Check for vite binary or npx
     if [ ! -f node_modules/.bin/vite ]; then
-      log WARN "Vite binary missing after install! Attempting to install Vite directly..."
-      if execute "Install Vite explicitly" "npm install --save-dev vite"; then
-          log SUCCESS "Vite installed successfully after manual install"
-      else
-          log ERROR "Vite could not be installed. Check your package.json and lockfile."
-          return $EXIT_ERROR_DEPS
+      log WARN "Vite binary missing after npm install! Checking npx vite..."
+      if npx vite --version >/dev/null 2>&1; then
+        log SUCCESS "Vite is available via npx, proceeding."
+        return 0
       fi
-      # Check again
-      if [ ! -f node_modules/.bin/vite ]; then
+      log WARN "Trying direct install of Vite..."
+      if execute "Install Vite explicitly" "npm install --save-dev vite"; then
+        log SUCCESS "Vite installed successfully after manual install"
+        if [ ! -f node_modules/.bin/vite ] && ! npx vite --version >/dev/null 2>&1; then
           log ERROR "Vite binary STILL missing after manual install!"
           return $EXIT_ERROR_DEPS
+        fi
+      else
+        log ERROR "Vite could not be installed. Check your package.json and lockfile."
+        return $EXIT_ERROR_DEPS
       fi
     fi
     return 0
