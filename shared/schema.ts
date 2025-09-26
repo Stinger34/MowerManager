@@ -37,7 +37,7 @@ export const serviceRecords = pgTable("service_records", {
 export const attachments = pgTable("attachments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   mowerId: integer("mower_id").references(() => mowers.id, { onDelete: "cascade" }),
-  componentId: integer("component_id").references(() => components.id, { onDelete: "cascade" }),
+  componentId: integer("component_id").references(() => engines.id, { onDelete: "cascade" }),
   partId: integer("part_id").references(() => parts.id, { onDelete: "cascade" }),
   fileName: text("file_name").notNull(),
   title: text("title"), // User-provided title, defaults to fileName if not provided
@@ -64,7 +64,7 @@ export const tasks = pgTable("tasks", {
   completedAt: timestamp("completed_at"),
 });
 
-export const components = pgTable("components", {
+export const engines = pgTable("engines", {
   id: serial("id").primaryKey(),
   mowerId: integer("mower_id").references(() => mowers.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
@@ -89,7 +89,7 @@ export const parts = pgTable("parts", {
   description: text("description"),
   partNumber: text("part_number").notNull(),
   manufacturer: text("manufacturer"),
-  category: text("category").notNull(), // engine, transmission, hydraulic, electrical, cutting, etc.
+  category: text("category").notNull(), // transmission, hydraulic, electrical, cutting, etc.
   unitCost: decimal("unit_cost", { precision: 10, scale: 2 }),
   stockQuantity: integer("stock_quantity").notNull().default(0),
   minStockLevel: integer("min_stock_level").default(0),
@@ -102,7 +102,7 @@ export const assetParts = pgTable("asset_parts", {
   id: serial("id").primaryKey(),
   partId: integer("part_id").notNull().references(() => parts.id, { onDelete: "cascade" }),
   mowerId: integer("mower_id").references(() => mowers.id, { onDelete: "cascade" }),
-  componentId: integer("component_id").references(() => components.id, { onDelete: "cascade" }),
+  componentId: integer("component_id").references(() => engines.id, { onDelete: "cascade" }),
   quantity: integer("quantity").notNull().default(1),
   installDate: date("install_date"),
   serviceRecordId: varchar("service_record_id").references(() => serviceRecords.id, { onDelete: "set null" }),
@@ -115,7 +115,7 @@ export const mowersRelations = relations(mowers, ({ many, one }) => ({
   serviceRecords: many(serviceRecords),
   attachments: many(attachments),
   tasks: many(tasks),
-  components: many(components),
+  engines: many(engines),
   assetParts: many(assetParts),
   thumbnailAttachment: one(attachments, {
     fields: [mowers.thumbnailAttachmentId],
@@ -136,9 +136,9 @@ export const attachmentsRelations = relations(attachments, ({ one }) => ({
     fields: [attachments.mowerId],
     references: [mowers.id],
   }),
-  component: one(components, {
+  engine: one(engines, {
     fields: [attachments.componentId],
-    references: [components.id],
+    references: [engines.id],
   }),
   part: one(parts, {
     fields: [attachments.partId],
@@ -153,9 +153,9 @@ export const tasksRelations = relations(tasks, ({ one }) => ({
   }),
 }));
 
-export const componentsRelations = relations(components, ({ one, many }) => ({
+export const enginesRelations = relations(engines, ({ one, many }) => ({
   mower: one(mowers, {
-    fields: [components.mowerId],
+    fields: [engines.mowerId],
     references: [mowers.id],
   }),
   assetParts: many(assetParts),
@@ -176,9 +176,9 @@ export const assetPartsRelations = relations(assetParts, ({ one }) => ({
     fields: [assetParts.mowerId],
     references: [mowers.id],
   }),
-  component: one(components, {
+  engine: one(engines, {
     fields: [assetParts.componentId],
-    references: [components.id],
+    references: [engines.id],
   }),
   serviceRecord: one(serviceRecords, {
     fields: [assetParts.serviceRecordId],
@@ -207,7 +207,7 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
   completedAt: true,
 });
 
-export const insertComponentSchema = createInsertSchema(components).omit({
+export const insertEngineSchema = createInsertSchema(engines).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -237,8 +237,8 @@ export type Attachment = typeof attachments.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasks.$inferSelect;
 
-export type InsertComponent = z.infer<typeof insertComponentSchema>;
-export type Component = typeof components.$inferSelect;
+export type InsertEngine = z.infer<typeof insertEngineSchema>;
+export type Engine = typeof engines.$inferSelect;
 
 export type InsertPart = z.infer<typeof insertPartSchema>;
 export type Part = typeof parts.$inferSelect;
@@ -251,10 +251,10 @@ export type MowerWithDetails = Mower & {
   serviceRecords: ServiceRecord[];
   attachments: Attachment[];
   tasks: Task[];
-  components: Component[];
+  engines: Engine[];
 };
 
-export type ComponentWithParts = Component & {
+export type EngineWithParts = Engine & {
   assetParts: (AssetPart & { part: Part })[];
 };
 
@@ -266,6 +266,6 @@ export type PartWithStock = Part & {
 export type AssetPartWithDetails = AssetPart & {
   part: Part;
   mower?: Mower;
-  component?: Component;
+  engine?: Engine;
   serviceRecord?: ServiceRecord;
 };

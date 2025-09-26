@@ -210,7 +210,6 @@ export default function PartFormModal({
 
   // Common part categories
   const categories = [
-    "engine",
     "transmission", 
     "hydraulic",
     "electrical",

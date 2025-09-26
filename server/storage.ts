@@ -1,4 +1,4 @@
-import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, type Component, type InsertComponent, type Part, type InsertPart, type AssetPart, type InsertAssetPart, type AssetPartWithDetails, mowers, tasks, serviceRecords, attachments, components, parts, assetParts } from "@shared/schema";
+import { type Mower, type InsertMower, type ServiceRecord, type InsertServiceRecord, type Attachment, type InsertAttachment, type Task, type InsertTask, type Engine, type InsertEngine, type Part, type InsertPart, type AssetPart, type InsertAssetPart, type AssetPartWithDetails, mowers, tasks, serviceRecords, attachments, engines, parts, assetParts } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -33,20 +33,20 @@ export interface IStorage {
   // Attachment methods
   getAttachment(id: string): Promise<Attachment | undefined>;
   getAttachmentsByMowerId(mowerId: string): Promise<Attachment[]>;
-  getAttachmentsByComponentId(componentId: string): Promise<Attachment[]>;
+  getAttachmentsByEngineId(engineId: string): Promise<Attachment[]>;
   getAttachmentsByPartId(partId: string): Promise<Attachment[]>;
   getAllAttachments(): Promise<Attachment[]>;
   createAttachment(attachment: InsertAttachment): Promise<Attachment>;
   updateAttachmentMetadata(id: string, metadata: { title?: string; description?: string }): Promise<Attachment | undefined>;
   deleteAttachment(id: string): Promise<boolean>;
   
-  // Component methods
-  getComponent(id: string): Promise<Component | undefined>;
-  getComponentsByMowerId(mowerId: string): Promise<Component[]>;
-  getAllComponents(): Promise<Component[]>;
-  createComponent(component: InsertComponent): Promise<Component>;
-  updateComponent(id: string, component: Partial<InsertComponent>): Promise<Component | undefined>;
-  deleteComponent(id: string): Promise<boolean>;
+  // Engine methods
+  getEngine(id: string): Promise<Engine | undefined>;
+  getEnginesByMowerId(mowerId: string): Promise<Engine[]>;
+  getAllEngines(): Promise<Engine[]>;
+  createEngine(engine: InsertEngine): Promise<Engine>;
+  updateEngine(id: string, engine: Partial<InsertEngine>): Promise<Engine | undefined>;
+  deleteEngine(id: string): Promise<boolean>;
   
   // Part methods
   getPart(id: string): Promise<Part | undefined>;
@@ -58,7 +58,7 @@ export interface IStorage {
   // Asset Part allocation methods
   getAssetPartsByMowerId(mowerId: string): Promise<AssetPart[]>;
   getAssetPartsWithDetailsByMowerId(mowerId: string): Promise<AssetPartWithDetails[]>;
-  getAssetPartsByComponentId(componentId: string): Promise<AssetPart[]>;
+  getAssetPartsByEngineId(engineId: string): Promise<AssetPart[]>;
   getAllAssetParts(): Promise<AssetPart[]>;
   createAssetPart(assetPart: InsertAssetPart): Promise<AssetPart>;
   updateAssetPart(id: string, assetPart: Partial<InsertAssetPart>): Promise<AssetPart | undefined>;
@@ -69,7 +69,7 @@ export class MemStorage implements IStorage {
   private mowers: Map<string, Mower>;
   private tasks: Map<string, Task>;
   private attachments: Map<string, Attachment>;
-  private components: Map<string, Component>;
+  private engines: Map<string, Engine>;
   private parts: Map<string, Part>;
   private assetParts: Map<string, AssetPart>;
 
@@ -77,7 +77,7 @@ export class MemStorage implements IStorage {
     this.mowers = new Map();
     this.tasks = new Map();
     this.attachments = new Map();
-    this.components = new Map();
+    this.engines = new Map();
     this.parts = new Map();
     this.assetParts = new Map();
   }
@@ -263,8 +263,8 @@ export class MemStorage implements IStorage {
     return Array.from(this.attachments.values()).filter(attachment => attachment.mowerId === parseInt(mowerId));
   }
 
-  async getAttachmentsByComponentId(componentId: string): Promise<Attachment[]> {
-    return Array.from(this.attachments.values()).filter(attachment => attachment.componentId === parseInt(componentId));
+  async getAttachmentsByEngineId(engineId: string): Promise<Attachment[]> {
+    return Array.from(this.attachments.values()).filter(attachment => attachment.componentId === parseInt(engineId));
   }
 
   async getAttachmentsByPartId(partId: string): Promise<Attachment[]> {
@@ -308,61 +308,61 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
-  // Component methods
-  async getComponent(id: string): Promise<Component | undefined> {
-    return this.components.get(id);
+  // Engine methods
+  async getEngine(id: string): Promise<Engine | undefined> {
+    return this.engines.get(id);
   }
 
-  async getComponentsByMowerId(mowerId: string): Promise<Component[]> {
-    return Array.from(this.components.values()).filter(component => 
-      component.mowerId !== null && component.mowerId.toString() === mowerId
+  async getEnginesByMowerId(mowerId: string): Promise<Engine[]> {
+    return Array.from(this.engines.values()).filter(engine => 
+      engine.mowerId !== null && engine.mowerId.toString() === mowerId
     );
   }
 
-  async getAllComponents(): Promise<Component[]> {
-    return Array.from(this.components.values());
+  async getAllEngines(): Promise<Engine[]> {
+    return Array.from(this.engines.values());
   }
 
-  async createComponent(insertComponent: InsertComponent): Promise<Component> {
-    const id = (this.components.size + 1).toString();
+  async createEngine(insertEngine: InsertEngine): Promise<Engine> {
+    const id = (this.engines.size + 1).toString();
     const now = new Date();
-    const component: Component = {
-      ...insertComponent,
+    const engine: Engine = {
+      ...insertEngine,
       id: parseInt(id),
-      mowerId: insertComponent.mowerId || null,
-      condition: insertComponent.condition || "good",
-      status: insertComponent.status || "active",
-      description: insertComponent.description || null,
-      partNumber: insertComponent.partNumber || null,
-      manufacturer: insertComponent.manufacturer || null,
-      model: insertComponent.model || null,
-      serialNumber: insertComponent.serialNumber || null,
-      installDate: insertComponent.installDate || null,
-      warrantyExpires: insertComponent.warrantyExpires || null,
-      cost: insertComponent.cost || null,
-      notes: insertComponent.notes || null,
+      mowerId: insertEngine.mowerId || null,
+      condition: insertEngine.condition || "good",
+      status: insertEngine.status || "active",
+      description: insertEngine.description || null,
+      partNumber: insertEngine.partNumber || null,
+      manufacturer: insertEngine.manufacturer || null,
+      model: insertEngine.model || null,
+      serialNumber: insertEngine.serialNumber || null,
+      installDate: insertEngine.installDate || null,
+      warrantyExpires: insertEngine.warrantyExpires || null,
+      cost: insertEngine.cost || null,
+      notes: insertEngine.notes || null,
       createdAt: now,
       updatedAt: now,
     };
-    this.components.set(id, component);
-    return component;
+    this.engines.set(id, engine);
+    return engine;
   }
 
-  async updateComponent(id: string, updateData: Partial<InsertComponent>): Promise<Component | undefined> {
-    const component = this.components.get(id);
-    if (!component) return undefined;
+  async updateEngine(id: string, updateData: Partial<InsertEngine>): Promise<Engine | undefined> {
+    const engine = this.engines.get(id);
+    if (!engine) return undefined;
     
-    const updatedComponent: Component = {
-      ...component,
+    const updatedEngine: Engine = {
+      ...engine,
       ...updateData,
       updatedAt: new Date(),
     };
-    this.components.set(id, updatedComponent);
-    return updatedComponent;
+    this.engines.set(id, updatedEngine);
+    return updatedEngine;
   }
 
-  async deleteComponent(id: string): Promise<boolean> {
-    return this.components.delete(id);
+  async deleteEngine(id: string): Promise<boolean> {
+    return this.engines.delete(id);
   }
 
   // Part methods
@@ -431,9 +431,9 @@ export class MemStorage implements IStorage {
     }).filter(item => item.part); // Filter out any where part wasn't found
   }
 
-  async getAssetPartsByComponentId(componentId: string): Promise<AssetPart[]> {
+  async getAssetPartsByEngineId(engineId: string): Promise<AssetPart[]> {
     return Array.from(this.assetParts.values()).filter(assetPart => 
-      assetPart.componentId && assetPart.componentId.toString() === componentId
+      assetPart.componentId && assetPart.componentId.toString() === engineId
     );
   }
 
@@ -622,8 +622,8 @@ export class DbStorage implements IStorage {
     return await db.select().from(attachments).where(eq(attachments.mowerId, parseInt(mowerId)));
   }
 
-  async getAttachmentsByComponentId(componentId: string): Promise<Attachment[]> {
-    return await db.select().from(attachments).where(eq(attachments.componentId, parseInt(componentId)));
+  async getAttachmentsByEngineId(engineId: string): Promise<Attachment[]> {
+    return await db.select().from(attachments).where(eq(attachments.componentId, parseInt(engineId)));
   }
 
   async getAttachmentsByPartId(partId: string): Promise<Attachment[]> {
@@ -658,35 +658,35 @@ export class DbStorage implements IStorage {
     return result[0];
   }
 
-  // Component methods
-  async getComponent(id: string): Promise<Component | undefined> {
-    const result = await db.select().from(components).where(eq(components.id, parseInt(id)));
+  // Engine methods
+  async getEngine(id: string): Promise<Engine | undefined> {
+    const result = await db.select().from(engines).where(eq(engines.id, parseInt(id)));
     return result[0];
   }
 
-  async getComponentsByMowerId(mowerId: string): Promise<Component[]> {
-    return await db.select().from(components).where(eq(components.mowerId, parseInt(mowerId)));
+  async getEnginesByMowerId(mowerId: string): Promise<Engine[]> {
+    return await db.select().from(engines).where(eq(engines.mowerId, parseInt(mowerId)));
   }
 
-  async getAllComponents(): Promise<Component[]> {
-    return await db.select().from(components);
+  async getAllEngines(): Promise<Engine[]> {
+    return await db.select().from(engines);
   }
 
-  async createComponent(insertComponent: InsertComponent): Promise<Component> {
-    const result = await db.insert(components).values(insertComponent).returning();
+  async createEngine(insertEngine: InsertEngine): Promise<Engine> {
+    const result = await db.insert(engines).values(insertEngine).returning();
     return result[0];
   }
 
-  async updateComponent(id: string, updateData: Partial<InsertComponent>): Promise<Component | undefined> {
-    const result = await db.update(components)
+  async updateEngine(id: string, updateData: Partial<InsertEngine>): Promise<Engine | undefined> {
+    const result = await db.update(engines)
       .set({ ...updateData, updatedAt: new Date() })
-      .where(eq(components.id, parseInt(id)))
+      .where(eq(engines.id, parseInt(id)))
       .returning();
     return result[0];
   }
 
-  async deleteComponent(id: string): Promise<boolean> {
-    const result = await db.delete(components).where(eq(components.id, parseInt(id)));
+  async deleteEngine(id: string): Promise<boolean> {
+    const result = await db.delete(engines).where(eq(engines.id, parseInt(id)));
     return (result.rowCount ?? 0) > 0;
   }
 
@@ -757,8 +757,8 @@ export class DbStorage implements IStorage {
     return result as AssetPartWithDetails[];
   }
 
-  async getAssetPartsByComponentId(componentId: string): Promise<AssetPart[]> {
-    return await db.select().from(assetParts).where(eq(assetParts.componentId, parseInt(componentId)));
+  async getAssetPartsByEngineId(engineId: string): Promise<AssetPart[]> {
+    return await db.select().from(assetParts).where(eq(assetParts.componentId, parseInt(engineId)));
   }
 
   async getAllAssetParts(): Promise<AssetPart[]> {
