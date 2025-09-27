@@ -528,8 +528,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/engines", async (req, res) => {
     try {
-      if (!req.body.mowerId) return res.status(400).json({ error: "Engine must be attached to a mower" });
-      const validated = insertEngineSchema.parse(req.body);
+      // Global engines should not have a mowerId - set to null for global engines
+      const engineData = { ...req.body };
+      if (engineData.mowerId) {
+        // If mowerId is provided, it should be for global context, so we ignore it
+        delete engineData.mowerId;
+      }
+      
+      const validated = insertEngineSchema.parse(engineData);
       const engine = await storage.createEngine(validated);
       await NotificationService.createEngineNotification("created", engine.name, engine.id.toString());
       webSocketService.broadcastAssetEvent("engine-created", "engine", engine.id, { engine, mowerId: engine.mowerId });

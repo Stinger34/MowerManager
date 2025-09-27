@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -84,9 +84,26 @@ export default function EngineFormModal({
     },
   });
 
+  // Fetch engines already assigned to this mower (only when creating for a specific mower)
+  const { data: mowerEngines = [], isLoading: isMowerEnginesLoading } = useQuery<Engine[]>({
+    queryKey: ['/api/mowers', mowerId, 'engines'],
+    enabled: isOpen && !isGlobalEngine && !isEditing && !!mowerId,
+  });
+
   // Reset form when engine prop changes
   useEffect(() => {
     if (isOpen) {
+      // Check if mower already has an engine (when creating, not editing)
+      if (!isEditing && !isGlobalEngine && mowerEngines.length > 0) {
+        toast({
+          title: "Engine Already Allocated",
+          description: "This mower already has an engine allocated. Only one engine per mower is allowed.",
+          variant: "destructive",
+        });
+        onClose();
+        return;
+      }
+      
       form.reset({
         name: engine?.name || "",
         description: engine?.description || "",
@@ -106,13 +123,13 @@ export default function EngineFormModal({
         setPendingAttachments([]);
       }
     }
-  }, [engine, isOpen, form, isEditing]);
+  }, [engine, isOpen, form, isEditing, isGlobalEngine, mowerEngines, toast, onClose]);
 
   const createMutation = useMutation({
     mutationFn: async (data: EngineFormData) => {
       const engineData: InsertEngine = {
         ...data,
-        mowerId: isGlobalEngine ? 1 : parseInt(mowerId!), // TODO: Global engines should not require mowerId
+        mowerId: isGlobalEngine ? null : parseInt(mowerId!),
         installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
         warrantyExpires: data.warrantyExpires ? format(data.warrantyExpires, "yyyy-MM-dd") : null,
         cost: data.cost || null,
