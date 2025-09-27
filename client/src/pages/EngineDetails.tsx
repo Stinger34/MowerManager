@@ -11,21 +11,18 @@ import { useLocation } from "wouter";
 import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import ComponentFormModal from "@/components/ComponentFormModal";
-import AllocateComponentModal from "@/components/AllocateComponentModal";
+import EngineFormModal from "@/components/EngineFormModal";
+import AllocateEngineModal from "@/components/AllocateEngineModal";
 import AllocatePartModal from "@/components/AllocatePartModal";
 import AllocateEngineToMowerModal from "@/components/AllocateEngineToMowerModal";
 import type { Engine, Attachment, AssetPartWithDetails, AssetPart } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
 
-// Type alias for backwards compatibility
-type Component = Engine;
-
-export default function ComponentDetails() {
-  const [, params] = useRoute("/catalog/engines/:componentId");
+export default function EngineDetails() {
+  const [, params] = useRoute("/catalog/engines/:engineId");
   const [, setLocation] = useLocation();
-  const componentId = params?.componentId;
+  const engineId = params?.engineId;
   const { toast } = useToast();
 
   // Modal states
@@ -39,31 +36,31 @@ export default function ComponentDetails() {
   // Initialize WebSocket for auto-refresh
   const { isConnected: wsConnected, error: wsError } = useAssetEventsRefresh();
 
-  // Fetch component data
-  const { data: component, isLoading, error } = useQuery<Component>({
-    queryKey: ['/api/components', componentId],
-    enabled: !!componentId,
+  // Fetch engine data
+  const { data: engine, isLoading, error } = useQuery<Engine>({
+    queryKey: ['/api/engines', engineId],
+    enabled: !!engineId,
   });
 
-  // Fetch component attachments
+  // Fetch engine attachments
   const { data: attachments = [], isLoading: isAttachmentsLoading } = useQuery<Omit<Attachment, 'fileData'>[]>({
-    queryKey: ['/api/components', componentId, 'attachments'],
-    enabled: !!componentId,
+    queryKey: ['/api/engines', engineId, 'attachments'],
+    enabled: !!engineId,
   });
 
   // Fetch parts allocated to this engine
   const { data: allocatedParts = [], isLoading: isPartsLoading } = useQuery<AssetPartWithDetails[]>({
-    queryKey: ['/api/components', componentId, 'parts'],
-    enabled: !!componentId,
+    queryKey: ['/api/engines', engineId, 'parts'],
+    enabled: !!engineId,
   });
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (componentId: number) => {
-      await apiRequest('DELETE', `/api/components/${componentId}`);
+    mutationFn: async (engineId: number) => {
+      await apiRequest('DELETE', `/api/engines/${engineId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
       toast({ title: "Success", description: "Engine deleted successfully" });
       setLocation('/catalog');
     },
@@ -86,8 +83,8 @@ export default function ComponentDetails() {
   };
 
   const handleConfirmDelete = () => {
-    if (component) {
-      deleteMutation.mutate(component.id);
+    if (engine) {
+      deleteMutation.mutate(engine.id);
     }
   };
 
@@ -112,8 +109,8 @@ export default function ComponentDetails() {
 
   const handleModalSuccess = () => {
     // Refetch data after successful operations
-    queryClient.invalidateQueries({ queryKey: ['/api/components', componentId] });
-    queryClient.invalidateQueries({ queryKey: ['/api/components', componentId, 'parts'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/engines', engineId] });
+    queryClient.invalidateQueries({ queryKey: ['/api/engines', engineId, 'parts'] });
     // Show success toast
     toast({
       title: "Success",
@@ -140,7 +137,7 @@ export default function ComponentDetails() {
     );
   }
 
-  if (error || !component) {
+  if (error || !engine) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4 mb-6">
@@ -180,14 +177,14 @@ export default function ComponentDetails() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Catalog
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight text-text-dark">{component.name}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark">{engine.name}</h1>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleEdit}>
             <Edit className="h-4 w-4 mr-2" />
             Edit
           </Button>
-          {!component.mowerId && (
+          {!engine.mowerId && (
             <>
               <Button variant="outline" size="sm" onClick={handleAllocate}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -230,45 +227,45 @@ export default function ComponentDetails() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {component.partNumber && (
+                {engine.partNumber && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Part Number</label>
                     <div className="flex items-center gap-2 mt-1">
                       <Hash className="h-4 w-4 text-gray-400" />
-                      <span className="font-mono text-sm">{component.partNumber}</span>
+                      <span className="font-mono text-sm">{engine.partNumber}</span>
                     </div>
                   </div>
                 )}
 
-                {component.manufacturer && (
+                {engine.manufacturer && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Manufacturer</label>
                     <div className="flex items-center gap-2 mt-1">
                       <Building className="h-4 w-4 text-gray-400" />
-                      <span>{component.manufacturer}</span>
+                      <span>{engine.manufacturer}</span>
                     </div>
                   </div>
                 )}
 
-                {component.model && (
+                {engine.model && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Model</label>
-                    <p className="text-sm text-gray-800 mt-1">{component.model}</p>
+                    <p className="text-sm text-gray-800 mt-1">{engine.model}</p>
                   </div>
                 )}
 
-                {component.serialNumber && (
+                {engine.serialNumber && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Serial Number</label>
-                    <p className="text-sm text-gray-800 mt-1 font-mono">{component.serialNumber}</p>
+                    <p className="text-sm text-gray-800 mt-1 font-mono">{engine.serialNumber}</p>
                   </div>
                 )}
 
                 <div>
                   <label className="text-sm font-medium text-gray-600">Status</label>
                   <div className="mt-1">
-                    <Badge variant={component.status === 'active' ? 'default' : 'secondary'} className="capitalize">
-                      {component.status}
+                    <Badge variant={engine.status === 'active' ? 'default' : 'secondary'} className="capitalize">
+                      {engine.status}
                     </Badge>
                   </div>
                 </div>
@@ -277,67 +274,67 @@ export default function ComponentDetails() {
                   <label className="text-sm font-medium text-gray-600">Condition</label>
                   <div className="mt-1">
                     <Badge variant="outline" className="capitalize">
-                      {component.condition}
+                      {engine.condition}
                     </Badge>
                   </div>
                 </div>
 
-                {component.description && (
+                {engine.description && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Description</label>
-                    <p className="text-sm text-gray-800 mt-1">{component.description}</p>
+                    <p className="text-sm text-gray-800 mt-1">{engine.description}</p>
                   </div>
                 )}
 
                 {/* Pricing & Dates Information */}
-                {component.cost && (
+                {engine.cost && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Cost</label>
                     <p className="text-lg font-semibold text-green-600 mt-1">
-                      ${parseFloat(component.cost).toFixed(2)}
+                      ${parseFloat(engine.cost).toFixed(2)}
                     </p>
                   </div>
                 )}
 
-                {component.installDate && (
+                {engine.installDate && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Install Date</label>
                     <div className="flex items-center gap-2 mt-1">
                       <Calendar className="h-4 w-4 text-gray-400" />
-                      <span>{new Date(component.installDate).toLocaleDateString()}</span>
+                      <span>{new Date(engine.installDate).toLocaleDateString()}</span>
                     </div>
                   </div>
                 )}
 
-                {component.warrantyExpires && (
+                {engine.warrantyExpires && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Warranty Expires</label>
                     <div className="flex items-center gap-2 mt-1">
                       <Calendar className="h-4 w-4 text-gray-400" />
-                      <span className={new Date(component.warrantyExpires) < new Date() ? 'text-red-600' : 'text-gray-800'}>
-                        {new Date(component.warrantyExpires).toLocaleDateString()}
+                      <span className={new Date(engine.warrantyExpires) < new Date() ? 'text-red-600' : 'text-gray-800'}>
+                        {new Date(engine.warrantyExpires).toLocaleDateString()}
                       </span>
-                      {new Date(component.warrantyExpires) < new Date() && (
+                      {new Date(engine.warrantyExpires) < new Date() && (
                         <Badge variant="destructive" className="ml-2">Expired</Badge>
                       )}
                     </div>
                   </div>
                 )}
 
-                {component.mowerId && (
+                {engine.mowerId && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Associated Mower</label>
                     <Button 
                       variant="ghost" 
                       className="p-0 h-auto text-blue-600 mt-1"
-                      onClick={() => setLocation(`/mowers/${component.mowerId}`)}
+                      onClick={() => setLocation(`/mowers/${engine.mowerId}`)}
                     >
                       View Mower Details
                     </Button>
                   </div>
                 )}
 
-                {!component.mowerId && (
+                {!engine.mowerId && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Engine Type</label>
                     <p className="text-sm text-gray-800 mt-1">Global Engine (not assigned to specific mower)</p>
@@ -415,7 +412,7 @@ export default function ComponentDetails() {
           </div>
 
           {/* Notes */}
-          {component.notes && (
+          {engine.notes && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -424,7 +421,7 @@ export default function ComponentDetails() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-800 whitespace-pre-wrap">{component.notes}</p>
+                <p className="text-gray-800 whitespace-pre-wrap">{engine.notes}</p>
               </CardContent>
             </Card>
           )}
@@ -439,13 +436,13 @@ export default function ComponentDetails() {
                 <div>
                   <label className="font-medium text-gray-600">Created</label>
                   <p className="text-gray-800 mt-1">
-                    {new Date(component.createdAt).toLocaleDateString()} at {new Date(component.createdAt).toLocaleTimeString()}
+                    {new Date(engine.createdAt).toLocaleDateString()} at {new Date(engine.createdAt).toLocaleTimeString()}
                   </p>
                 </div>
                 <div>
                   <label className="font-medium text-gray-600">Last Updated</label>
                   <p className="text-gray-800 mt-1">
-                    {new Date(component.updatedAt).toLocaleDateString()} at {new Date(component.updatedAt).toLocaleTimeString()}
+                    {new Date(engine.updatedAt).toLocaleDateString()} at {new Date(engine.updatedAt).toLocaleTimeString()}
                   </p>
                 </div>
               </div>
@@ -456,24 +453,24 @@ export default function ComponentDetails() {
         <TabsContent value="attachments">
           <GenericAttachmentGallery
             attachments={attachments}
-            entityId={componentId!}
-            entityType="components"
+            entityId={engineId!}
+            entityType="engines"
             isLoading={isAttachmentsLoading}
           />
         </TabsContent>
       </Tabs>
 
-      {/* Edit Component Modal */}
-      <ComponentFormModal
+      {/* Edit Engine Modal */}
+      <EngineFormModal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
-        component={component}
+        engine={engine}
         onSuccess={handleModalSuccess}
       />
 
       {/* Allocate Component Modal - Only for global engines */}
-      {!component?.mowerId && (
-        <AllocateComponentModal
+      {!engine?.mowerId && (
+        <AllocateEngineModal
           isOpen={showAllocateModal}
           onClose={() => setShowAllocateModal(false)}
           mowerId=""
@@ -488,18 +485,18 @@ export default function ComponentDetails() {
           setShowAllocatePartModal(false);
           setEditingAssetPart(null);
         }}
-        mowerId={component?.mowerId?.toString() || ""}
-        engineId={componentId}
+        mowerId={engine?.mowerId?.toString() || ""}
+        engineId={engineId}
         assetPart={editingAssetPart}
         onSuccess={handleModalSuccess}
       />
 
       {/* Allocate Engine to Mower Modal - Only for global engines */}
-      {!component?.mowerId && component && (
+      {!engine?.mowerId && engine && (
         <AllocateEngineToMowerModal
           isOpen={showAllocateEngineToMowerModal}
           onClose={() => setShowAllocateEngineToMowerModal(false)}
-          engine={component}
+          engine={engine}
           onSuccess={handleModalSuccess}
         />
       )}
@@ -510,7 +507,7 @@ export default function ComponentDetails() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Engine</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{component?.name}"? This action cannot be undone and will remove all related data.
+              Are you sure you want to delete "{engine?.name}"? This action cannot be undone and will remove all related data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

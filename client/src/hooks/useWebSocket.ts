@@ -7,7 +7,7 @@ export interface WebSocketMessage {
     id: string | number;
     entityType?: 'mower' | 'component' | 'part' | 'asset-part' | 'task' | 'service-record';
     mowerId?: string | number;
-    componentId?: string | number;
+    engineId?: string | number;
     [key: string]: any;
   };
   timestamp: string;
@@ -115,7 +115,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       case 'component-created':
       case 'component-updated':
       case 'component-deleted':
-        queriesToInvalidate.push(['/api/components']);
+        queriesToInvalidate.push(['/api/engines']);
         if (data.mowerId) {
           queriesToInvalidate.push(['/api/mowers', data.mowerId.toString(), 'components']);
         }
@@ -133,8 +133,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
         if (data.mowerId) {
           queriesToInvalidate.push(['/api/mowers', data.mowerId.toString(), 'parts']);
         }
-        if (data.componentId) {
-          queriesToInvalidate.push(['/api/components', data.componentId.toString(), 'parts']);
+        if (data.engineId) {
+          queriesToInvalidate.push(['/api/engines', data.engineId.toString(), 'parts']);
         }
         break;
     }

@@ -27,8 +27,8 @@ import AddMower from "@/pages/AddMower";
 import EditMower from "@/pages/EditMower";
 import PartsCatalog from "@/pages/PartsCatalog";
 import PartDetails from "@/pages/PartDetails";
-import ComponentDetails from "@/pages/ComponentDetails";
-import AddComponent from "@/pages/AddComponent";
+import EngineDetails from "@/pages/EngineDetails";
+import AddEngine from "@/pages/AddEngine";
 import Settings from "@/pages/Settings";
 import Maintenance from "@/pages/Maintenance";
 import MaintenanceHistory from "@/pages/MaintenanceHistory";
@@ -59,8 +59,8 @@ function Router() {
       <Route path="/reports" component={() => <PageTransition><Reports /></PageTransition>} />
       <Route path="/catalog" component={() => <PageTransition><PartsCatalog /></PageTransition>} />
       <Route path="/catalog/parts/:partId" component={() => <PageTransition><PartDetails /></PageTransition>} />
-      <Route path="/catalog/engines/new" component={() => <PageTransition><AddComponent /></PageTransition>} />
-      <Route path="/catalog/engines/:componentId" component={() => <PageTransition><ComponentDetails /></PageTransition>} />
+      <Route path="/catalog/engines/new" component={() => <PageTransition><AddEngine /></PageTransition>} />
+      <Route path="/catalog/engines/:engineId" component={() => <PageTransition><EngineDetails /></PageTransition>} />
       <Route path="/settings" component={() => <PageTransition><Settings /></PageTransition>} />
       <Route path="/mowers/new" component={() => <PageTransition><AddMower /></PageTransition>} />
       <Route path="/mowers/:id/edit" component={() => <PageTransition><EditMower /></PageTransition>} />

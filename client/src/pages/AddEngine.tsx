@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import ComponentForm from "@/components/ComponentForm";
+import EngineForm from "@/components/EngineForm";
 import { ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
@@ -7,20 +7,17 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { InsertEngine } from "@shared/schema";
 
-// Type alias for backwards compatibility
-type InsertComponent = InsertEngine;
-
-export default function AddComponent() {
+export default function AddEngine() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   const createMutation = useMutation({
-    mutationFn: async (data: InsertComponent) => {
-      const response = await apiRequest("POST", "/api/components", data);
+    mutationFn: async (data: InsertEngine) => {
+      const response = await apiRequest("POST", "/api/engines", data);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
       toast({
         title: "Success",
         description: "Engine created successfully",
@@ -30,13 +27,13 @@ export default function AddComponent() {
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create component",
+        description: error.message || "Failed to create engine",
         variant: "destructive",
       });
     },
   });
 
-  const handleSubmit = (data: InsertComponent) => {
+  const handleSubmit = (data: InsertEngine) => {
     createMutation.mutate(data);
   };
 
@@ -65,7 +62,7 @@ export default function AddComponent() {
       </div>
 
       <div className="max-w-2xl">
-        <ComponentForm 
+        <EngineForm 
           onSubmit={handleSubmit}
           onCancel={handleCancel}
           isEditing={false}

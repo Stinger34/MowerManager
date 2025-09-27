@@ -15,11 +15,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { Engine, InsertEngine } from "@shared/schema";
 
-// Type alias for backwards compatibility
-type Component = Engine;
-type InsertComponent = InsertEngine;
-
-const componentFormSchema = z.object({
+const engineFormSchema = z.object({
   name: z.string().min(1, "Engine name is required"),
   description: z.string().optional(),
   partNumber: z.string().optional(),
@@ -34,25 +30,25 @@ const componentFormSchema = z.object({
   notes: z.string().optional(),
 });
 
-type ComponentFormData = z.infer<typeof componentFormSchema>;
+type EngineFormData = z.infer<typeof engineFormSchema>;
 
-interface ComponentFormProps {
-  initialData?: Component;
-  onSubmit: (data: InsertComponent) => void;
+interface EngineFormProps {
+  initialData?: Engine;
+  onSubmit: (data: InsertEngine) => void;
   onCancel: () => void;
   isEditing?: boolean;
 }
 
-export default function ComponentForm({ 
+export default function EngineForm({ 
   initialData, 
   onSubmit, 
   onCancel, 
   isEditing = false 
-}: ComponentFormProps) {
+}: EngineFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<ComponentFormData>({
-    resolver: zodResolver(componentFormSchema),
+  const form = useForm<EngineFormData>({
+    resolver: zodResolver(engineFormSchema),
     defaultValues: {
       name: initialData?.name || "",
       description: initialData?.description || "",
@@ -69,10 +65,10 @@ export default function ComponentForm({
     },
   });
 
-  const handleSubmit = async (data: ComponentFormData) => {
+  const handleSubmit = async (data: EngineFormData) => {
     setIsSubmitting(true);
     try {
-      const componentData: InsertComponent = {
+      const engineData: InsertEngine = {
         ...data,
         mowerId: 1, // TODO: This should be selected from a mower dropdown
         installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
@@ -85,7 +81,7 @@ export default function ComponentForm({
         serialNumber: data.serialNumber || null,
         notes: data.notes || null,
       };
-      await onSubmit(componentData);
+      await onSubmit(engineData);
     } finally {
       setIsSubmitting(false);
     }

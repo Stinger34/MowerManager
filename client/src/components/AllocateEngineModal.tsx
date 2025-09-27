@@ -17,65 +17,61 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import ComponentFormModal from "./ComponentFormModal";
+import EngineFormModal from "./EngineFormModal";
 import type { Engine, InsertEngine } from "@shared/schema";
 
-// Type alias for backwards compatibility
-type Component = Engine;
-type InsertComponent = InsertEngine;
-
-const componentAllocationFormSchema = z.object({
-  componentId: z.number().min(1, "Engine selection is required"),
+const engineAllocationFormSchema = z.object({
+  engineId: z.number().min(1, "Engine selection is required"),
   installDate: z.date().optional(),
   notes: z.string().optional(),
 });
 
-type ComponentAllocationFormData = z.infer<typeof componentAllocationFormSchema>;
+type EngineAllocationFormData = z.infer<typeof engineAllocationFormSchema>;
 
-interface AllocateComponentModalProps {
+interface AllocateEngineModalProps {
   isOpen: boolean;
   onClose: () => void;
   mowerId: string;
   onSuccess?: () => void;
 }
 
-export default function AllocateComponentModal({ 
+export default function AllocateEngineModal({ 
   isOpen, 
   onClose, 
   mowerId,
   onSuccess 
-}: AllocateComponentModalProps) {
+}: AllocateEngineModalProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Fetch all available global components (not assigned to any mower)
-  const { data: globalComponents = [], isLoading: isGlobalComponentsLoading } = useQuery<Component[]>({
-    queryKey: ['/api/components'],
+  // Fetch all available global engines (not assigned to any mower)
+  const { data: globalEngines = [], isLoading: isGlobalEnginesLoading } = useQuery<Engine[]>({
+    queryKey: ['/api/engines'],
     enabled: isOpen,
   });
 
-  // Fetch components already assigned to this mower
-  const { data: mowerComponents = [], isLoading: isMowerComponentsLoading } = useQuery<Component[]>({
-    queryKey: ['/api/mowers', mowerId, 'components'],
+  // Fetch engines already assigned to this mower
+  const { data: mowerEngines = [], isLoading: isMowerEnginesLoading } = useQuery<Engine[]>({
+    queryKey: ['/api/mowers', mowerId, 'engines'],
     enabled: isOpen && !!mowerId,
   });
 
-  // Get available components (global components not already assigned to this mower)
-  const availableComponents = globalComponents.filter(component => {
-    // Show global components that aren't already assigned to this mower
-    const isGlobal = !component.mowerId;
-    const isNotAssigned = !mowerComponents.some(mowerComp => mowerComp.id === component.id);
-    const matchesSearch = component.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (component.partNumber || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         (component.manufacturer || "").toLowerCase().includes(searchQuery.toLowerCase());
+  // Get available engines (global engines not already assigned to this mower)
+  const availableEngines = globalEngines.filter(engine => {
+    // Show global engines that aren't already assigned to this mower
+    const isGlobal = !engine.mowerId;
+    const isNotAssigned = !mowerEngines.some(mowerEngine => mowerEngine.id === engine.id);
+    const matchesSearch = engine.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (engine.partNumber || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (engine.manufacturer || "").toLowerCase().includes(searchQuery.toLowerCase());
     return isGlobal && isNotAssigned && matchesSearch;
   });
 
-  const form = useForm<ComponentAllocationFormData>({
-    resolver: zodResolver(componentAllocationFormSchema),
+  const form = useForm<EngineAllocationFormData>({
+    resolver: zodResolver(engineAllocationFormSchema),
     defaultValues: {
-      componentId: 0,
+      engineId: 0,
       installDate: undefined,
       notes: "",
     },
@@ -85,7 +81,7 @@ export default function AllocateComponentModal({
   useEffect(() => {
     if (isOpen) {
       form.reset({
-        componentId: 0,
+        engineId: 0,
         installDate: undefined,
         notes: "",
       });
@@ -93,31 +89,31 @@ export default function AllocateComponentModal({
     }
   }, [isOpen, form]);
 
-  const allocateComponentMutation = useMutation({
-    mutationFn: async (data: ComponentAllocationFormData) => {
-      // We create a copy of the selected global component and assign it to this mower
-      const selectedComponent = globalComponents.find(c => c.id === data.componentId);
-      if (!selectedComponent) {
-        throw new Error('Selected component not found');
+  const allocateEngineMutation = useMutation({
+    mutationFn: async (data: EngineAllocationFormData) => {
+      // We create a copy of the selected global engine and assign it to this mower
+      const selectedEngine = globalEngines.find(c => c.id === data.engineId);
+      if (!selectedEngine) {
+        throw new Error('Selected engine not found');
       }
 
-      const componentData: InsertComponent = {
-        name: selectedComponent.name,
-        description: selectedComponent.description,
-        partNumber: selectedComponent.partNumber,
-        manufacturer: selectedComponent.manufacturer,
-        model: selectedComponent.model,
-        serialNumber: selectedComponent.serialNumber,
+      const engineData: InsertEngine = {
+        name: selectedEngine.name,
+        description: selectedEngine.description,
+        partNumber: selectedEngine.partNumber,
+        manufacturer: selectedEngine.manufacturer,
+        model: selectedEngine.model,
+        serialNumber: selectedEngine.serialNumber,
         mowerId: parseInt(mowerId),
         installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
-        warrantyExpires: selectedComponent.warrantyExpires,
-        condition: selectedComponent.condition,
-        status: selectedComponent.status,
-        cost: selectedComponent.cost,
-        notes: data.notes || selectedComponent.notes,
+        warrantyExpires: selectedEngine.warrantyExpires,
+        condition: selectedEngine.condition,
+        status: selectedEngine.status,
+        cost: selectedEngine.cost,
+        notes: data.notes || selectedEngine.notes,
       };
       
-      const response = await apiRequest("POST", `/api/mowers/${mowerId}/components`, componentData);
+      const response = await apiRequest("POST", `/api/mowers/${mowerId}/engines`, engineData);
       return response.json();
     },
     onSuccess: () => {
@@ -139,8 +135,8 @@ export default function AllocateComponentModal({
     },
   });
 
-  const handleSubmit = (data: ComponentAllocationFormData) => {
-    allocateComponentMutation.mutate(data);
+  const handleSubmit = (data: EngineAllocationFormData) => {
+    allocateEngineMutation.mutate(data);
   };
 
   const handleClose = () => {
@@ -156,7 +152,7 @@ export default function AllocateComponentModal({
   const handleCreateComponentSuccess = () => {
     setShowCreateModal(false);
     // Refresh global components list
-    queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
   };
 
   return (
@@ -191,9 +187,9 @@ export default function AllocateComponentModal({
               </div>
 
               {/* Available Components List */}
-              {isGlobalComponentsLoading || isMowerComponentsLoading ? (
+              {isGlobalEnginesLoading || isMowerEnginesLoading ? (
                 <div className="text-center py-4">Loading components...</div>
-              ) : availableComponents.length === 0 ? (
+              ) : availableEngines.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No available components found</p>
                   {searchQuery && <p className="text-sm mt-1">Try adjusting your search or create a new component</p>}
@@ -205,16 +201,16 @@ export default function AllocateComponentModal({
                 </div>
               ) : (
                 <div className="max-h-60 overflow-y-auto space-y-2 border border-nested-border rounded-md p-2">
-                  {availableComponents.map((component) => (
+                  {availableEngines.map((component) => (
                     <div
                       key={component.id}
                       className={cn(
                         "border border-nested-border rounded-lg p-3 cursor-pointer transition-colors",
-                        form.watch("componentId") === component.id
+                        form.watch("engineId") === component.id
                           ? "border-primary bg-primary/5"
                           : "hover:border-primary/50"
                       )}
-                      onClick={() => form.setValue("componentId", component.id)}
+                      onClick={() => form.setValue("engineId", component.id)}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -237,7 +233,7 @@ export default function AllocateComponentModal({
                             {component.cost && <span>Cost: ${component.cost}</span>}
                           </div>
                         </div>
-                        {form.watch("componentId") === component.id && (
+                        {form.watch("engineId") === component.id && (
                           <div className="text-primary">
                             ✓ Selected
                           </div>
@@ -250,7 +246,7 @@ export default function AllocateComponentModal({
             </div>
 
             {/* Allocation Form */}
-            {form.watch("componentId") > 0 && (
+            {form.watch("engineId") > 0 && (
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                   <FormField
@@ -318,9 +314,9 @@ export default function AllocateComponentModal({
                     </Button>
                     <Button 
                       type="submit" 
-                      disabled={allocateComponentMutation.isPending}
+                      disabled={allocateEngineMutation.isPending}
                     >
-                      {allocateComponentMutation.isPending 
+                      {allocateEngineMutation.isPending 
                         ? "Allocating..." 
                         : "Allocate Engine"
                       }
@@ -334,7 +330,7 @@ export default function AllocateComponentModal({
       </Dialog>
 
       {/* Create New Component Modal */}
-      <ComponentFormModal
+      <EngineFormModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         mowerId={null} // Global component

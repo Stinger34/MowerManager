@@ -14,8 +14,8 @@ import UnifiedFileUploadArea from "@/components/UnifiedFileUploadArea";
 import AttachmentMetadataDialog from "@/components/AttachmentMetadataDialog";
 import EditAttachmentDialog from "@/components/EditAttachmentDialog";
 import TaskList from "@/components/TaskList";
-import ComponentFormModal from "@/components/ComponentFormModal";
-import AllocateComponentModal from "@/components/AllocateComponentModal";
+import EngineFormModal from "@/components/EngineFormModal";
+import AllocateEngineModal from "@/components/AllocateEngineModal";
 import AllocatePartModal from "@/components/AllocatePartModal";
 import PartFormModal from "@/components/PartFormModal";
 import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench, Camera, FolderOpen } from "lucide-react";
@@ -26,9 +26,6 @@ import { useCameraCapture } from "@/hooks/useCameraCapture";
 import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Engine, Part, AssetPart, AssetPartWithDetails } from "@shared/schema";
 
-// Type alias for backwards compatibility during transition
-type Component = Engine;
-type InsertComponent = typeof import("@shared/schema").insertEngineSchema._type;
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
 import { motion } from "framer-motion";
@@ -164,7 +161,6 @@ export default function MowerDetails() {
   const { data: thumbnail } = useMowerThumbnail(mowerId || '');
 
   // Backwards compatibility aliases during transition (after queries are defined)
-  const selectedComponentForAllocation = selectedEngineForAllocation;
   const setSelectedComponentForAllocation = setSelectedEngineForAllocation;
   const components = engines;
   const componentsError = enginesError;
@@ -637,15 +633,15 @@ export default function MowerDetails() {
     setShowAllocatePartModal(true);
   };
 
-  const handleAllocatePartToComponent = (componentId: string) => {
+  const handleAllocatePartToEngine = (engineId: string) => {
     setEditingAssetPart(null);
-    setSelectedComponentForAllocation(componentId);
+    setSelectedEngineForAllocation(engineId);
     setShowAllocatePartModal(true);
   };
 
   const handleEditAssetPart = (assetPart: AssetPart) => {
     setEditingAssetPart(assetPart);
-    setSelectedComponentForAllocation(assetPart.engineId?.toString() || null);
+    setSelectedEngineForAllocation(assetPart.engineId?.toString() || null);
     setShowAllocatePartModal(true);
   };
 
@@ -663,10 +659,6 @@ export default function MowerDetails() {
   // Engine/Component compatibility handlers
   const handleAllocateComponent = () => {
     setShowAllocateEngineModal(true);
-  };
-
-  const handleAddComponent = () => {
-    setShowEngineModal(true);
   };
 
   const handleEditComponent = (engine: Engine) => {
@@ -1099,7 +1091,7 @@ export default function MowerDetails() {
                         <Wrench className="h-4 w-4 mr-2" />
                         Allocate Engine
                       </Button>
-                      <Button variant="outline" size="sm" onClick={handleAddComponent} data-testid="button-add-component">
+                      <Button variant="outline" size="sm" onClick={handleAddEngine} data-testid="button-add-engine">
                         <Plus className="h-4 w-4 mr-2" />
                         Create Engine
                       </Button>
@@ -1156,7 +1148,7 @@ export default function MowerDetails() {
                               <Button 
                                 variant="ghost" 
                                 size="sm"
-                                onClick={() => handleAllocatePartToComponent(component.id.toString())}
+                                onClick={() => handleAllocatePartToEngine(component.id.toString())}
                                 title="Allocate parts to this component"
                               >
                                 <Plus className="h-4 w-4" />
@@ -1376,19 +1368,19 @@ export default function MowerDetails() {
       />
 
       {/* Component Form Modal */}
-      <ComponentFormModal
+      <EngineFormModal
         isOpen={showComponentModal}
         onClose={() => {
           setShowComponentModal(false);
           setEditingComponent(null);
         }}
         mowerId={mowerId!}
-        component={editingComponent}
+        engine={editingComponent}
         onSuccess={handleModalSuccess}
       />
 
-      {/* Allocate Component Modal */}
-      <AllocateComponentModal
+      {/* Allocate Engine Modal */}
+      <AllocateEngineModal
         isOpen={showAllocateComponentModal}
         onClose={() => setShowAllocateComponentModal(false)}
         mowerId={mowerId!}
@@ -1404,7 +1396,7 @@ export default function MowerDetails() {
           setSelectedComponentForAllocation(null);
         }}
         mowerId={mowerId!}
-        engineId={selectedComponentForAllocation}
+        engineId={selectedEngineForAllocation}
         assetPart={editingAssetPart}
         onSuccess={handleModalSuccess}
       />

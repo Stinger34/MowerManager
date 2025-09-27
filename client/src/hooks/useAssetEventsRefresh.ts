@@ -70,10 +70,10 @@ function handleComprehensiveAutoRefresh(message: WebSocketMessage) {
     case 'component-deleted':
       // Invalidate component-related queries
       queriesToInvalidate.push(
-        ['/api/components'], // PartsCatalog components tab
-        ['/api/components', data.id.toString()], // ComponentDetails
-        ['/api/components', data.id.toString(), 'parts'], // ComponentDetails parts
-        ['/api/components', data.id.toString(), 'attachments'] // ComponentDetails attachments
+        ['/api/engines'], // PartsCatalog components tab
+        ['/api/engines', data.id.toString()], // EngineDetails
+        ['/api/engines', data.id.toString(), 'parts'], // EngineDetails parts
+        ['/api/engines', data.id.toString(), 'attachments'] // EngineDetails attachments
       );
       
       // If component belongs to a mower, invalidate mower data too
@@ -107,10 +107,10 @@ function handleComprehensiveAutoRefresh(message: WebSocketMessage) {
         );
       }
       
-      if (data.componentId) {
+      if (data.engineId) {
         queriesToInvalidate.push(
-          ['/api/components', data.componentId.toString(), 'parts'], // ComponentDetails parts
-          ['/api/components', data.componentId.toString()] // ComponentDetails general
+          ['/api/engines', data.engineId.toString(), 'parts'], // EngineDetails parts
+          ['/api/engines', data.engineId.toString()] // EngineDetails general
         );
       }
       
