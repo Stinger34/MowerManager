@@ -66,7 +66,7 @@ export const tasks = pgTable("tasks", {
 
 export const engines = pgTable("engines", {
   id: serial("id").primaryKey(),
-  mowerId: integer("mower_id").notNull().references(() => mowers.id, { onDelete: "cascade" }),
+  mowerId: integer("mower_id").references(() => mowers.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
   partNumber: text("part_number"),
