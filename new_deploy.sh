@@ -1,48 +1,100 @@
 #!/usr/bin/env bash
-# new_deploy.sh (stable safe-mode version)
-# Purpose: Local schema sync with optional rename/archive heuristics.
-# Fix: Removed invalid 'command -v jq' inside [[ ]].
+# new_deploy.sh  (Local Development Deployment & Schema Helper)
+#
+# Purpose:
+#   - Quick local deployment helper for the MowerManager app
+#   - Safely evolves DB schema using drizzle (push or migrate)
+#   - Optional heuristic table/column rename assistance (requires jq)
+#   - Automatic foreign‑key repair for asset_parts.engine_id -> engines.id
+#   - Minimal, resilient, and idempotent for local iteration
+#
+# Key Features:
+#   • Loads .env and ensures DATABASE_URL present
+#   • Dependency verification (node_modules, drizzle-kit, pg, optional jq)
+#   • Optional: rename heuristics (table/column) if jq installed
+#   • Automatic FK orphan repair (placeholder or nullify) before schema sync
+#   • Supports modes: push (default) or migrate (with optional generate)
+#   • Dry-run preview mode
+#   • Archive unmatched tables (rename to archived_<table>_<timestamp>)
+#   • Safe fallback if jq missing (rename heuristics disabled)
+#
+# Environment / Flags:
+#   MODE=push|migrate                (default push)
+#   GENERATE_MIGRATION=true          (with MODE=migrate)
+#   MIGRATION_NAME=<name>            (defaults auto timestamp)
+#   DRY_RUN=true                     (preview only)
+#   AUTO_CONFIRM=true                (skip confirmations)
+#   NO_BUILD=true                    (skip build step)
+#   START_APP=true                   (run npm start at end)
+#   RESET_PUBLIC=true                (drop & recreate public schema)
+#   VERBOSE=true                     (extra debug output)
+#   SKIP_RENAME_HEURISTICS=true      (disable rename planning)
+#   ARCHIVE_DROPPED_TABLES=false     (disable archiving)
+#   SKIP_ARCHIVE=true                (alias to skip archiving)
+#   FK_REPAIR_MODE=placeholder|nullify|skip (default placeholder)
+#
+# CLI Options (override env):
+#   --migrate --push --generate <name> --dry-run --auto-confirm --no-build
+#   --start --reset-public --verbose --no-archive --skip-archive
+#   --no-rename --plan-only --help
+#
+# Exit Codes: 0 success / 1 generic failure
+#
+# NOTE: This script aims to preserve data (archives orphans, creates placeholder engines).
+#       Always inspect logs when schema changes occur.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-MODE="push"       # push | migrate
-AUTO_CONFIRM="false"
-DRY_RUN="false"
-GENERATE_MIGRATION="false"
-MIGRATION_NAME="auto_local_$(date +%Y%m%d_%H%M%S)"
-NO_BUILD="false"
-START_APP="false"
-RESET_PUBLIC="false"
-VERBOSE="false"
-ARCHIVE_DROPPED_TABLES="true"
-SKIP_ARCHIVE="false"
-SKIP_RENAME_HEURISTICS="false"
+# ---------------------------------------------------------------------------
+# Default configuration (can be overridden via env or flags)
+# ---------------------------------------------------------------------------
+MODE="${MODE:-push}"                # push | migrate
+AUTO_CONFIRM="${AUTO_CONFIRM:-false}"
+DRY_RUN="${DRY_RUN:-false}"
+GENERATE_MIGRATION="${GENERATE_MIGRATION:-false}"
+MIGRATION_NAME="${MIGRATION_NAME:-auto_local_$(date +%Y%m%d_%H%M%S)}"
+NO_BUILD="${NO_BUILD:-false}"
+START_APP="${START_APP:-false}"
+RESET_PUBLIC="${RESET_PUBLIC:-false}"
+VERBOSE="${VERBOSE:-false}"
+SKIP_RENAME_HEURISTICS="${SKIP_RENAME_HEURISTICS:-false}"
+ARCHIVE_DROPPED_TABLES="${ARCHIVE_DROPPED_TABLES:-true}"
+SKIP_ARCHIVE="${SKIP_ARCHIVE:-false}"
+FK_REPAIR_MODE="${FK_REPAIR_MODE:-placeholder}"   # placeholder|nullify|skip
 
 LOG_FILE="${SCRIPT_DIR}/local_deploy.log"
 PLAN_FILE="${SCRIPT_DIR}/.rename_plan.json"
 
-C_BLUE='\033[0;34m'; C_GREEN='\033[0;32m'; C_YELLOW='\033[1;33m'; C_RED='\033[0;31m'; C_DIM='\033[2m'; C_RESET='\033[0m'
+# ---------------------------------------------------------------------------
+# Colors
+# ---------------------------------------------------------------------------
+C_BLUE='\033[0;34m'; C_GREEN='\033[0;32m'; C_YELLOW='\033[1;33m'
+C_RED='\033[0;31m'; C_DIM='\033[2m'; C_RESET='\033[0m'
 
+# ---------------------------------------------------------------------------
+# Logging / Utilities
+# ---------------------------------------------------------------------------
 log() {
   local level="$1"; shift
   local msg="$*"
   local ts
   ts=$(date '+%Y-%m-%d %H:%M:%S')
   case "$level" in
-    INFO) echo -e "${C_BLUE}[INFO]${C_RESET} $msg" ;;
-    WARN) echo -e "${C_YELLOW}[WARN]${C_RESET} $msg" ;;
-    ERROR) echo -e "${C_RED}[ERROR]${C_RESET} $msg" ;;
+    INFO)    echo -e "${C_BLUE}[INFO]${C_RESET} $msg" ;;
+    WARN)    echo -e "${C_YELLOW}[WARN]${C_RESET} $msg" ;;
+    ERROR)   echo -e "${C_RED}[ERROR]${C_RESET} $msg" ;;
     SUCCESS) echo -e "${C_GREEN}[SUCCESS]${C_RESET} $msg" ;;
-    DEBUG) if [[ "$VERBOSE" == "true" ]]; then echo -e "${C_DIM}[DEBUG] $msg${C_RESET}"; fi ;;
-    *) echo "[LOG] $msg" ;;
+    DEBUG)   [[ "$VERBOSE" == "true" ]] && echo -e "${C_DIM}[DEBUG] $msg${C_RESET}" ;;
+    *)       echo "[LOG] $msg" ;;
   esac
   echo "[$ts] [$level] $msg" >> "$LOG_FILE"
 }
 
 header() { echo -e "\n${C_GREEN}== $* ==${C_RESET}"; }
+
 confirm() {
   local prompt="$1"
   if [[ "$AUTO_CONFIRM" == "true" ]]; then
@@ -52,8 +104,12 @@ confirm() {
   read -r -p "$prompt [y/N]: " ans || true
   [[ "$ans" =~ ^[Yy]$ ]]
 }
+
 init_log() { echo "=== Local Deployment Log $(date) ===" > "$LOG_FILE"; }
 
+# ---------------------------------------------------------------------------
+# Argument Parsing
+# ---------------------------------------------------------------------------
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --migrate) MODE="migrate"; shift ;;
@@ -71,58 +127,90 @@ while [[ $# -gt 0 ]]; do
     --help)
       cat <<EOF
 Usage: ./new_deploy.sh [options]
-  --push / --migrate
-  --generate NAME
-  --dry-run
-  --auto-confirm
-  --no-build
-  --start
-  --reset-public
-  --verbose
-  --no-archive / --skip-archive
-  --no-rename
-  --plan-only
+
+Options:
+  --push / --migrate          Select schema sync mode
+  --generate <name>           Generate migration (implies migrate path)
+  --dry-run                   Preview actions
+  --auto-confirm              Skip interactive prompts
+  --no-build                  Skip build
+  --start                     Start the app after sync
+  --reset-public              Drop & recreate public schema (DESTRUCTIVE)
+  --verbose                   More debug logs
+  --no-archive | --skip-archive   Disable archiving of unmatched tables
+  --no-rename                 Disable rename heuristics
+  --plan-only                 Produce plan (dry-run) then exit
+  --help                      Show this help
+
+Env Vars (override defaults):
+  MODE, GENERATE_MIGRATION, MIGRATION_NAME, DRY_RUN,
+  AUTO_CONFIRM, NO_BUILD, START_APP, RESET_PUBLIC,
+  VERBOSE, SKIP_RENAME_HEURISTICS, ARCHIVE_DROPPED_TABLES,
+  SKIP_ARCHIVE, FK_REPAIR_MODE (placeholder|nullify|skip)
+
+Examples:
+  ./new_deploy.sh
+  DRY_RUN=true ./new_deploy.sh
+  MODE=migrate GENERATE_MIGRATION=true ./new_deploy.sh
+  FK_REPAIR_MODE=nullify ./new_deploy.sh
+
 EOF
       exit 0 ;;
-    *) log WARN "Unknown arg: $1"; shift ;;
-  esac
-done
+    *) log WARN "Unknown argument ignored: $1"; shift ;;
+  endcase
+  shift || true
+done || true
 
+# ---------------------------------------------------------------------------
+# Environment Loading
+# ---------------------------------------------------------------------------
 load_env() {
   if [[ -f .env ]]; then
-    set -a; source .env; set +a
+    set -a
+    # shellcheck disable=SC1091
+    source .env
+    set +a
     log INFO "Loaded .env"
   fi
   if [[ -z "${DATABASE_URL:-}" ]]; then
-    log ERROR "DATABASE_URL not set"
+    log ERROR "DATABASE_URL not set (define in .env or export before running)"
     exit 1
   fi
 }
 
+# ---------------------------------------------------------------------------
+# Dependency Check
+# ---------------------------------------------------------------------------
 ensure_deps() {
   header "Dependency Check"
   if ! command -v jq >/dev/null 2>&1; then
-    log WARN "jq missing -> disabling rename heuristics"
+    log WARN "jq not found -> rename heuristics disabled"
     SKIP_RENAME_HEURISTICS="true"
   fi
   if [[ ! -d node_modules ]]; then
     if [[ "$DRY_RUN" == "true" ]]; then
-      log INFO "[DRY-RUN] npm install"
+      log INFO "[DRY-RUN] Would run: npm install"
     else
+      log INFO "Installing dependencies (node_modules missing)"
       npm install
     fi
   fi
   if ! npx --yes drizzle-kit --version >/dev/null 2>&1; then
+    log INFO "Installing drizzle-kit"
     [[ "$DRY_RUN" == "true" ]] || npm install --save-dev drizzle-kit
   fi
   if [[ ! -d node_modules/pg ]]; then
+    log INFO "Installing pg module"
     [[ "$DRY_RUN" == "true" ]] || npm install pg
   fi
 }
 
+# ---------------------------------------------------------------------------
+# Reset public schema (dangerous)
+# ---------------------------------------------------------------------------
 reset_public_schema() {
   if [[ "$RESET_PUBLIC" != "true" ]]; then return 0; fi
-  if confirm "RESET PUBLIC SCHEMA? (destructive)"; then
+  if confirm "RESET PUBLIC SCHEMA? This DROPS all tables. Continue?"; then
     if [[ "$DRY_RUN" == "true" ]]; then
       log INFO "[DRY-RUN] DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
     else
@@ -134,17 +222,20 @@ reset_public_schema() {
   fi
 }
 
+# ---------------------------------------------------------------------------
+# Rename Plan Generation (Table/Column) — requires jq
+# ---------------------------------------------------------------------------
 generate_plan() {
   if [[ "$SKIP_RENAME_HEURISTICS" == "true" ]]; then
     log INFO "Rename heuristics disabled"
     return 0
   fi
   if ! command -v jq >/dev/null 2>&1; then
-    log WARN "jq missing -> skipping plan"
+    log WARN "jq missing -> cannot generate rename plan"
     return 0
   fi
 
-  log INFO "Generating rename plan..."
+  log INFO "Generating rename/column plan..."
   local planner="${SCRIPT_DIR}/.planner_rename.js"
   cat > "$planner" <<'EOF'
 import { createRequire } from 'module';
@@ -153,20 +244,20 @@ const fs = require('fs');
 let Client;
 try { ({ Client } = require('pg')); } catch { console.log(JSON.stringify({ error:'pg module missing'})); process.exit(0); }
 
-const DB_URL=process.env.DATABASE_URL;
-if(!DB_URL){ console.log(JSON.stringify({ error:'DATABASE_URL not set'})); process.exit(0); }
+const DB_URL = process.env.DATABASE_URL;
+if (!DB_URL) { console.log(JSON.stringify({ error:'DATABASE_URL not set'})); process.exit(0); }
 
-let schemaSrc='';
-try { schemaSrc=fs.readFileSync('./shared/schema.ts','utf8'); }
+let schemaSrc = '';
+try { schemaSrc = fs.readFileSync('./shared/schema.ts','utf8'); }
 catch { console.log(JSON.stringify({ error:'Cannot read schema.ts'})); process.exit(0); }
 
 const tableRegex=/pgTable\s*\(\s*['"]([A-Za-z0-9_]+)['"]\s*,\s*\{([\s\S]*?)}\s*\)/g;
-const desired={};
+const desired = {};
 let m;
-while((m=tableRegex.exec(schemaSrc))!==null){
+while ((m = tableRegex.exec(schemaSrc)) !== null) {
   const t=m[1], body=m[2];
   const colRegex=/([A-Za-z0-9_]+)\s*:\s*[A-Za-z0-9_]+\(\s*['"]([A-Za-z0-9_]+)['"]/g;
-  let c; desired[t]={cols:new Set()};
+  let c; desired[t]={ cols:new Set() };
   while((c=colRegex.exec(body))!==null){ desired[t].cols.add(c[2]); }
 }
 
@@ -189,13 +280,22 @@ function lev(a,b){
 const norm=s=>s.toLowerCase().replace(/_/g,'');
 
 (async()=>{
-  const { Client } = require('pg');
   const client=new Client({connectionString:DB_URL});
   await client.connect();
-  const tRes=await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY 1;`);
+
+  const tRes=await client.query(`
+    SELECT table_name FROM information_schema.tables
+    WHERE table_schema='public' AND table_type='BASE TABLE'
+    ORDER BY 1;
+  `);
   const existing=tRes.rows.map(r=>r.table_name);
 
-  const cRes=await client.query(`SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' ORDER BY table_name,ordinal_position;`);
+  const cRes=await client.query(`
+    SELECT table_name, column_name
+    FROM information_schema.columns
+    WHERE table_schema='public'
+    ORDER BY table_name, ordinal_position;
+  `);
   const exColsMap={};
   for(const r of cRes.rows){
     exColsMap[r.table_name]=exColsMap[r.table_name]||new Set();
@@ -218,7 +318,7 @@ const norm=s=>s.toLowerCase().replace(/_/g,'');
       if(score>bestScore){ bestScore=score; best=dn; }
     }
     if(best && bestScore>=0.5){
-      tableRenames.push({ from:ex,to:best,similarity:+bestScore.toFixed(3) });
+      tableRenames.push({ from:ex,to:best, similarity:+bestScore.toFixed(3) });
       used.add(best);
     } else {
       archives.push(ex);
@@ -262,27 +362,29 @@ EOF
     node "$planner" > "$PLAN_FILE" 2>/dev/null || echo '{"error":"plan failed"}' > "$PLAN_FILE"
   else
     if ! node "$planner" > "$PLAN_FILE" 2>&1; then
-      log WARN "Plan generation failed; disabling heuristics"
+      log WARN "Plan generation failed; disabling rename heuristics"
       SKIP_RENAME_HEURISTICS="true"
       return 0
     fi
   fi
 
   if grep -q '"error"' "$PLAN_FILE"; then
-    log WARN "Plan has error; disabling heuristics"
+    log WARN "Plan file contains error; disabling rename heuristics"
     SKIP_RENAME_HEURISTICS="true"
   else
     log INFO "Plan saved: $PLAN_FILE"
-    if [[ "$VERBOSE" == "true" ]]; then sed 's/^/[PLAN] /' "$PLAN_FILE"; fi
+    [[ "$VERBOSE" == "true" ]] && sed 's/^/[PLAN] /' "$PLAN_FILE"
   fi
 }
 
+# ---------------------------------------------------------------------------
+# Apply Table Renames
+# ---------------------------------------------------------------------------
 apply_table_renames() {
-  if [[ "$SKIP_RENAME_HEURISTICS" == "true" ]]; then return 0; fi
-  if [[ ! -f "$PLAN_FILE" ]]; then return 0; fi
+  if [[ "$SKIP_RENAME_HEURISTICS" == "true" ]] || [[ ! -f "$PLAN_FILE" ]]; then return 0; fi
   local rows
   rows=$(jq -r '.plan.tables.renames[]? | @base64' "$PLAN_FILE" 2>/dev/null || true)
-  if [[ -z "$rows" ]]; then log INFO "No table renames"; return 0; fi
+  [[ -z "$rows" ]] && { log INFO "No table renames"; return 0; }
   header "Table Renames"
   while read -r r; do
     [[ -z "$r" ]] && continue
@@ -293,20 +395,22 @@ apply_table_renames() {
     if [[ "$DRY_RUN" == "true" ]]; then
       log INFO "[DRY-RUN] ALTER TABLE \"$from\" RENAME TO \"$to\"; (sim=$sim)"
     else
-      log INFO "Renaming $from -> $to"
+      log INFO "Renaming $from -> $to (sim=$sim)"
       psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "ALTER TABLE \"$from\" RENAME TO \"$to\";" || log WARN "Failed rename $from"
     fi
   done <<< "$rows"
 }
 
+# ---------------------------------------------------------------------------
+# Archive Unmatched Tables
+# ---------------------------------------------------------------------------
 archive_tables() {
-  if [[ "$SKIP_RENAME_HEURISTICS" == "true" ]]; then return 0; fi
-  if [[ "$ARCHIVE_DROPPED_TABLES" != "true" ]]; then return 0; fi
-  if [[ "$SKIP_ARCHIVE" == "true" ]]; then return 0; fi
-  if [[ ! -f "$PLAN_FILE" ]]; then return 0; fi
+  if [[ "$SKIP_RENAME_HEURISTICS" == "true" ]] || [[ "$ARCHIVE_DROPPED_TABLES" != "true" ]] || [[ "$SKIP_ARCHIVE" == "true" ]] || [[ ! -f "$PLAN_FILE" ]]; then
+    return 0
+  fi
   local list
   list=$(jq -r '.plan.tables.archives[]?' "$PLAN_FILE" 2>/dev/null || true)
-  if [[ -z "$list" ]]; then log INFO "No tables to archive"; return 0; fi
+  [[ -z "$list" ]] && { log INFO "No tables to archive"; return 0; }
   header "Archiving Tables"
   while read -r t; do
     [[ -z "$t" ]] && continue
@@ -320,12 +424,14 @@ archive_tables() {
   done <<< "$list"
 }
 
+# ---------------------------------------------------------------------------
+# Apply Column Renames
+# ---------------------------------------------------------------------------
 apply_column_renames() {
-  if [[ "$SKIP_RENAME_HEURISTICS" == "true" ]]; then return 0; fi
-  if [[ ! -f "$PLAN_FILE" ]]; then return 0; fi
+  if [[ "$SKIP_RENAME_HEURISTICS" == "true" ]] || [[ ! -f "$PLAN_FILE" ]]; then return 0; fi
   local rows
   rows=$(jq -r '.plan.columns.renames[]? | @base64' "$PLAN_FILE" 2>/dev/null || true)
-  if [[ -z "$rows" ]]; then log INFO "No column renames"; return 0; fi
+  [[ -z "$rows" ]] && { log INFO "No column renames"; return 0; }
   header "Column Renames"
   while read -r r; do
     [[ -z "$r" ]] && continue
@@ -338,9 +444,9 @@ apply_column_renames() {
     if [[ "$DRY_RUN" == "true" ]]; then
       log INFO "[DRY-RUN] $sql (distance=$distance)"
     else
-      log INFO "Renaming $table.$from -> $to"
+      log INFO "Renaming column $table.$from -> $to (dist=$distance)"
       if ! psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "$sql"; then
-        log WARN "Direct rename failed; attempting fallback for $table.$from"
+        log WARN "Direct rename failed; attempting fallback"
         local tmp="__tmp_${to}_$(date +%s)"
         psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "ALTER TABLE \"$table\" ADD COLUMN \"$tmp\" TEXT;" \
           && psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "UPDATE \"$table\" SET \"$tmp\" = \"$from\"::text;" \
@@ -352,6 +458,78 @@ apply_column_renames() {
   done <<< "$rows"
 }
 
+# ---------------------------------------------------------------------------
+# Foreign Key Repair (asset_parts.engine_id -> engines.id)
+# ---------------------------------------------------------------------------
+repair_asset_parts_engine_fk() {
+  log INFO "Checking orphan engine_id references (FK repair mode: $FK_REPAIR_MODE)..."
+  local orphan_count
+  orphan_count=$(psql "$DATABASE_URL" -At -c "
+    SELECT COUNT(*)
+    FROM asset_parts ap
+    LEFT JOIN engines e ON e.id = ap.engine_id
+    WHERE ap.engine_id IS NOT NULL
+      AND e.id IS NULL;
+  " 2>/dev/null || echo "0")
+
+  if [[ "$orphan_count" == "0" ]]; then
+    log INFO "No orphan engine_id values."
+    return 0
+  fi
+
+  log WARN "Detected $orphan_count orphan engine_id value(s)."
+
+  case "$FK_REPAIR_MODE" in
+    placeholder)
+      if [[ "$DRY_RUN" == "true" ]]; then
+        log INFO "[DRY-RUN] Would create placeholder engine rows."
+      else
+        psql "$DATABASE_URL" <<'SQL'
+WITH missing AS (
+  SELECT DISTINCT ap.engine_id
+  FROM asset_parts ap
+  LEFT JOIN engines e ON e.id = ap.engine_id
+  WHERE ap.engine_id IS NOT NULL
+    AND e.id IS NULL
+)
+INSERT INTO engines (id, name, model, created_at)
+SELECT m.engine_id,
+       CONCAT('Placeholder Engine ', m.engine_id),
+       'pending',
+       NOW()
+FROM missing m
+ORDER BY m.engine_id;
+SQL
+        # Adjust sequence if table uses serial/identity
+        psql "$DATABASE_URL" -c "SELECT setval(pg_get_serial_sequence('engines','id'), (SELECT MAX(id) FROM engines));" >/dev/null 2>&1 || true
+        log SUCCESS "Inserted placeholder engines."
+      fi
+      ;;
+    nullify)
+      if [[ "$DRY_RUN" == "true" ]]; then
+        log INFO "[DRY-RUN] Would nullify orphan engine_id references."
+      else
+        psql "$DATABASE_URL" -c "
+          UPDATE asset_parts ap
+          SET engine_id = NULL
+          WHERE engine_id IS NOT NULL
+            AND NOT EXISTS (SELECT 1 FROM engines e WHERE e.id = ap.engine_id);
+        "
+        log SUCCESS "Nullified orphan engine_id values."
+      fi
+      ;;
+    skip)
+      log WARN "Skipping FK repair; db:push may fail if constraint enforced."
+      ;;
+    *)
+      log ERROR "Invalid FK_REPAIR_MODE: $FK_REPAIR_MODE (expected placeholder|nullify|skip)"
+      ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# Schema Sync (Push or Migrate)
+# ---------------------------------------------------------------------------
 schema_sync() {
   header "Schema Sync"
   if [[ "$MODE" == "push" ]]; then
@@ -376,6 +554,9 @@ schema_sync() {
   fi
 }
 
+# ---------------------------------------------------------------------------
+# Build / Start
+# ---------------------------------------------------------------------------
 build_phase() {
   if [[ "$NO_BUILD" == "true" ]]; then
     log INFO "Skipping build (--no-build)"
@@ -399,27 +580,24 @@ start_app() {
   fi
 }
 
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
 show_summary() {
   header "Summary"
-  # Split the conditions to avoid command execution inside [[ ]]
-  if [[ -f "$PLAN_FILE" ]]; then
-    if [[ "$SKIP_RENAME_HEURISTICS" != "true" ]]; then
-      if command -v jq >/dev/null 2>&1; then
-        log INFO "Table renames: $(jq '.plan.tables.renames | length' "$PLAN_FILE")"
-        log INFO "Archived tables: $(jq '.plan.tables.archives | length' "$PLAN_FILE")"
-        log INFO "Column renames: $(jq '.plan.columns.renames | length' "$PLAN_FILE")"
-      else
-        log INFO "Rename plan present but jq missing for summary"
-      fi
-    else
-      log INFO "Rename heuristics disabled"
-    fi
+  if [[ -f "$PLAN_FILE" && "$SKIP_RENAME_HEURISTICS" != "true" && $(command -v jq || echo "") ]]; then
+    log INFO "Table renames: $(jq '.plan.tables.renames | length' "$PLAN_FILE")"
+    log INFO "Archived tables: $(jq '.plan.tables.archives | length' "$PLAN_FILE")"
+    log INFO "Column renames: $(jq '.plan.columns.renames | length' "$PLAN_FILE")"
   else
-    log INFO "No plan file generated"
+    log INFO "No plan or heuristics disabled"
   fi
   log SUCCESS "Completed (MODE=$MODE DRY_RUN=$DRY_RUN)"
 }
 
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 main() {
   init_log
   header "Local Schema Evolution Script"
@@ -427,7 +605,7 @@ main() {
   load_env
   ensure_deps
   if ! psql "$DATABASE_URL" -c "SELECT 1;" >/dev/null 2>&1; then
-    log ERROR "Cannot connect to database"
+    log ERROR "Cannot connect to database with DATABASE_URL"
     exit 1
   fi
   reset_public_schema
@@ -435,6 +613,7 @@ main() {
   apply_table_renames
   apply_column_renames
   archive_tables
+  repair_asset_parts_engine_fk
   schema_sync
   build_phase
   start_app
