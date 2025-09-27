@@ -533,10 +533,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/engines", async (req, res) => {
     try {
-      // Global engines should not have a mowerId - set to null for global engines
+      // Global engines should NEVER have a mowerId - this ensures they are not auto-allocated
       const engineData = { ...req.body };
       if (engineData.mowerId) {
-        // If mowerId is provided, it should be for global context, so we ignore it
+        // Explicitly remove any mowerId to prevent auto-allocation
         delete engineData.mowerId;
       }
       
@@ -570,7 +570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       res.status(201).json(engine);
     } catch (error) {
-      res.status(400).json({ error: "Invalid engine data", details: error instanceof Error ? error.message : String(error) });
+      res.status(400).json({ error: error instanceof Error ? error.message : "Invalid engine data" });
     }
   });
 
