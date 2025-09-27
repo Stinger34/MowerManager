@@ -512,7 +512,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Engine (Canonical) Routes
   // ---------------------------------------------------------------------------
   app.get("/api/engines", async (_req, res) => {
-    try { res.json(await storage.getAllEngines()); }
+    try { 
+      const allEngines = await storage.getAllEngines();
+      // Only return global engines (not allocated to any mower)
+      const globalEngines = allEngines.filter(engine => engine.mowerId === null);
+      res.json(globalEngines);
+    }
     catch { res.status(500).json({ error: "Failed to fetch engines" }); }
   });
 
@@ -528,8 +533,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/engines", async (req, res) => {
     try {
-      if (!req.body.mowerId) return res.status(400).json({ error: "Engine must be attached to a mower" });
-      const validated = insertEngineSchema.parse(req.body);
+      // Global engines should not have a mowerId - set to null for global engines
+      const engineData = { ...req.body };
+      if (engineData.mowerId) {
+        // If mowerId is provided, it should be for global context, so we ignore it
+        delete engineData.mowerId;
+      }
+      
+      const validated = insertEngineSchema.parse(engineData);
       const engine = await storage.createEngine(validated);
       await NotificationService.createEngineNotification("created", engine.name, engine.id.toString());
       webSocketService.broadcastAssetEvent("engine-created", "engine", engine.id, { engine, mowerId: engine.mowerId });

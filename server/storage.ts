@@ -382,7 +382,7 @@ export class MemStorage implements IStorage {
     const engine: Engine = {
       ...insertEngine,
       id: parseInt(id),
-      mowerId: insertEngine.mowerId,
+      mowerId: insertEngine.mowerId || null,
       condition: insertEngine.condition || "good",
       status: insertEngine.status || "active",
       description: insertEngine.description || null,

@@ -597,6 +597,15 @@ export default function MowerDetails() {
 
   // Engine handlers
   const handleAddEngine = () => {
+    // Check if mower already has an engine
+    if (components.length > 0) {
+      toast({
+        title: "Engine Already Allocated",
+        description: "This mower already has an engine allocated. Only one engine per mower is allowed.",
+        variant: "destructive",
+      });
+      return;
+    }
     setEditingEngine(null);
     setShowEngineModal(true);
   };
@@ -1116,7 +1125,14 @@ export default function MowerDetails() {
                         <Wrench className="h-4 w-4 mr-2" />
                         Allocate Engine
                       </Button>
-                      <Button variant="outline" size="sm" onClick={handleAddEngine} data-testid="button-add-engine">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleAddEngine} 
+                        disabled={components.length > 0}
+                        data-testid="button-add-engine"
+                        title={components.length > 0 ? "This mower already has an engine allocated" : "Create new engine for this mower"}
+                      >
                         <Plus className="h-4 w-4 mr-2" />
                         Create Engine
                       </Button>
