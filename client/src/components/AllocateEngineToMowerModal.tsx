@@ -52,12 +52,22 @@ export default function AllocateEngineToMowerModal({
     enabled: isOpen,
   });
 
+  // Fetch engines for all mowers to check availability
+  const { data: allEngines = [] } = useQuery<Engine[]>({
+    queryKey: ['/api/engines'],
+    enabled: isOpen,
+  });
+
   // Filter mowers based on search query and availability (no engine already allocated)
   const availableMowers = allMowers.filter(mower => {
     const matchesSearch = mower.make.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          mower.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (mower.serialNumber || "").toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
+    
+    // Check if this mower already has an engine allocated
+    const hasEngine = allEngines.some(engine => engine.mowerId === mower.id);
+    
+    return matchesSearch && !hasEngine;
   });
 
   const form = useForm<EngineAllocationFormData>({
