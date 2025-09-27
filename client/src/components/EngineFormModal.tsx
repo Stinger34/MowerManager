@@ -21,11 +21,7 @@ import type { Engine, InsertEngine } from "@shared/schema";
 import AttachmentUploadArea from "./AttachmentUploadArea";
 import { uploadAttachmentsForEntity } from "@/lib/attachmentUpload";
 
-// Type alias for backwards compatibility
-type Component = Engine;
-type InsertComponent = InsertEngine;
-
-const componentFormSchema = z.object({
+const engineFormSchema = z.object({
   name: z.string().min(1, "Engine name is required"),
   description: z.string().optional(),
   partNumber: z.string().optional(),
@@ -40,7 +36,7 @@ const componentFormSchema = z.object({
   notes: z.string().optional(),
 });
 
-type ComponentFormData = z.infer<typeof componentFormSchema>;
+type EngineFormData = z.infer<typeof engineFormSchema>;
 
 interface AttachmentFile {
   file: File;
@@ -50,28 +46,28 @@ interface AttachmentFile {
   };
 }
 
-interface ComponentFormModalProps {
+interface EngineFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  mowerId?: string | null; // Optional for global components
-  component?: Component | null;
+  mowerId?: string | null; // Optional for global engines
+  engine?: Engine | null;
   onSuccess?: () => void;
 }
 
-export default function ComponentFormModal({ 
+export default function EngineFormModal({ 
   isOpen, 
   onClose, 
   mowerId = null, 
-  component = null,
+  engine = null,
   onSuccess 
-}: ComponentFormModalProps) {
+}: EngineFormModalProps) {
   const { toast } = useToast();
-  const isEditing = !!component;
-  const isGlobalComponent = !mowerId || mowerId === "0";
+  const isEditing = !!engine;
+  const isGlobalEngine = !mowerId || mowerId === "0";
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentFile[]>([]);
 
-  const form = useForm<ComponentFormData>({
-    resolver: zodResolver(componentFormSchema),
+  const form = useForm<EngineFormData>({
+    resolver: zodResolver(engineFormSchema),
     defaultValues: {
       name: "",
       description: "",
@@ -88,35 +84,35 @@ export default function ComponentFormModal({
     },
   });
 
-  // Reset form when component prop changes
+  // Reset form when engine prop changes
   useEffect(() => {
     if (isOpen) {
       form.reset({
-        name: component?.name || "",
-        description: component?.description || "",
-        partNumber: component?.partNumber || "",
-        manufacturer: component?.manufacturer || "",
-        model: component?.model || "",
-        serialNumber: component?.serialNumber || "",
-        installDate: component?.installDate ? new Date(component.installDate) : undefined,
-        warrantyExpires: component?.warrantyExpires ? new Date(component.warrantyExpires) : undefined,
-        condition: (component?.condition as "excellent" | "good" | "fair" | "poor") || "good",
-        status: (component?.status as "active" | "maintenance" | "retired") || "active",
-        cost: component?.cost || "",
-        notes: component?.notes || "",
+        name: engine?.name || "",
+        description: engine?.description || "",
+        partNumber: engine?.partNumber || "",
+        manufacturer: engine?.manufacturer || "",
+        model: engine?.model || "",
+        serialNumber: engine?.serialNumber || "",
+        installDate: engine?.installDate ? new Date(engine.installDate) : undefined,
+        warrantyExpires: engine?.warrantyExpires ? new Date(engine.warrantyExpires) : undefined,
+        condition: (engine?.condition as "excellent" | "good" | "fair" | "poor") || "good",
+        status: (engine?.status as "active" | "maintenance" | "retired") || "active",
+        cost: engine?.cost || "",
+        notes: engine?.notes || "",
       });
       // Reset attachments for editing mode
       if (isEditing) {
         setPendingAttachments([]);
       }
     }
-  }, [component, isOpen, form, isEditing]);
+  }, [engine, isOpen, form, isEditing]);
 
   const createMutation = useMutation({
-    mutationFn: async (data: ComponentFormData) => {
-      const componentData: InsertComponent = {
+    mutationFn: async (data: EngineFormData) => {
+      const engineData: InsertEngine = {
         ...data,
-        mowerId: isGlobalComponent ? 1 : parseInt(mowerId!), // TODO: Global engines should not require mowerId
+        mowerId: isGlobalEngine ? 1 : parseInt(mowerId!), // TODO: Global engines should not require mowerId
         installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
         warrantyExpires: data.warrantyExpires ? format(data.warrantyExpires, "yyyy-MM-dd") : null,
         cost: data.cost || null,
@@ -128,12 +124,12 @@ export default function ComponentFormModal({
         notes: data.notes || null,
       };
       
-      // Use different endpoints for global vs mower-specific components
-      const endpoint = isGlobalComponent 
-        ? "/api/components" 
-        : `/api/mowers/${mowerId}/components`;
+      // Use different endpoints for global vs mower-specific engines
+      const endpoint = isGlobalEngine 
+        ? "/api/engines" 
+        : `/api/mowers/${mowerId}/engines`;
       
-      const response = await apiRequest("POST", endpoint, componentData);
+      const response = await apiRequest("POST", endpoint, engineData);
       
       // Safely parse JSON response 
       const contentType = response.headers.get("content-type");
@@ -145,22 +141,22 @@ export default function ComponentFormModal({
       
       // Upload attachments if any
       if (pendingAttachments.length > 0) {
-        await uploadAttachmentsForEntity('components', createdComponent.id, pendingAttachments);
+        await uploadAttachmentsForEntity('engines', createdComponent.id, pendingAttachments);
       }
       
       return createdComponent;
     },
     onSuccess: () => {
       // Invalidate relevant queries
-      if (isGlobalComponent) {
-        queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      if (isGlobalEngine) {
+        queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
       } else {
-        queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'engines'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
       }
       toast({
         title: "Success",
-        description: `${isGlobalComponent ? 'Global' : 'Mower'} component created successfully${pendingAttachments.length > 0 ? ` with ${pendingAttachments.length} attachment(s)` : ''}`,
+        description: `${isGlobalEngine ? 'Global' : 'Mower'} engine? created successfully${pendingAttachments.length > 0 ? ` with ${pendingAttachments.length} attachment(s)` : ''}`,
       });
       form.reset();
       setPendingAttachments([]);
@@ -170,15 +166,15 @@ export default function ComponentFormModal({
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create component",
+        description: error.message || "Failed to create engine?",
         variant: "destructive",
       });
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: ComponentFormData) => {
-      const componentData = {
+    mutationFn: async (data: EngineFormData) => {
+      const engineData = {
         ...data,
         installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
         warrantyExpires: data.warrantyExpires ? format(data.warrantyExpires, "yyyy-MM-dd") : null,
@@ -191,7 +187,7 @@ export default function ComponentFormModal({
         notes: data.notes || null,
       };
       
-      const response = await apiRequest("PUT", `/api/components/${component!.id}`, componentData);
+      const response = await apiRequest("PUT", `/api/engines/${engine!.id}`, engineData);
       
       // Safely parse JSON response 
       const contentType = response.headers.get("content-type");
@@ -203,11 +199,11 @@ export default function ComponentFormModal({
     },
     onSuccess: () => {
       // Invalidate relevant queries
-      if (isGlobalComponent || !component?.mowerId) {
-        queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      if (isGlobalEngine || !engine?.mowerId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
       } else {
-        queryClient.invalidateQueries({ queryKey: ['/api/mowers', component.mowerId.toString(), 'components'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/mowers', engine?.mowerId.toString(), 'engines'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
       }
       toast({
         title: "Success",
@@ -219,13 +215,13 @@ export default function ComponentFormModal({
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to update component",
+        description: error.message || "Failed to update engine?",
         variant: "destructive",
       });
     },
   });
 
-  const handleSubmit = (data: ComponentFormData) => {
+  const handleSubmit = (data: EngineFormData) => {
     if (isEditing) {
       updateMutation.mutate(data);
     } else {
@@ -244,7 +240,7 @@ export default function ComponentFormModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? "Edit Engine" : `Add ${isGlobalComponent ? 'Global ' : ''}Engine`}
+            {isEditing ? "Edit Engine" : `Add ${isGlobalEngine ? 'Global ' : ''}Engine`}
           </DialogTitle>
         </DialogHeader>
 
