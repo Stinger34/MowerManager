@@ -512,7 +512,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Engine (Canonical) Routes
   // ---------------------------------------------------------------------------
   app.get("/api/engines", async (_req, res) => {
-    try { res.json(await storage.getAllEngines()); }
+    try { 
+      const allEngines = await storage.getAllEngines();
+      // Only return global engines (not allocated to any mower)
+      const globalEngines = allEngines.filter(engine => engine.mowerId === null);
+      res.json(globalEngines);
+    }
     catch { res.status(500).json({ error: "Failed to fetch engines" }); }
   });
 
