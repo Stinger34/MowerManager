@@ -49,6 +49,7 @@ export interface IStorage {
   createEngine(engine: InsertEngine): Promise<Engine>;
   updateEngine(id: string, engine: Partial<InsertEngine>): Promise<Engine | undefined>;
   deleteEngine(id: string): Promise<boolean>;
+  mowerHasEngine(mowerId: string): Promise<boolean>;
   
   // Part methods
   getPart(id: string): Promise<Part | undefined>;
@@ -368,6 +369,14 @@ export class MemStorage implements IStorage {
   }
 
   async createEngine(insertEngine: InsertEngine): Promise<Engine> {
+    // Check if the mower already has an engine
+    if (insertEngine.mowerId) {
+      const hasEngine = await this.mowerHasEngine(insertEngine.mowerId.toString());
+      if (hasEngine) {
+        throw new Error("Mower already has an engine allocated. Only one engine per mower is allowed.");
+      }
+    }
+    
     const id = (this.engines.size + 1).toString();
     const now = new Date();
     const engine: Engine = {
@@ -407,6 +416,12 @@ export class MemStorage implements IStorage {
 
   async deleteEngine(id: string): Promise<boolean> {
     return this.engines.delete(id);
+  }
+
+  async mowerHasEngine(mowerId: string): Promise<boolean> {
+    return Array.from(this.engines.values()).some(engine => 
+      engine.mowerId !== null && engine.mowerId.toString() === mowerId
+    );
   }
 
   // Part methods
@@ -902,6 +917,14 @@ export class DbStorage implements IStorage {
   }
 
   async createEngine(insertEngine: InsertEngine): Promise<Engine> {
+    // Check if the mower already has an engine
+    if (insertEngine.mowerId) {
+      const hasEngine = await this.mowerHasEngine(insertEngine.mowerId.toString());
+      if (hasEngine) {
+        throw new Error("Mower already has an engine allocated. Only one engine per mower is allowed.");
+      }
+    }
+    
     const result = await db.insert(engines).values(insertEngine).returning();
     return result[0];
   }
@@ -917,6 +940,13 @@ export class DbStorage implements IStorage {
   async deleteEngine(id: string): Promise<boolean> {
     const result = await db.delete(engines).where(eq(engines.id, parseInt(id)));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async mowerHasEngine(mowerId: string): Promise<boolean> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(engines)
+      .where(eq(engines.mowerId, parseInt(mowerId)));
+    return (result[0]?.count ?? 0) > 0;
   }
 
   // Part methods

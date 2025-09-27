@@ -602,6 +602,15 @@ export default function MowerDetails() {
   };
 
   const handleAllocateEngine = () => {
+    // Check if mower already has an engine
+    if (components.length > 0) {
+      toast({
+        title: "Engine Already Allocated",
+        description: "This mower already has an engine allocated. Only one engine per mower is allowed.",
+        variant: "destructive",
+      });
+      return;
+    }
     setShowAllocateEngineModal(true);
   };
 
@@ -658,6 +667,15 @@ export default function MowerDetails() {
 
   // Engine/Component compatibility handlers
   const handleAllocateComponent = () => {
+    // Check if mower already has an engine
+    if (components.length > 0) {
+      toast({
+        title: "Engine Already Allocated",
+        description: "This mower already has an engine allocated. Only one engine per mower is allowed.",
+        variant: "destructive",
+      });
+      return;
+    }
     setShowAllocateEngineModal(true);
   };
 
@@ -1087,7 +1105,14 @@ export default function MowerDetails() {
                       Engines ({components.length})
                     </CardTitle>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={handleAllocateComponent} data-testid="button-allocate-component">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleAllocateComponent} 
+                        disabled={components.length > 0}
+                        data-testid="button-allocate-component"
+                        title={components.length > 0 ? "This mower already has an engine allocated" : "Allocate engine from catalog"}
+                      >
                         <Wrench className="h-4 w-4 mr-2" />
                         Allocate Engine
                       </Button>

@@ -80,6 +80,17 @@ export default function AllocateEngineModal({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
+      // Check if mower already has an engine
+      if (mowerEngines.length > 0) {
+        toast({
+          title: "Engine Already Allocated",
+          description: "This mower already has an engine allocated. Only one engine per mower is allowed.",
+          variant: "destructive",
+        });
+        onClose();
+        return;
+      }
+      
       form.reset({
         engineId: 0,
         installDate: undefined,
@@ -87,7 +98,7 @@ export default function AllocateEngineModal({
       });
       setSearchQuery("");
     }
-  }, [isOpen, form]);
+  }, [isOpen, mowerEngines, form, toast, onClose]);
 
   const allocateEngineMutation = useMutation({
     mutationFn: async (data: EngineAllocationFormData) => {
