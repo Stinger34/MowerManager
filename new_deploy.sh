@@ -108,22 +108,31 @@ confirm() {
 init_log() { echo "=== Local Deployment Log $(date) ===" > "$LOG_FILE"; }
 
 # ---------------------------------------------------------------------------
-# Argument Parsing
+# Argument Parsing (fixed esac & shift usage)
 # ---------------------------------------------------------------------------
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --migrate) MODE="migrate"; shift ;;
-    --push) MODE="push"; shift ;;
-    --generate) GENERATE_MIGRATION="true"; MIGRATION_NAME="${2:-$MIGRATION_NAME}"; shift 2 ;;
-    --dry-run) DRY_RUN="true"; shift ;;
-    --auto-confirm) AUTO_CONFIRM="true"; shift ;;
-    --no-build) NO_BUILD="true"; shift ;;
-    --start) START_APP="true"; shift ;;
-    --reset-public) RESET_PUBLIC="true"; shift ;;
-    --verbose) VERBOSE="true"; shift ;;
-    --no-archive|--skip-archive) ARCHIVE_DROPPED_TABLES="false"; SKIP_ARCHIVE="true"; shift ;;
-    --no-rename) SKIP_RENAME_HEURISTICS="true"; shift ;;
-    --plan-only) SKIP_RENAME_HEURISTICS="false"; NO_BUILD="true"; START_APP="false"; MODE="push"; DRY_RUN="true"; shift ;;
+    --migrate) MODE="migrate" ;;
+    --push) MODE="push" ;;
+    --generate)
+      GENERATE_MIGRATION="true"
+      shift
+      if [[ $# -gt 0 && ! "$1" =~ ^-- ]]; then
+        MIGRATION_NAME="$1"
+      else
+        log WARN "No migration name provided after --generate; using $MIGRATION_NAME"
+        (( $# > 0 )) && set -- "$1" "$@"
+      fi
+      ;;
+    --dry-run) DRY_RUN="true" ;;
+    --auto-confirm) AUTO_CONFIRM="true" ;;
+    --no-build) NO_BUILD="true" ;;
+    --start) START_APP="true" ;;
+    --reset-public) RESET_PUBLIC="true" ;;
+    --verbose) VERBOSE="true" ;;
+    --no-archive|--skip-archive) ARCHIVE_DROPPED_TABLES="false"; SKIP_ARCHIVE="true" ;;
+    --no-rename) SKIP_RENAME_HEURISTICS="true" ;;
+    --plan-only) SKIP_RENAME_HEURISTICS="false"; NO_BUILD="true"; START_APP="false"; MODE="push"; DRY_RUN="true" ;;
     --help)
       cat <<EOF
 Usage: ./new_deploy.sh [options]
@@ -141,25 +150,15 @@ Options:
   --no-rename                 Disable rename heuristics
   --plan-only                 Produce plan (dry-run) then exit
   --help                      Show this help
-
-Env Vars (override defaults):
-  MODE, GENERATE_MIGRATION, MIGRATION_NAME, DRY_RUN,
-  AUTO_CONFIRM, NO_BUILD, START_APP, RESET_PUBLIC,
-  VERBOSE, SKIP_RENAME_HEURISTICS, ARCHIVE_DROPPED_TABLES,
-  SKIP_ARCHIVE, FK_REPAIR_MODE (placeholder|nullify|skip)
-
-Examples:
-  ./new_deploy.sh
-  DRY_RUN=true ./new_deploy.sh
-  MODE=migrate GENERATE_MIGRATION=true ./new_deploy.sh
-  FK_REPAIR_MODE=nullify ./new_deploy.sh
-
 EOF
-      exit 0 ;;
-    *) log WARN "Unknown argument ignored: $1"; shift ;;
-  endcase
+      exit 0
+      ;;
+    *)
+      log WARN "Unknown argument ignored: $1"
+      ;;
+  esac
   shift || true
-done || true
+done
 
 # ---------------------------------------------------------------------------
 # Environment Loading
