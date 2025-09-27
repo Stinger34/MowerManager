@@ -16,7 +16,7 @@ apt update && apt upgrade -y
 
 echo
 echo "Installing required system packages..."
-apt install -y wget curl python3 make g++ git imagemagick ghostscript graphicsmagick
+apt install -y wget curl python3 make g++ git imagemagick ghostscript graphicsmagick jq
 
 echo
 echo "Removing existing Node.js (if present)..."
