@@ -49,6 +49,17 @@ export default function AllocateEngineToMowerModal({
   const [showReplaceConfirmation, setShowReplaceConfirmation] = useState(false);
   const [selectedMowerForReplacement, setSelectedMowerForReplacement] = useState<Mower | null>(null);
   const [currentEngineToReplace, setCurrentEngineToReplace] = useState<Engine | null>(null);
+  
+  // Separate form for replacement specific inputs
+  const replaceForm = useForm<{
+    installDate?: Date;
+    notes: string;
+  }>({
+    defaultValues: {
+      installDate: undefined,
+      notes: "",
+    },
+  });
 
   // Fetch all available mowers
   const { data: allMowers = [], isLoading: isMowersLoading } = useQuery<Mower[]>({
@@ -56,9 +67,9 @@ export default function AllocateEngineToMowerModal({
     enabled: isOpen,
   });
 
-  // Fetch engines for all mowers to check availability
+  // Fetch engines for all mowers to check availability (need to fetch all engines, not just global ones)
   const { data: allEngines = [] } = useQuery<Engine[]>({
-    queryKey: ['/api/engines'],
+    queryKey: ['/api/components'], // Use deprecated endpoint that returns all engines
     enabled: isOpen,
   });
 
@@ -93,9 +104,13 @@ export default function AllocateEngineToMowerModal({
         installDate: undefined,
         notes: "",
       });
+      replaceForm.reset({
+        installDate: undefined,
+        notes: "",
+      });
       setSearchQuery("");
     }
-  }, [isOpen, form]);
+  }, [isOpen, form, replaceForm]);
 
   const allocateEngineMutation = useMutation({
     mutationFn: async (data: EngineAllocationFormData) => {
@@ -238,6 +253,7 @@ export default function AllocateEngineToMowerModal({
         description: "Engine replaced successfully. Previous engine returned to catalog with parts history preserved.",
       });
       form.reset();
+      replaceForm.reset();
       setShowReplaceConfirmation(false);
       setSelectedMowerForReplacement(null);
       setCurrentEngineToReplace(null);
@@ -254,16 +270,33 @@ export default function AllocateEngineToMowerModal({
   });
 
   const onSubmit = (data: EngineAllocationFormData) => {
-    allocateEngineMutation.mutate(data);
+    // Check if the selected mower already has an engine
+    const existingEngine = getMowerEngine(data.mowerId);
+    
+    if (existingEngine) {
+      // Mower already has an engine, trigger replacement workflow
+      const selectedMower = filteredMowers.find(m => m.id === data.mowerId);
+      if (selectedMower) {
+        setSelectedMowerForReplacement(selectedMower);
+        setCurrentEngineToReplace(existingEngine);
+        // Copy form data to replacement form
+        replaceForm.setValue('installDate', data.installDate);
+        replaceForm.setValue('notes', data.notes || '');
+        setShowReplaceConfirmation(true);
+      }
+    } else {
+      // No existing engine, proceed with normal allocation
+      allocateEngineMutation.mutate(data);
+    }
   };
 
   const handleReplaceConfirm = () => {
     if (selectedMowerForReplacement) {
-      const formData = form.getValues();
+      const replaceFormData = replaceForm.getValues();
       replaceEngineMutation.mutate({
         mowerId: selectedMowerForReplacement.id,
-        installDate: formData.installDate,
-        notes: formData.notes,
+        installDate: replaceFormData.installDate,
+        notes: replaceFormData.notes,
       });
     }
   };
@@ -272,6 +305,10 @@ export default function AllocateEngineToMowerModal({
     setShowReplaceConfirmation(false);
     setSelectedMowerForReplacement(null);
     setCurrentEngineToReplace(null);
+    replaceForm.reset({
+      installDate: undefined,
+      notes: "",
+    });
   };
 
   return (
@@ -483,13 +520,13 @@ export default function AllocateEngineToMowerModal({
 
     {/* Replacement Confirmation Dialog */}
     <AlertDialog open={showReplaceConfirmation} onOpenChange={setShowReplaceConfirmation}>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-w-2xl">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-orange-500" />
             Replace Engine?
           </AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2">
+          <AlertDialogDescription className="space-y-3">
             <p>
               <strong>{selectedMowerForReplacement?.make} {selectedMowerForReplacement?.model}</strong> already has an engine 
               (<strong>{currentEngineToReplace?.name}</strong>) assigned to it.
@@ -502,9 +539,92 @@ export default function AllocateEngineToMowerModal({
               <li>Preserve all parts allocation history for the unassigned engine</li>
               <li>Assign the new engine to this mower</li>
             </ul>
-            <p className="text-sm font-medium">Do you want to continue?</p>
           </AlertDialogDescription>
         </AlertDialogHeader>
+
+        {/* Replace Engine Form */}
+        <div className="space-y-4 py-4">
+          <Form {...replaceForm}>
+            <div className="grid grid-cols-1 gap-4">
+              {/* Install Date for Replacement */}
+              <FormField
+                control={replaceForm.control}
+                name="installDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Install Date (Optional)</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick install date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value || undefined}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date > new Date() || date < new Date("1900-01-01")
+                          }
+                          initialFocus
+                        />
+                        {field.value && (
+                          <div className="p-3 border-t">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => field.onChange(undefined)}
+                              className="w-full"
+                            >
+                              Clear Date
+                            </Button>
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Notes for Replacement */}
+              <FormField
+                control={replaceForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Replacement Notes (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Add any notes about this engine replacement..."
+                        className="resize-none"
+                        rows={3}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </Form>
+        </div>
+
         <AlertDialogFooter>
           <AlertDialogCancel onClick={handleReplaceCancel}>Cancel</AlertDialogCancel>
           <AlertDialogAction
