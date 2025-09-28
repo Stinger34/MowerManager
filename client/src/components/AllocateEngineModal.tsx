@@ -72,7 +72,7 @@ export default function AllocateEngineModal({
     resolver: zodResolver(engineAllocationFormSchema),
     defaultValues: {
       engineId: 0,
-      installDate: new Date(), // Set to current time initially
+      installDate: undefined, // Start with no date selected
       notes: "",
     },
   });
@@ -82,7 +82,7 @@ export default function AllocateEngineModal({
     if (isOpen) {
       form.reset({
         engineId: 0,
-        installDate: new Date(), // Set to user's local browser time
+        installDate: undefined, // Start with no date selected to allow omitting blank dates
         notes: "",
       });
       setSearchQuery("");
