@@ -8,6 +8,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# --- GIT PULL ADDED ---
+git pull
+
 MODE="${MODE:-push}"
 AUTO_CONFIRM="${AUTO_CONFIRM:-false}"
 DRY_RUN="${DRY_RUN:-false}"
