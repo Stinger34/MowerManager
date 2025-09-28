@@ -12,7 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { cn, safeFormatDateForAPI, safeConvertToDate } from "@/lib/utils";
+import { cn, safeFormatDateForAPI, safeConvertToDate, validateDateFieldsForAPI } from "@/lib/utils";
 import type { Engine, InsertEngine } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
@@ -93,10 +93,12 @@ export default function EngineForm({
       }
 
       const engineData: InsertEngine = {
-        ...data,
+        name: data.name,
+        condition: data.condition,
+        status: data.status,
         mowerId: 1, // TODO: This should be selected from a mower dropdown
-        ...(installDate !== null && { installDate }),
-        ...(warrantyExpires !== null && { warrantyExpires }),
+        installDate,
+        warrantyExpires,
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,
@@ -105,6 +107,12 @@ export default function EngineForm({
         serialNumber: data.serialNumber || null,
         notes: data.notes || null,
       };
+      
+      // Validate date fields before API submission
+      if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
+        throw new Error("Date validation failed. Please check the date formats.");
+      }
+      
       await onSubmit(engineData);
     } finally {
       setIsSubmitting(false);

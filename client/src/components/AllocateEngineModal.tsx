@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Search, Plus, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { cn, safeFormatDateForAPI } from "@/lib/utils";
+import { cn, safeFormatDateForAPI, validateDateFieldsForAPI } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import EngineFormModal from "./EngineFormModal";
@@ -153,6 +153,11 @@ export default function AllocateEngineModal({
         cost: selectedEngine.cost,
         notes: data.notes || selectedEngine.notes,
       };
+      
+      // Validate date fields before API submission
+      if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
+        throw new Error("Date validation failed. Please check the date formats.");
+      }
       
       const response = await apiRequest("POST", `/api/mowers/${mowerId}/engines`, engineData);
       return response.json();

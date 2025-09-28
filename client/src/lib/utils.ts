@@ -7,6 +7,61 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Validates that a date string is in ISO 8601 format (YYYY-MM-DD).
+ * 
+ * @param dateString - The date string to validate
+ * @returns true if the date string is in valid ISO 8601 format, false otherwise
+ */
+export function isValidISO8601Date(dateString: string | null | undefined): boolean {
+  if (!dateString) return false;
+  
+  // Check format using regex
+  const iso8601Regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!iso8601Regex.test(dateString)) {
+    return false;
+  }
+  
+  // Validate that the date is actually valid
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    return false;
+  }
+  
+  // Ensure the formatted date matches the input (handles invalid dates like 2023-02-30)
+  return format(date, "yyyy-MM-dd") === dateString;
+}
+
+/**
+ * Validates an object's date fields to ensure they are in ISO 8601 format before API submission.
+ * Logs validation results for debugging.
+ * 
+ * @param obj - Object containing date fields
+ * @param dateFields - Array of field names that should contain ISO 8601 dates
+ * @returns true if all date fields are valid, false otherwise
+ */
+export function validateDateFieldsForAPI(obj: Record<string, any>, dateFields: string[]): boolean {
+  let allValid = true;
+  
+  for (const field of dateFields) {
+    const value = obj[field];
+    if (value !== null && value !== undefined) {
+      const isValid = isValidISO8601Date(value);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Date Validation] Field '${field}': ${value} -> ${isValid ? 'VALID' : 'INVALID'}`);
+      }
+      
+      if (!isValid) {
+        allValid = false;
+        console.error(`[Date Validation Error] Invalid date format in field '${field}': ${value}. Expected ISO 8601 format (YYYY-MM-DD).`);
+      }
+    }
+  }
+  
+  return allValid;
+}
+
+/**
  * Safely formats a date value to ISO string format (yyyy-MM-dd) for API submission.
  * Handles Date objects, date strings, null, undefined, and invalid dates.
  * 
@@ -37,9 +92,22 @@ export function safeFormatDateForAPI(
       throw new Error("Invalid date value");
     }
 
-    return format(dateObj, "yyyy-MM-dd");
+    const formattedDate = format(dateObj, "yyyy-MM-dd");
+    
+    // Log successful date formatting for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Date Formatting] Successfully formatted date: ${date} -> ${formattedDate}`);
+    }
+    
+    return formattedDate;
   } catch (error) {
     const errorMessage = `Invalid date provided: ${date}`;
+    
+    // Log error for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[Date Formatting Error] ${errorMessage}`, error);
+    }
+    
     onError?.(errorMessage);
     return null;
   }
