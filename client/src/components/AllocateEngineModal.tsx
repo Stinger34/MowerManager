@@ -133,6 +133,7 @@ export default function AllocateEngineModal({
           ...currentEngine,
           mowerId: null,
           installDate: null,
+          warrantyExpires: safeFormatDateForAPI(currentEngine.warrantyExpires),
         });
       }
 
