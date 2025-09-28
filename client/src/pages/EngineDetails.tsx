@@ -11,6 +11,7 @@ import { useLocation } from "wouter";
 import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { safeFormatDateForDisplay, safeFormatTimeForDisplay, safeIsDateBefore } from "@/lib/utils";
 import EngineFormModal from "@/components/EngineFormModal";
 import AllocateEngineModal from "@/components/AllocateEngineModal";
 import AllocatePartModal from "@/components/AllocatePartModal";
@@ -301,7 +302,7 @@ export default function EngineDetails() {
                     <label className="text-sm font-medium text-gray-600">Install Date</label>
                     <div className="flex items-center gap-2 mt-1">
                       <Calendar className="h-4 w-4 text-gray-400" />
-                      <span>{new Date(engine.installDate).toLocaleDateString()}</span>
+                      <span>{safeFormatDateForDisplay(engine.installDate)}</span>
                     </div>
                   </div>
                 )}
@@ -311,10 +312,10 @@ export default function EngineDetails() {
                     <label className="text-sm font-medium text-gray-600">Warranty Expires</label>
                     <div className="flex items-center gap-2 mt-1">
                       <Calendar className="h-4 w-4 text-gray-400" />
-                      <span className={new Date(engine.warrantyExpires) < new Date() ? 'text-red-600' : 'text-gray-800'}>
-                        {new Date(engine.warrantyExpires).toLocaleDateString()}
+                      <span className={safeIsDateBefore(engine.warrantyExpires) ? 'text-red-600' : 'text-gray-800'}>
+                        {safeFormatDateForDisplay(engine.warrantyExpires)}
                       </span>
-                      {new Date(engine.warrantyExpires) < new Date() && (
+                      {safeIsDateBefore(engine.warrantyExpires) && (
                         <Badge variant="destructive" className="ml-2">Expired</Badge>
                       )}
                     </div>
@@ -378,7 +379,7 @@ export default function EngineDetails() {
                               Part #: {allocation.part.partNumber} • Quantity: {allocation.quantity}
                               {allocation.installDate && (
                                 <span className="ml-2">
-                                  • Installed: {new Date(allocation.installDate).toLocaleDateString()}
+                                  • Installed: {safeFormatDateForDisplay(allocation.installDate)}
                                 </span>
                               )}
                             </div>
@@ -436,13 +437,13 @@ export default function EngineDetails() {
                 <div>
                   <label className="font-medium text-gray-600">Created</label>
                   <p className="text-gray-800 mt-1">
-                    {new Date(engine.createdAt).toLocaleDateString()} at {new Date(engine.createdAt).toLocaleTimeString()}
+                    {safeFormatDateForDisplay(engine.createdAt)} at {safeFormatTimeForDisplay(engine.createdAt)}
                   </p>
                 </div>
                 <div>
                   <label className="font-medium text-gray-600">Last Updated</label>
                   <p className="text-gray-800 mt-1">
-                    {new Date(engine.updatedAt).toLocaleDateString()} at {new Date(engine.updatedAt).toLocaleTimeString()}
+                    {safeFormatDateForDisplay(engine.updatedAt)} at {safeFormatTimeForDisplay(engine.updatedAt)}
                   </p>
                 </div>
               </div>

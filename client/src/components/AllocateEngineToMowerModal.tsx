@@ -108,9 +108,22 @@ export default function AllocateEngineToMowerModal({
         });
       });
       
+      // Validate and format the warranty expiration date
+      const formattedWarrantyExpires = safeFormatDateForAPI(engine.warrantyExpires, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid warranty expiration date. Please check the engine data.",
+          variant: "destructive",
+        });
+      });
+      
       // If date validation failed and we had a date, stop the mutation
       if (data.installDate && formattedInstallDate === null) {
         throw new Error("Invalid install date provided");
+      }
+      
+      if (engine.warrantyExpires && formattedWarrantyExpires === null) {
+        throw new Error("Invalid warranty expiration date");
       }
       
       // Create a copy of the engine and assign it to the selected mower
@@ -123,7 +136,7 @@ export default function AllocateEngineToMowerModal({
         serialNumber: engine.serialNumber,
         mowerId: data.mowerId,
         installDate: formattedInstallDate,
-        warrantyExpires: engine.warrantyExpires,
+        warrantyExpires: formattedWarrantyExpires,
         condition: engine.condition,
         status: engine.status,
         cost: engine.cost,
@@ -168,9 +181,22 @@ export default function AllocateEngineToMowerModal({
         });
       });
       
+      // Validate and format the warranty expiration date
+      const formattedWarrantyExpires = safeFormatDateForAPI(engine.warrantyExpires, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid warranty expiration date. Please check the engine data.",
+          variant: "destructive",
+        });
+      });
+      
       // If date validation failed and we had a date, stop the mutation
       if (data.installDate && formattedInstallDate === null) {
         throw new Error("Invalid install date provided");
+      }
+      
+      if (engine.warrantyExpires && formattedWarrantyExpires === null) {
+        throw new Error("Invalid warranty expiration date");
       }
 
       // Step 1: Update the current engine to be unassigned (return to catalog)
@@ -191,7 +217,7 @@ export default function AllocateEngineToMowerModal({
         serialNumber: engine.serialNumber,
         mowerId: data.mowerId,
         installDate: formattedInstallDate,
-        warrantyExpires: engine.warrantyExpires,
+        warrantyExpires: formattedWarrantyExpires,
         condition: engine.condition,
         status: engine.status,
         cost: engine.cost,
