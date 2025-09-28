@@ -108,6 +108,8 @@ export function safeFormatDateForAPI(
       console.error(`[Date Formatting Error] ${errorMessage}`, error);
     }
     
+    // Call error callback if provided, but don't show toast by default
+    // This gives callers control over error presentation
     onError?.(errorMessage);
     return null;
   }

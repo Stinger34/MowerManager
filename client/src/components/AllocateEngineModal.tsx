@@ -22,7 +22,7 @@ import type { Engine, InsertEngine } from "@shared/schema";
 
 const engineAllocationFormSchema = z.object({
   engineId: z.number().min(1, "Engine selection is required"),
-  installDate: z.date().nullable().optional(),
+  installDate: z.date().optional(),
   notes: z.string().optional(),
 });
 
@@ -91,44 +91,30 @@ export default function AllocateEngineModal({
 
   const allocateEngineMutation = useMutation({
     mutationFn: async (data: EngineAllocationFormData) => {
-      // We create a copy of the selected global engine and assign it to this mower
+      // Find the selected engine
       const selectedEngine = globalEngines.find(c => c.id === data.engineId);
       if (!selectedEngine) {
         throw new Error('Selected engine not found');
       }
 
-      // Validate and format the install date
-      const formattedInstallDate = safeFormatDateForAPI(data.installDate, (error) => {
-        toast({
-          title: "Date Error",
-          description: "Invalid install date provided. Please select a valid date.",
-          variant: "destructive",
-        });
-      });
+      // Validate and format dates early
+      const formattedInstallDate = safeFormatDateForAPI(data.installDate);
+      const formattedWarrantyExpires = safeFormatDateForAPI(selectedEngine.warrantyExpires);
       
-      // Validate and format the warranty expiration date
-      const formattedWarrantyExpires = safeFormatDateForAPI(selectedEngine.warrantyExpires, (error) => {
-        toast({
-          title: "Date Error",
-          description: "Invalid warranty expiration date. Please check the engine data.",
-          variant: "destructive",
-        });
-      });
-      
-      // If date validation failed and we had a date, stop the mutation
+      // Stop if date validation failed for provided dates
       if (data.installDate && formattedInstallDate === null) {
-        throw new Error("Invalid install date provided");
+        throw new Error("Invalid install date provided. Please select a valid date.");
       }
       
       if (selectedEngine.warrantyExpires && formattedWarrantyExpires === null) {
-        throw new Error("Invalid warranty expiration date");
+        throw new Error("Invalid warranty expiration date in selected engine data.");
       }
 
-      // Check if mower already has an engine - if so, replace it
+      // Handle existing engine replacement if needed
       if (mowerEngines.length > 0) {
         const currentEngine = mowerEngines[0];
         
-        // Step 1: Update the current engine to be unassigned (return to catalog)
+        // Return current engine to catalog (make it global again)
         const currentEngineWarrantyExpires = safeFormatDateForAPI(currentEngine.warrantyExpires);
         await apiRequest("PUT", `/api/engines/${currentEngine.id}`, {
           ...currentEngine,
@@ -138,6 +124,7 @@ export default function AllocateEngineModal({
         });
       }
 
+      // Prepare engine data for allocation
       const engineData: InsertEngine = {
         name: selectedEngine.name,
         description: selectedEngine.description,
@@ -146,15 +133,15 @@ export default function AllocateEngineModal({
         model: selectedEngine.model,
         serialNumber: selectedEngine.serialNumber,
         mowerId: parseInt(mowerId),
-        ...(formattedInstallDate !== null && { installDate: formattedInstallDate }),
-        ...(formattedWarrantyExpires !== null && { warrantyExpires: formattedWarrantyExpires }),
+        ...(formattedInstallDate && { installDate: formattedInstallDate }),
+        ...(formattedWarrantyExpires && { warrantyExpires: formattedWarrantyExpires }),
         condition: selectedEngine.condition,
         status: selectedEngine.status,
         cost: selectedEngine.cost,
         notes: data.notes || selectedEngine.notes,
       };
       
-      // Validate date fields before API submission
+      // Final validation before API submission
       if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
         throw new Error("Date validation failed. Please check the date formats.");
       }
@@ -356,7 +343,7 @@ export default function AllocateEngineModal({
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => field.onChange(null)}
+                                  onClick={() => field.onChange(undefined)}
                                   className="w-full"
                                 >
                                   Clear Date

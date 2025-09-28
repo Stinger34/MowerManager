@@ -114,34 +114,20 @@ export default function AllocateEngineToMowerModal({
 
   const allocateEngineMutation = useMutation({
     mutationFn: async (data: EngineAllocationFormData) => {
-      // Validate and format the install date
-      const formattedInstallDate = safeFormatDateForAPI(data.installDate, (error) => {
-        toast({
-          title: "Date Error",
-          description: "Invalid install date provided. Please select a valid date.",
-          variant: "destructive",
-        });
-      });
+      // Validate and format dates early
+      const formattedInstallDate = safeFormatDateForAPI(data.installDate);
+      const formattedWarrantyExpires = safeFormatDateForAPI(engine.warrantyExpires);
       
-      // Validate and format the warranty expiration date
-      const formattedWarrantyExpires = safeFormatDateForAPI(engine.warrantyExpires, (error) => {
-        toast({
-          title: "Date Error",
-          description: "Invalid warranty expiration date. Please check the engine data.",
-          variant: "destructive",
-        });
-      });
-      
-      // If date validation failed and we had a date, stop the mutation
+      // Stop if date validation failed for provided dates
       if (data.installDate && formattedInstallDate === null) {
-        throw new Error("Invalid install date provided");
+        throw new Error("Invalid install date provided. Please select a valid date.");
       }
       
       if (engine.warrantyExpires && formattedWarrantyExpires === null) {
-        throw new Error("Invalid warranty expiration date");
+        throw new Error("Invalid warranty expiration date in engine data.");
       }
       
-      // Create a copy of the engine and assign it to the selected mower
+      // Prepare engine data for allocation
       const engineData: InsertComponent = {
         name: engine.name,
         description: engine.description,
@@ -150,15 +136,15 @@ export default function AllocateEngineToMowerModal({
         model: engine.model,
         serialNumber: engine.serialNumber,
         mowerId: data.mowerId,
-        ...(formattedInstallDate !== null && { installDate: formattedInstallDate }),
-        ...(formattedWarrantyExpires !== null && { warrantyExpires: formattedWarrantyExpires }),
+        ...(formattedInstallDate && { installDate: formattedInstallDate }),
+        ...(formattedWarrantyExpires && { warrantyExpires: formattedWarrantyExpires }),
         condition: engine.condition,
         status: engine.status,
         cost: engine.cost,
         notes: data.notes || engine.notes,
       };
       
-      // Validate date fields before API submission
+      // Final validation before API submission
       if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
         throw new Error("Date validation failed. Please check the date formats.");
       }
@@ -192,44 +178,29 @@ export default function AllocateEngineToMowerModal({
         throw new Error("No engine to replace");
       }
 
-      // Validate and format the install date
-      const formattedInstallDate = safeFormatDateForAPI(data.installDate, (error) => {
-        toast({
-          title: "Date Error", 
-          description: "Invalid install date provided. Please select a valid date.",
-          variant: "destructive",
-        });
-      });
+      // Validate and format dates early
+      const formattedInstallDate = safeFormatDateForAPI(data.installDate);
+      const formattedWarrantyExpires = safeFormatDateForAPI(engine.warrantyExpires);
       
-      // Validate and format the warranty expiration date
-      const formattedWarrantyExpires = safeFormatDateForAPI(engine.warrantyExpires, (error) => {
-        toast({
-          title: "Date Error",
-          description: "Invalid warranty expiration date. Please check the engine data.",
-          variant: "destructive",
-        });
-      });
-      
-      // If date validation failed and we had a date, stop the mutation
+      // Stop if date validation failed for provided dates
       if (data.installDate && formattedInstallDate === null) {
-        throw new Error("Invalid install date provided");
+        throw new Error("Invalid install date provided. Please select a valid date.");
       }
       
       if (engine.warrantyExpires && formattedWarrantyExpires === null) {
-        throw new Error("Invalid warranty expiration date");
+        throw new Error("Invalid warranty expiration date in engine data.");
       }
 
-      // Step 1: Update the current engine to be unassigned (return to catalog)
-      // Remove mowerId to make it a global engine again, preserving part allocations
+      // Step 1: Return current engine to catalog (make it global)
       const currentEngineWarrantyExpires = safeFormatDateForAPI(currentEngineToReplace.warrantyExpires);
       await apiRequest("PUT", `/api/engines/${currentEngineToReplace.id}`, {
         ...currentEngineToReplace,
         mowerId: null,
         installDate: null,
-        ...(currentEngineWarrantyExpires !== null && { warrantyExpires: currentEngineWarrantyExpires }),
+        ...(currentEngineWarrantyExpires && { warrantyExpires: currentEngineWarrantyExpires }),
       });
 
-      // Step 2: Create the new engine allocation
+      // Step 2: Allocate new engine to mower
       const engineData: InsertComponent = {
         name: engine.name,
         description: engine.description,
@@ -238,21 +209,20 @@ export default function AllocateEngineToMowerModal({
         model: engine.model,
         serialNumber: engine.serialNumber,
         mowerId: data.mowerId,
-        ...(formattedInstallDate !== null && { installDate: formattedInstallDate }),
-        ...(formattedWarrantyExpires !== null && { warrantyExpires: formattedWarrantyExpires }),
+        ...(formattedInstallDate && { installDate: formattedInstallDate }),
+        ...(formattedWarrantyExpires && { warrantyExpires: formattedWarrantyExpires }),
         condition: engine.condition,
         status: engine.status,
         cost: engine.cost,
         notes: data.notes || engine.notes,
       };
       
-      // Validate date fields before API submission
+      // Final validation before API submission
       if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
         throw new Error("Date validation failed. Please check the date formats.");
       }
       
       const response = await apiRequest("POST", `/api/mowers/${data.mowerId}/engines`, engineData);
-      
       return response.json();
     },
     onSuccess: () => {
@@ -280,22 +250,21 @@ export default function AllocateEngineToMowerModal({
   });
 
   const onSubmit = (data: EngineAllocationFormData) => {
-    // Check if the selected mower already has an engine
     const existingEngine = getMowerEngine(data.mowerId);
     
     if (existingEngine) {
-      // Mower already has an engine, trigger replacement workflow
+      // Mower already has an engine - show replacement confirmation
       const selectedMower = filteredMowers.find(m => m.id === data.mowerId);
       if (selectedMower) {
         setSelectedMowerForReplacement(selectedMower);
         setCurrentEngineToReplace(existingEngine);
-        // Copy form data to replacement form
+        // Transfer form data to replacement form
         replaceForm.setValue('installDate', data.installDate);
         replaceForm.setValue('notes', data.notes || '');
         setShowReplaceConfirmation(true);
       }
     } else {
-      // No existing engine, proceed with normal allocation
+      // No existing engine - proceed with direct allocation
       allocateEngineMutation.mutate(data);
     }
   };
