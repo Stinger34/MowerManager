@@ -483,3 +483,5 @@ main() {
 }
 
 main "$@"
+
+systemctl restart mower-app
