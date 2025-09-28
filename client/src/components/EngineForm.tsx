@@ -70,23 +70,33 @@ export default function EngineForm({
   const handleSubmit = async (data: EngineFormData) => {
     setIsSubmitting(true);
     try {
+      // Validate dates first
+      const installDate = safeFormatDateForAPI(data.installDate, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid install date. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+      
+      const warrantyExpires = safeFormatDateForAPI(data.warrantyExpires, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid warranty expiration date. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+
+      // Stop submission if date validation failed
+      if ((data.installDate && installDate === null) || (data.warrantyExpires && warrantyExpires === null)) {
+        throw new Error("Please correct the date errors before submitting.");
+      }
+
       const engineData: InsertEngine = {
         ...data,
         mowerId: 1, // TODO: This should be selected from a mower dropdown
-        installDate: safeFormatDateForAPI(data.installDate, (error) => {
-          toast({
-            title: "Date Error",
-            description: "Invalid install date. Please select a valid date.",
-            variant: "destructive",
-          });
-        }),
-        warrantyExpires: safeFormatDateForAPI(data.warrantyExpires, (error) => {
-          toast({
-            title: "Date Error",
-            description: "Invalid warranty expiration date. Please select a valid date.",
-            variant: "destructive",
-          });
-        }),
+        installDate,
+        warrantyExpires,
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,

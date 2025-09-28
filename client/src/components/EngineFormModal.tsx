@@ -127,23 +127,33 @@ export default function EngineFormModal({
 
   const createMutation = useMutation({
     mutationFn: async (data: EngineFormData) => {
+      // Validate dates first
+      const installDate = safeFormatDateForAPI(data.installDate, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid install date. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+      
+      const warrantyExpires = safeFormatDateForAPI(data.warrantyExpires, (error) => {
+        toast({
+          title: "Date Error", 
+          description: "Invalid warranty expiration date. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+
+      // Stop submission if date validation failed
+      if ((data.installDate && installDate === null) || (data.warrantyExpires && warrantyExpires === null)) {
+        throw new Error("Please correct the date errors before submitting.");
+      }
+
       const engineData: InsertEngine = {
         ...data,
         mowerId: isGlobalEngine ? null : parseInt(mowerId!), // Global engines have null mowerId
-        installDate: safeFormatDateForAPI(data.installDate, (error) => {
-          toast({
-            title: "Date Error",
-            description: "Invalid install date. Please select a valid date.",
-            variant: "destructive",
-          });
-        }),
-        warrantyExpires: safeFormatDateForAPI(data.warrantyExpires, (error) => {
-          toast({
-            title: "Date Error", 
-            description: "Invalid warranty expiration date. Please select a valid date.",
-            variant: "destructive",
-          });
-        }),
+        installDate,
+        warrantyExpires,
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,
@@ -204,22 +214,32 @@ export default function EngineFormModal({
 
   const updateMutation = useMutation({
     mutationFn: async (data: EngineFormData) => {
+      // Validate dates first
+      const installDate = safeFormatDateForAPI(data.installDate, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid install date. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+      
+      const warrantyExpires = safeFormatDateForAPI(data.warrantyExpires, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid warranty expiration date. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+
+      // Stop submission if date validation failed
+      if ((data.installDate && installDate === null) || (data.warrantyExpires && warrantyExpires === null)) {
+        throw new Error("Please correct the date errors before submitting.");
+      }
+
       const engineData = {
         ...data,
-        installDate: safeFormatDateForAPI(data.installDate, (error) => {
-          toast({
-            title: "Date Error",
-            description: "Invalid install date. Please select a valid date.",
-            variant: "destructive",
-          });
-        }),
-        warrantyExpires: safeFormatDateForAPI(data.warrantyExpires, (error) => {
-          toast({
-            title: "Date Error",
-            description: "Invalid warranty expiration date. Please select a valid date.",
-            variant: "destructive",
-          });
-        }),
+        installDate,
+        warrantyExpires,
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,
