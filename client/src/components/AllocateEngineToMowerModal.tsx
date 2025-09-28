@@ -50,6 +50,27 @@ export default function AllocateEngineToMowerModal({
   const [selectedMowerForReplacement, setSelectedMowerForReplacement] = useState<Mower | null>(null);
   const [currentEngineToReplace, setCurrentEngineToReplace] = useState<Engine | null>(null);
 
+  // Helper function to safely format dates
+  const safeFormatDate = (date: Date | undefined | null): string | null => {
+    if (!date) return null;
+    
+    try {
+      // Check if it's a valid Date object
+      if (!(date instanceof Date) || isNaN(date.getTime())) {
+        throw new Error("Invalid date");
+      }
+      
+      return format(date, "yyyy-MM-dd");
+    } catch (error) {
+      toast({
+        title: "Date Error",
+        description: "Invalid install date provided. Please select a valid date.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
   // Fetch all available mowers
   const { data: allMowers = [], isLoading: isMowersLoading } = useQuery<Mower[]>({
     queryKey: ['/api/mowers'],
@@ -99,6 +120,14 @@ export default function AllocateEngineToMowerModal({
 
   const allocateEngineMutation = useMutation({
     mutationFn: async (data: EngineAllocationFormData) => {
+      // Validate and format the install date
+      const formattedInstallDate = safeFormatDate(data.installDate);
+      
+      // If date validation failed and we had a date, stop the mutation
+      if (data.installDate && formattedInstallDate === null) {
+        throw new Error("Invalid install date provided");
+      }
+      
       // Create a copy of the engine and assign it to the selected mower
       const engineData: InsertComponent = {
         name: engine.name,
@@ -108,7 +137,7 @@ export default function AllocateEngineToMowerModal({
         model: engine.model,
         serialNumber: engine.serialNumber,
         mowerId: data.mowerId,
-        installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
+        installDate: formattedInstallDate,
         warrantyExpires: engine.warrantyExpires,
         condition: engine.condition,
         status: engine.status,
@@ -145,6 +174,14 @@ export default function AllocateEngineToMowerModal({
         throw new Error("No engine to replace");
       }
 
+      // Validate and format the install date
+      const formattedInstallDate = safeFormatDate(data.installDate);
+      
+      // If date validation failed and we had a date, stop the mutation
+      if (data.installDate && formattedInstallDate === null) {
+        throw new Error("Invalid install date provided");
+      }
+
       // Step 1: Update the current engine to be unassigned (return to catalog)
       // Remove mowerId to make it a global engine again, preserving part allocations
       await apiRequest("PUT", `/api/engines/${currentEngineToReplace.id}`, {
@@ -162,7 +199,7 @@ export default function AllocateEngineToMowerModal({
         model: engine.model,
         serialNumber: engine.serialNumber,
         mowerId: data.mowerId,
-        installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
+        installDate: formattedInstallDate,
         warrantyExpires: engine.warrantyExpires,
         condition: engine.condition,
         status: engine.status,
