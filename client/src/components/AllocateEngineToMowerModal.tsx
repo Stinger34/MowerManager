@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { CalendarIcon, Search } from "lucide-react";
+import { CalendarIcon, Search, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +46,9 @@ export default function AllocateEngineToMowerModal({
 }: AllocateEngineToMowerModalProps) {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  const [showReplaceConfirmation, setShowReplaceConfirmation] = useState(false);
+  const [selectedMowerForReplacement, setSelectedMowerForReplacement] = useState<Mower | null>(null);
+  const [currentEngineToReplace, setCurrentEngineToReplace] = useState<Engine | null>(null);
 
   // Fetch all available mowers
   const { data: allMowers = [], isLoading: isMowersLoading } = useQuery<Mower[]>({
@@ -58,17 +62,19 @@ export default function AllocateEngineToMowerModal({
     enabled: isOpen,
   });
 
-  // Filter mowers based on search query and availability (no engine already allocated)
-  const availableMowers = allMowers.filter(mower => {
+  // Filter mowers based on search query (show ALL mowers, not just ones without engines)
+  const filteredMowers = allMowers.filter(mower => {
     const matchesSearch = mower.make.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          mower.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (mower.serialNumber || "").toLowerCase().includes(searchQuery.toLowerCase());
     
-    // Check if this mower already has an engine allocated
-    const hasEngine = allEngines.some(engine => engine.mowerId === mower.id);
-    
-    return matchesSearch && !hasEngine;
+    return matchesSearch;
   });
+
+  // Helper function to get the engine assigned to a mower
+  const getMowerEngine = (mowerId: number) => {
+    return allEngines.find(engine => engine.mowerId === mowerId);
+  };
 
   const form = useForm<EngineAllocationFormData>({
     resolver: zodResolver(engineAllocationFormSchema),
@@ -110,11 +116,11 @@ export default function AllocateEngineToMowerModal({
         notes: data.notes || engine.notes,
       };
       
-      const response = await apiRequest("POST", `/api/mowers/${data.mowerId}/components`, engineData);
+      const response = await apiRequest("POST", `/api/mowers/${data.mowerId}/engines`, engineData);
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/components'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
       queryClient.invalidateQueries({ queryKey: ['/api/mowers'] });
       toast({
         title: "Success",
@@ -133,11 +139,87 @@ export default function AllocateEngineToMowerModal({
     },
   });
 
+  const replaceEngineMutation = useMutation({
+    mutationFn: async (data: { mowerId: number; installDate?: Date; notes?: string }) => {
+      if (!currentEngineToReplace) {
+        throw new Error("No engine to replace");
+      }
+
+      // Step 1: Update the current engine to be unassigned (return to catalog)
+      // Remove mowerId to make it a global engine again, preserving part allocations
+      await apiRequest("PUT", `/api/engines/${currentEngineToReplace.id}`, {
+        ...currentEngineToReplace,
+        mowerId: null,
+        installDate: null,
+      });
+
+      // Step 2: Create the new engine allocation
+      const engineData: InsertComponent = {
+        name: engine.name,
+        description: engine.description,
+        partNumber: engine.partNumber,
+        manufacturer: engine.manufacturer,
+        model: engine.model,
+        serialNumber: engine.serialNumber,
+        mowerId: data.mowerId,
+        installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
+        warrantyExpires: engine.warrantyExpires,
+        condition: engine.condition,
+        status: engine.status,
+        cost: engine.cost,
+        notes: data.notes || engine.notes,
+      };
+      
+      const response = await apiRequest("POST", `/api/mowers/${data.mowerId}/engines`, engineData);
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/mowers'] });
+      toast({
+        title: "Success",
+        description: "Engine replaced successfully. Previous engine returned to catalog with parts history preserved.",
+      });
+      form.reset();
+      setShowReplaceConfirmation(false);
+      setSelectedMowerForReplacement(null);
+      setCurrentEngineToReplace(null);
+      onClose();
+      onSuccess?.();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to replace engine",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: EngineAllocationFormData) => {
     allocateEngineMutation.mutate(data);
   };
 
+  const handleReplaceConfirm = () => {
+    if (selectedMowerForReplacement) {
+      const formData = form.getValues();
+      replaceEngineMutation.mutate({
+        mowerId: selectedMowerForReplacement.id,
+        installDate: formData.installDate,
+        notes: formData.notes,
+      });
+    }
+  };
+
+  const handleReplaceCancel = () => {
+    setShowReplaceConfirmation(false);
+    setSelectedMowerForReplacement(null);
+    setCurrentEngineToReplace(null);
+  };
+
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
@@ -168,37 +250,81 @@ export default function AllocateEngineToMowerModal({
                     <div className="border rounded-md p-8 text-center text-muted-foreground">
                       Loading mowers...
                     </div>
-                  ) : availableMowers.length === 0 ? (
+                  ) : filteredMowers.length === 0 ? (
                     <div className="border rounded-md p-8 text-center text-muted-foreground">
                       <p>No mowers found</p>
                       {searchQuery && <p className="text-sm mt-1">Try adjusting your search</p>}
                     </div>
                   ) : (
                     <div className="max-h-60 overflow-y-auto space-y-2 border rounded-md p-2">
-                      {availableMowers.map((mower) => (
-                        <div
-                          key={mower.id}
-                          className={cn(
-                            "border rounded-lg p-3 cursor-pointer transition-colors",
-                            form.watch("mowerId") === mower.id
-                              ? "border-primary bg-primary/5"
-                              : "border-border hover:border-primary/50"
-                          )}
-                          onClick={() => form.setValue("mowerId", mower.id)}
-                        >
-                          <div className="font-medium">{mower.make} {mower.model}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {mower.year && `${mower.year} • `}
-                            {mower.serialNumber && `S/N: ${mower.serialNumber} • `}
-                            Status: {mower.status}
-                          </div>
-                          {mower.location && (
-                            <div className="text-sm text-muted-foreground mt-1">
-                              Location: {mower.location}
+                      {filteredMowers.map((mower) => {
+                        const existingEngine = getMowerEngine(mower.id);
+                        const hasEngine = !!existingEngine;
+                        
+                        return (
+                          <div
+                            key={mower.id}
+                            className={cn(
+                              "border rounded-lg p-3 transition-colors",
+                              form.watch("mowerId") === mower.id
+                                ? "border-primary bg-primary/5"
+                                : "border-border"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div 
+                                className="flex-1 cursor-pointer"
+                                onClick={() => !hasEngine && form.setValue("mowerId", mower.id)}
+                              >
+                                <div className="font-medium">{mower.make} {mower.model}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {mower.year && `${mower.year} • `}
+                                  {mower.serialNumber && `S/N: ${mower.serialNumber} • `}
+                                  Status: {mower.status}
+                                </div>
+                                {mower.location && (
+                                  <div className="text-sm text-muted-foreground mt-1">
+                                    Location: {mower.location}
+                                  </div>
+                                )}
+                                {hasEngine && (
+                                  <div className="text-sm text-orange-600 mt-1 flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    Current engine: {existingEngine.name}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className="flex gap-2">
+                                {hasEngine ? (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedMowerForReplacement(mower);
+                                      setCurrentEngineToReplace(existingEngine);
+                                      setShowReplaceConfirmation(true);
+                                    }}
+                                    className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                                  >
+                                    Replace
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    type="button"
+                                    variant={form.watch("mowerId") === mower.id ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => form.setValue("mowerId", mower.id)}
+                                  >
+                                    {form.watch("mowerId") === mower.id ? "Selected" : "Select"}
+                                  </Button>
+                                )}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      ))}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                   <FormMessage />
@@ -285,5 +411,43 @@ export default function AllocateEngineToMowerModal({
         </Form>
       </DialogContent>
     </Dialog>
+
+    {/* Replacement Confirmation Dialog */}
+    <AlertDialog open={showReplaceConfirmation} onOpenChange={setShowReplaceConfirmation}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-orange-500" />
+            Replace Engine?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="space-y-2">
+            <p>
+              <strong>{selectedMowerForReplacement?.make} {selectedMowerForReplacement?.model}</strong> already has an engine 
+              (<strong>{currentEngineToReplace?.name}</strong>) assigned to it.
+            </p>
+            <p>
+              Replacing it with <strong>"{engine.name}"</strong> will:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-sm">
+              <li>Unassign the current engine and return it to the catalog</li>
+              <li>Preserve all parts allocation history for the unassigned engine</li>
+              <li>Assign the new engine to this mower</li>
+            </ul>
+            <p className="text-sm font-medium">Do you want to continue?</p>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={handleReplaceCancel}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleReplaceConfirm}
+            disabled={replaceEngineMutation.isPending}
+            className="bg-orange-600 text-white hover:bg-orange-700"
+          >
+            {replaceEngineMutation.isPending ? "Replacing..." : "Replace Engine"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

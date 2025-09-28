@@ -611,15 +611,7 @@ export default function MowerDetails() {
   };
 
   const handleAllocateEngine = () => {
-    // Check if mower already has an engine
-    if (components.length > 0) {
-      toast({
-        title: "Engine Already Allocated",
-        description: "This mower already has an engine allocated. Only one engine per mower is allowed.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Allow opening the modal even if mower has an engine (replacement will be handled in modal)
     setShowAllocateEngineModal(true);
   };
 
@@ -676,15 +668,7 @@ export default function MowerDetails() {
 
   // Engine/Component compatibility handlers
   const handleAllocateComponent = () => {
-    // Check if mower already has an engine
-    if (components.length > 0) {
-      toast({
-        title: "Engine Already Allocated",
-        description: "This mower already has an engine allocated. Only one engine per mower is allowed.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Allow opening the modal even if mower has an engine (replacement will be handled in modal)
     setShowAllocateEngineModal(true);
   };
 
@@ -1118,12 +1102,12 @@ export default function MowerDetails() {
                         variant="outline" 
                         size="sm" 
                         onClick={handleAllocateComponent} 
-                        disabled={components.length > 0}
                         data-testid="button-allocate-component"
-                        title={components.length > 0 ? "This mower already has an engine allocated" : "Allocate engine from catalog"}
+                        title={components.length > 0 ? "Replace current engine with one from catalog" : "Allocate engine from catalog"}
+                        className={components.length > 0 ? "text-orange-600 border-orange-200 hover:bg-orange-50" : ""}
                       >
                         <Wrench className="h-4 w-4 mr-2" />
-                        Allocate Engine
+                        {components.length > 0 ? "Replace Engine" : "Allocate Engine"}
                       </Button>
                       <Button 
                         variant="outline" 
