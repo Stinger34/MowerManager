@@ -106,9 +106,22 @@ export default function AllocateEngineModal({
         });
       });
       
+      // Validate and format the warranty expiration date
+      const formattedWarrantyExpires = safeFormatDateForAPI(selectedEngine.warrantyExpires, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid warranty expiration date. Please check the engine data.",
+          variant: "destructive",
+        });
+      });
+      
       // If date validation failed and we had a date, stop the mutation
       if (data.installDate && formattedInstallDate === null) {
         throw new Error("Invalid install date provided");
+      }
+      
+      if (selectedEngine.warrantyExpires && formattedWarrantyExpires === null) {
+        throw new Error("Invalid warranty expiration date");
       }
 
       // Check if mower already has an engine - if so, replace it
@@ -132,7 +145,7 @@ export default function AllocateEngineModal({
         serialNumber: selectedEngine.serialNumber,
         mowerId: parseInt(mowerId),
         installDate: formattedInstallDate,
-        warrantyExpires: selectedEngine.warrantyExpires,
+        warrantyExpires: formattedWarrantyExpires,
         condition: selectedEngine.condition,
         status: selectedEngine.status,
         cost: selectedEngine.cost,

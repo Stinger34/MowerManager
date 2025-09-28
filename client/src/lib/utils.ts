@@ -76,3 +76,113 @@ export function safeConvertToDate(date: Date | string | null | undefined): Date 
     return undefined;
   }
 }
+
+/**
+ * Safely formats a date value for display using toLocaleDateString.
+ * Handles Date objects, date strings, null, undefined, and invalid dates.
+ * 
+ * @param date - The date value to format (Date, string, null, or undefined)
+ * @param fallback - Optional fallback text when date is invalid (defaults to "Invalid Date")
+ * @returns Formatted date string or fallback text
+ */
+export function safeFormatDateForDisplay(
+  date: Date | string | null | undefined,
+  fallback: string = "Invalid Date"
+): string {
+  if (!date) return fallback;
+
+  try {
+    let dateObj: Date;
+    
+    // Handle string dates by converting to Date object
+    if (typeof date === 'string') {
+      dateObj = new Date(date);
+    } else if (date instanceof Date) {
+      dateObj = date;
+    } else {
+      return fallback;
+    }
+
+    // Check if the Date object is valid
+    if (isNaN(dateObj.getTime())) {
+      return fallback;
+    }
+
+    return dateObj.toLocaleDateString();
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Safely formats a date value for display using toLocaleTimeString.
+ * Handles Date objects, date strings, null, undefined, and invalid dates.
+ * 
+ * @param date - The date value to format (Date, string, null, or undefined)
+ * @param fallback - Optional fallback text when date is invalid (defaults to "Invalid Time")
+ * @returns Formatted time string or fallback text
+ */
+export function safeFormatTimeForDisplay(
+  date: Date | string | null | undefined,
+  fallback: string = "Invalid Time"
+): string {
+  if (!date) return fallback;
+
+  try {
+    let dateObj: Date;
+    
+    // Handle string dates by converting to Date object
+    if (typeof date === 'string') {
+      dateObj = new Date(date);
+    } else if (date instanceof Date) {
+      dateObj = date;
+    } else {
+      return fallback;
+    }
+
+    // Check if the Date object is valid
+    if (isNaN(dateObj.getTime())) {
+      return fallback;
+    }
+
+    return dateObj.toLocaleTimeString();
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Safely checks if a date is before another date.
+ * Handles Date objects, date strings, null, undefined, and invalid dates.
+ * 
+ * @param date - The date to check (Date, string, null, or undefined)
+ * @param compareDate - The date to compare against (defaults to current date)
+ * @returns true if date is before compareDate, false otherwise (including invalid dates)
+ */
+export function safeIsDateBefore(
+  date: Date | string | null | undefined,
+  compareDate: Date = new Date()
+): boolean {
+  if (!date) return false;
+
+  try {
+    let dateObj: Date;
+    
+    if (typeof date === 'string') {
+      dateObj = new Date(date);
+    } else if (date instanceof Date) {
+      dateObj = date;
+    } else {
+      return false;
+    }
+
+    // Check if the Date object is valid
+    if (isNaN(dateObj.getTime()) || isNaN(compareDate.getTime())) {
+      return false;
+    }
+
+    return dateObj < compareDate;
+  } catch {
+    return false;
+  }
+}
