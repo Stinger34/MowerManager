@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -123,7 +123,7 @@ export default function EngineFormModal({
         setPendingAttachments([]);
       }
     }
-  }, [engine, isOpen, form, isEditing, isGlobalEngine, mowerEngines, toast, onClose]);
+  }, [engine, isOpen, isEditing, isGlobalEngine, mowerEngines.length, toast, onClose]);
 
   const createMutation = useMutation({
     mutationFn: async (data: EngineFormData) => {
@@ -173,7 +173,7 @@ export default function EngineFormModal({
       }
       toast({
         title: "Success",
-        description: `${isGlobalEngine ? 'Global' : 'Mower'} engine? created successfully${pendingAttachments.length > 0 ? ` with ${pendingAttachments.length} attachment(s)` : ''}`,
+        description: `${isGlobalEngine ? 'Global' : 'Mower'} engine created successfully${pendingAttachments.length > 0 ? ` with ${pendingAttachments.length} attachment(s)` : ''}`,
       });
       form.reset();
       setPendingAttachments([]);
@@ -181,9 +181,10 @@ export default function EngineFormModal({
       onSuccess?.();
     },
     onError: (error: Error) => {
+      console.error('Engine creation error:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to create engine?",
+        title: "Failed to Create Engine",
+        description: error.message || "An unexpected error occurred while creating the engine. Please try again.",
         variant: "destructive",
       });
     },
@@ -224,15 +225,16 @@ export default function EngineFormModal({
       }
       toast({
         title: "Success",
-        description: "Component updated successfully",
+        description: "Engine updated successfully",
       });
       onClose();
       onSuccess?.();
     },
     onError: (error: Error) => {
+      console.error('Engine update error:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to update engine?",
+        title: "Failed to Update Engine",
+        description: error.message || "An unexpected error occurred while updating the engine. Please try again.",
         variant: "destructive",
       });
     },
@@ -259,6 +261,12 @@ export default function EngineFormModal({
           <DialogTitle>
             {isEditing ? "Edit Engine" : `Add ${isGlobalEngine ? 'Global ' : ''}Engine`}
           </DialogTitle>
+          <DialogDescription>
+            {isEditing 
+              ? "Update the engine details below and save your changes."
+              : `Create a new ${isGlobalEngine ? 'global ' : ''}engine type for your catalog.`
+            }
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -374,7 +382,7 @@ export default function EngineFormModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Condition</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select condition" />
@@ -398,7 +406,7 @@ export default function EngineFormModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select status" />
