@@ -16,6 +16,7 @@ import AllocatePartModal from "@/components/AllocatePartModal";
 import type { Part, Attachment, AssetPartWithDetails } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
+import { safeFormatDateForDisplay } from "@/lib/utils";
 
 export default function PartDetails() {
   const [, params] = useRoute("/catalog/parts/:partId");
@@ -304,7 +305,7 @@ export default function PartDetails() {
                               Quantity: {allocation.quantity}
                               {allocation.installDate && (
                                 <span className="ml-2">
-                                  • Installed: {new Date(allocation.installDate).toLocaleDateString()}
+                                  • Installed: {safeFormatDateForDisplay(allocation.installDate)}
                                 </span>
                               )}
                             </div>

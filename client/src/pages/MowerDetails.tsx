@@ -29,6 +29,7 @@ import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Engine, Part, 
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
 import { motion } from "framer-motion";
+import { safeFormatDateForDisplay } from "@/lib/utils";
 
 interface AttachmentFile {
   file: File;
@@ -1161,10 +1162,10 @@ export default function MowerDetails() {
                               {(component.installDate || component.warrantyExpires) && (
                                 <div className="flex gap-4 text-sm text-muted-foreground mt-1">
                                   {component.installDate && (
-                                    <span>Installed: {new Date(component.installDate).toLocaleDateString()}</span>
+                                    <span>Installed: {safeFormatDateForDisplay(component.installDate)}</span>
                                   )}
                                   {component.warrantyExpires && (
-                                    <span>Warranty: {new Date(component.warrantyExpires).toLocaleDateString()}</span>
+                                    <span>Warranty: {safeFormatDateForDisplay(component.warrantyExpires)}</span>
                                   )}
                                 </div>
                               )}
@@ -1275,7 +1276,7 @@ export default function MowerDetails() {
                               
                               <div className="flex gap-4 text-sm text-muted-foreground mt-1">
                                 {assetPart.installDate && (
-                                  <span>Installed: {new Date(assetPart.installDate).toLocaleDateString()}</span>
+                                  <span>Installed: {safeFormatDateForDisplay(assetPart.installDate)}</span>
                                 )}
                               </div>
                               
