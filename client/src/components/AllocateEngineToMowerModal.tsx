@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { cn } from "@/lib/utils";
+import { cn, safeFormatDateForAPI } from "@/lib/utils";
 import { CalendarIcon, Search, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -49,27 +49,6 @@ export default function AllocateEngineToMowerModal({
   const [showReplaceConfirmation, setShowReplaceConfirmation] = useState(false);
   const [selectedMowerForReplacement, setSelectedMowerForReplacement] = useState<Mower | null>(null);
   const [currentEngineToReplace, setCurrentEngineToReplace] = useState<Engine | null>(null);
-
-  // Helper function to safely format dates
-  const safeFormatDate = (date: Date | undefined | null): string | null => {
-    if (!date) return null;
-    
-    try {
-      // Check if it's a valid Date object
-      if (!(date instanceof Date) || isNaN(date.getTime())) {
-        throw new Error("Invalid date");
-      }
-      
-      return format(date, "yyyy-MM-dd");
-    } catch (error) {
-      toast({
-        title: "Date Error",
-        description: "Invalid install date provided. Please select a valid date.",
-        variant: "destructive",
-      });
-      return null;
-    }
-  };
 
   // Fetch all available mowers
   const { data: allMowers = [], isLoading: isMowersLoading } = useQuery<Mower[]>({
@@ -121,7 +100,13 @@ export default function AllocateEngineToMowerModal({
   const allocateEngineMutation = useMutation({
     mutationFn: async (data: EngineAllocationFormData) => {
       // Validate and format the install date
-      const formattedInstallDate = safeFormatDate(data.installDate);
+      const formattedInstallDate = safeFormatDateForAPI(data.installDate, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid install date provided. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
       
       // If date validation failed and we had a date, stop the mutation
       if (data.installDate && formattedInstallDate === null) {
@@ -175,7 +160,13 @@ export default function AllocateEngineToMowerModal({
       }
 
       // Validate and format the install date
-      const formattedInstallDate = safeFormatDate(data.installDate);
+      const formattedInstallDate = safeFormatDateForAPI(data.installDate, (error) => {
+        toast({
+          title: "Date Error", 
+          description: "Invalid install date provided. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
       
       // If date validation failed and we had a date, stop the mutation
       if (data.installDate && formattedInstallDate === null) {

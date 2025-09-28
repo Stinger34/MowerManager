@@ -14,7 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, safeFormatDateForAPI, safeConvertToDate } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Engine, InsertEngine } from "@shared/schema";
@@ -111,8 +111,8 @@ export default function EngineFormModal({
         manufacturer: engine?.manufacturer || "",
         model: engine?.model || "",
         serialNumber: engine?.serialNumber || "",
-        installDate: engine?.installDate ? new Date(engine.installDate) : undefined,
-        warrantyExpires: engine?.warrantyExpires ? new Date(engine.warrantyExpires) : undefined,
+        installDate: safeConvertToDate(engine?.installDate),
+        warrantyExpires: safeConvertToDate(engine?.warrantyExpires),
         condition: (engine?.condition as "excellent" | "good" | "fair" | "poor") || "good",
         status: (engine?.status as "active" | "maintenance" | "retired") || "active",
         cost: engine?.cost || "",
@@ -127,11 +127,33 @@ export default function EngineFormModal({
 
   const createMutation = useMutation({
     mutationFn: async (data: EngineFormData) => {
+      // Validate dates first
+      const installDate = safeFormatDateForAPI(data.installDate, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid install date. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+      
+      const warrantyExpires = safeFormatDateForAPI(data.warrantyExpires, (error) => {
+        toast({
+          title: "Date Error", 
+          description: "Invalid warranty expiration date. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+
+      // Stop submission if date validation failed
+      if ((data.installDate && installDate === null) || (data.warrantyExpires && warrantyExpires === null)) {
+        throw new Error("Please correct the date errors before submitting.");
+      }
+
       const engineData: InsertEngine = {
         ...data,
         mowerId: isGlobalEngine ? null : parseInt(mowerId!), // Global engines have null mowerId
-        installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
-        warrantyExpires: data.warrantyExpires ? format(data.warrantyExpires, "yyyy-MM-dd") : null,
+        installDate,
+        warrantyExpires,
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,
@@ -192,10 +214,32 @@ export default function EngineFormModal({
 
   const updateMutation = useMutation({
     mutationFn: async (data: EngineFormData) => {
+      // Validate dates first
+      const installDate = safeFormatDateForAPI(data.installDate, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid install date. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+      
+      const warrantyExpires = safeFormatDateForAPI(data.warrantyExpires, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid warranty expiration date. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+
+      // Stop submission if date validation failed
+      if ((data.installDate && installDate === null) || (data.warrantyExpires && warrantyExpires === null)) {
+        throw new Error("Please correct the date errors before submitting.");
+      }
+
       const engineData = {
         ...data,
-        installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
-        warrantyExpires: data.warrantyExpires ? format(data.warrantyExpires, "yyyy-MM-dd") : null,
+        installDate,
+        warrantyExpires,
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,

@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Search, Plus, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, safeFormatDateForAPI } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import EngineFormModal from "./EngineFormModal";
@@ -44,27 +44,6 @@ export default function AllocateEngineModal({
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // Helper function to safely format dates
-  const safeFormatDate = (date: Date | undefined | null): string | null => {
-    if (!date) return null;
-    
-    try {
-      // Check if it's a valid Date object
-      if (!(date instanceof Date) || isNaN(date.getTime())) {
-        throw new Error("Invalid date");
-      }
-      
-      return format(date, "yyyy-MM-dd");
-    } catch (error) {
-      toast({
-        title: "Date Error",
-        description: "Invalid install date provided. Please select a valid date.",
-        variant: "destructive",
-      });
-      return null;
-    }
-  };
 
   // Fetch all available global engines (not assigned to any mower)
   const { data: globalEngines = [], isLoading: isGlobalEnginesLoading } = useQuery<Engine[]>({
@@ -119,7 +98,13 @@ export default function AllocateEngineModal({
       }
 
       // Validate and format the install date
-      const formattedInstallDate = safeFormatDate(data.installDate);
+      const formattedInstallDate = safeFormatDateForAPI(data.installDate, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid install date provided. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
       
       // If date validation failed and we had a date, stop the mutation
       if (data.installDate && formattedInstallDate === null) {

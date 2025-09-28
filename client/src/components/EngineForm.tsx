@@ -12,8 +12,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, safeFormatDateForAPI, safeConvertToDate } from "@/lib/utils";
 import type { Engine, InsertEngine } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 const engineFormSchema = z.object({
   name: z.string().min(1, "Engine name is required"),
@@ -46,6 +47,7 @@ export default function EngineForm({
   isEditing = false 
 }: EngineFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   const form = useForm<EngineFormData>({
     resolver: zodResolver(engineFormSchema),
@@ -56,8 +58,8 @@ export default function EngineForm({
       manufacturer: initialData?.manufacturer || "",
       model: initialData?.model || "",
       serialNumber: initialData?.serialNumber || "",
-      installDate: initialData?.installDate ? new Date(initialData.installDate) : undefined,
-      warrantyExpires: initialData?.warrantyExpires ? new Date(initialData.warrantyExpires) : undefined,
+      installDate: safeConvertToDate(initialData?.installDate),
+      warrantyExpires: safeConvertToDate(initialData?.warrantyExpires),
       condition: (initialData?.condition as "excellent" | "good" | "fair" | "poor") || "good",
       status: (initialData?.status as "active" | "maintenance" | "retired") || "active",
       cost: initialData?.cost || "",
@@ -68,11 +70,33 @@ export default function EngineForm({
   const handleSubmit = async (data: EngineFormData) => {
     setIsSubmitting(true);
     try {
+      // Validate dates first
+      const installDate = safeFormatDateForAPI(data.installDate, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid install date. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+      
+      const warrantyExpires = safeFormatDateForAPI(data.warrantyExpires, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid warranty expiration date. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+
+      // Stop submission if date validation failed
+      if ((data.installDate && installDate === null) || (data.warrantyExpires && warrantyExpires === null)) {
+        throw new Error("Please correct the date errors before submitting.");
+      }
+
       const engineData: InsertEngine = {
         ...data,
         mowerId: 1, // TODO: This should be selected from a mower dropdown
-        installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
-        warrantyExpires: data.warrantyExpires ? format(data.warrantyExpires, "yyyy-MM-dd") : null,
+        installDate,
+        warrantyExpires,
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,
