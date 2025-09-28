@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { cn, safeFormatDateForAPI } from "@/lib/utils";
+import { cn, safeFormatDateForAPI, validateDateFieldsForAPI } from "@/lib/utils";
 import { CalendarIcon, Search, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -158,6 +158,11 @@ export default function AllocateEngineToMowerModal({
         notes: data.notes || engine.notes,
       };
       
+      // Validate date fields before API submission
+      if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
+        throw new Error("Date validation failed. Please check the date formats.");
+      }
+      
       const response = await apiRequest("POST", `/api/mowers/${data.mowerId}/engines`, engineData);
       return response.json();
     },
@@ -240,6 +245,11 @@ export default function AllocateEngineToMowerModal({
         cost: engine.cost,
         notes: data.notes || engine.notes,
       };
+      
+      // Validate date fields before API submission
+      if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
+        throw new Error("Date validation failed. Please check the date formats.");
+      }
       
       const response = await apiRequest("POST", `/api/mowers/${data.mowerId}/engines`, engineData);
       

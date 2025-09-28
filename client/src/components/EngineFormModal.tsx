@@ -14,7 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { cn, safeFormatDateForAPI, safeConvertToDate } from "@/lib/utils";
+import { cn, safeFormatDateForAPI, safeConvertToDate, validateDateFieldsForAPI } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Engine, InsertEngine } from "@shared/schema";
@@ -150,10 +150,12 @@ export default function EngineFormModal({
       }
 
       const engineData: InsertEngine = {
-        ...data,
+        name: data.name,
+        condition: data.condition,
+        status: data.status,
         mowerId: isGlobalEngine ? null : parseInt(mowerId!), // Global engines have null mowerId
-        ...(installDate !== null && { installDate }),
-        ...(warrantyExpires !== null && { warrantyExpires }),
+        installDate,
+        warrantyExpires,
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,
@@ -162,6 +164,11 @@ export default function EngineFormModal({
         serialNumber: data.serialNumber || null,
         notes: data.notes || null,
       };
+      
+      // Validate date fields before API submission
+      if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
+        throw new Error("Date validation failed. Please check the date formats.");
+      }
       
       // Use different endpoints for global vs mower-specific engines
       const endpoint = isGlobalEngine 
