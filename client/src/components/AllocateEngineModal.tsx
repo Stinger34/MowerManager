@@ -22,7 +22,7 @@ import type { Engine, InsertEngine } from "@shared/schema";
 
 const engineAllocationFormSchema = z.object({
   engineId: z.number().min(1, "Engine selection is required"),
-  installDate: z.date().optional(),
+  installDate: z.date().nullable().optional(),
   notes: z.string().optional(),
 });
 
@@ -44,6 +44,27 @@ export default function AllocateEngineModal({
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Helper function to safely format dates
+  const safeFormatDate = (date: Date | undefined | null): string | null => {
+    if (!date) return null;
+    
+    try {
+      // Check if it's a valid Date object
+      if (!(date instanceof Date) || isNaN(date.getTime())) {
+        throw new Error("Invalid date");
+      }
+      
+      return format(date, "yyyy-MM-dd");
+    } catch (error) {
+      toast({
+        title: "Date Error",
+        description: "Invalid install date provided. Please select a valid date.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
 
   // Fetch all available global engines (not assigned to any mower)
   const { data: globalEngines = [], isLoading: isGlobalEnginesLoading } = useQuery<Engine[]>({
@@ -72,7 +93,7 @@ export default function AllocateEngineModal({
     resolver: zodResolver(engineAllocationFormSchema),
     defaultValues: {
       engineId: 0,
-      installDate: undefined,
+      installDate: new Date(), // Set to current time initially
       notes: "",
     },
   });
@@ -82,7 +103,7 @@ export default function AllocateEngineModal({
     if (isOpen) {
       form.reset({
         engineId: 0,
-        installDate: undefined,
+        installDate: new Date(), // Set to user's local browser time
         notes: "",
       });
       setSearchQuery("");
@@ -95,6 +116,14 @@ export default function AllocateEngineModal({
       const selectedEngine = globalEngines.find(c => c.id === data.engineId);
       if (!selectedEngine) {
         throw new Error('Selected engine not found');
+      }
+
+      // Validate and format the install date
+      const formattedInstallDate = safeFormatDate(data.installDate);
+      
+      // If date validation failed and we had a date, stop the mutation
+      if (data.installDate && formattedInstallDate === null) {
+        throw new Error("Invalid install date provided");
       }
 
       // Check if mower already has an engine - if so, replace it
@@ -117,7 +146,7 @@ export default function AllocateEngineModal({
         model: selectedEngine.model,
         serialNumber: selectedEngine.serialNumber,
         mowerId: parseInt(mowerId),
-        installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
+        installDate: formattedInstallDate,
         warrantyExpires: selectedEngine.warrantyExpires,
         condition: selectedEngine.condition,
         status: selectedEngine.status,
@@ -309,13 +338,26 @@ export default function AllocateEngineModal({
                           <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
                               mode="single"
-                              selected={field.value}
+                              selected={field.value || undefined}
                               onSelect={field.onChange}
                               disabled={(date) =>
                                 date > new Date() || date < new Date("1900-01-01")
                               }
                               initialFocus
                             />
+                            {field.value && (
+                              <div className="p-3 border-t">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => field.onChange(null)}
+                                  className="w-full"
+                                >
+                                  Clear Date
+                                </Button>
+                              </div>
+                            )}
                           </PopoverContent>
                         </Popover>
                         <FormMessage />
