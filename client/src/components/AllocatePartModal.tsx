@@ -13,7 +13,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Search } from "lucide-react";
 import { format } from "date-fns";
-import { cn, safeFormatDateForAPI } from "@/lib/utils";
+import { cn, safeFormatDateForAPI, validateDateFieldsForAPI } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Part, Engine, AssetPart, InsertAssetPart } from "@shared/schema";
@@ -118,6 +118,11 @@ export default function AllocatePartModal({
         notes: data.notes || null,
       };
       
+      // Validate date fields before API submission
+      if (!validateDateFieldsForAPI(assetPartData, ['installDate'])) {
+        throw new Error("Date validation failed. Please check the date formats.");
+      }
+      
       const response = await apiRequest("POST", "/api/asset-parts", assetPartData);
       return response.json();
     },
@@ -167,6 +172,11 @@ export default function AllocatePartModal({
         installDate: formattedInstallDate,
         notes: data.notes || null,
       };
+      
+      // Validate date fields before API submission
+      if (!validateDateFieldsForAPI(assetPartData, ['installDate'])) {
+        throw new Error("Date validation failed. Please check the date formats.");
+      }
       
       const response = await apiRequest("PUT", `/api/asset-parts/${assetPart!.id}`, assetPartData);
       return response.json();
