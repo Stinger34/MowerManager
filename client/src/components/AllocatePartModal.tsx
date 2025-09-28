@@ -13,7 +13,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Search } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, safeFormatDateForAPI } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Part, Engine, AssetPart, InsertAssetPart } from "@shared/schema";
@@ -95,12 +95,26 @@ export default function AllocatePartModal({
 
   const createMutation = useMutation({
     mutationFn: async (data: AssetPartFormData) => {
+      // Validate and format the install date
+      const formattedInstallDate = safeFormatDateForAPI(data.installDate, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid install date provided. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+      
+      // If date validation failed and we had a date, stop the mutation
+      if (data.installDate && formattedInstallDate === null) {
+        throw new Error("Invalid install date provided");
+      }
+
       const assetPartData: InsertAssetPart = {
         partId: data.partId,
         mowerId: data.mowerId || null,
         engineId: data.engineId || null,
         quantity: data.quantity,
-        installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
+        installDate: formattedInstallDate,
         notes: data.notes || null,
       };
       
@@ -131,12 +145,26 @@ export default function AllocatePartModal({
 
   const updateMutation = useMutation({
     mutationFn: async (data: AssetPartFormData) => {
+      // Validate and format the install date
+      const formattedInstallDate = safeFormatDateForAPI(data.installDate, (error) => {
+        toast({
+          title: "Date Error",
+          description: "Invalid install date provided. Please select a valid date.",
+          variant: "destructive",
+        });
+      });
+      
+      // If date validation failed and we had a date, stop the mutation
+      if (data.installDate && formattedInstallDate === null) {
+        throw new Error("Invalid install date provided");
+      }
+
       const assetPartData = {
         partId: data.partId,
         mowerId: data.mowerId || null,
         engineId: data.engineId || null,
         quantity: data.quantity,
-        installDate: data.installDate ? format(data.installDate, "yyyy-MM-dd") : null,
+        installDate: formattedInstallDate,
         notes: data.notes || null,
       };
       
