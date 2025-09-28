@@ -25,7 +25,6 @@ type InsertComponent = InsertEngine;
 
 const engineAllocationFormSchema = z.object({
   mowerId: z.number().min(1, "Mower selection is required"),
-  installDate: z.date().optional(),
   notes: z.string().optional(),
 });
 
@@ -52,11 +51,9 @@ export default function AllocateEngineToMowerModal({
   
   // Separate form for replacement specific inputs
   const replaceForm = useForm<{
-    installDate?: Date;
     notes: string;
   }>({
     defaultValues: {
-      installDate: undefined,
       notes: "",
     },
   });
@@ -91,7 +88,6 @@ export default function AllocateEngineToMowerModal({
     resolver: zodResolver(engineAllocationFormSchema),
     defaultValues: {
       mowerId: 0,
-      installDate: undefined,
       notes: "",
     },
   });
@@ -101,11 +97,9 @@ export default function AllocateEngineToMowerModal({
     if (isOpen) {
       form.reset({
         mowerId: 0,
-        installDate: undefined,
         notes: "",
       });
       replaceForm.reset({
-        installDate: undefined,
         notes: "",
       });
       setSearchQuery("");
@@ -114,14 +108,8 @@ export default function AllocateEngineToMowerModal({
 
   const allocateEngineMutation = useMutation({
     mutationFn: async (data: EngineAllocationFormData) => {
-      // Validate and format dates early
-      const formattedInstallDate = safeFormatDateForAPI(data.installDate);
+      // Validate and format warranty date
       const formattedWarrantyExpires = safeFormatDateForAPI(engine.warrantyExpires);
-      
-      // Stop if date validation failed for provided dates
-      if (data.installDate && formattedInstallDate === null) {
-        throw new Error("Invalid install date provided. Please select a valid date.");
-      }
       
       if (engine.warrantyExpires && formattedWarrantyExpires === null) {
         throw new Error("Invalid warranty expiration date in engine data.");
@@ -136,7 +124,6 @@ export default function AllocateEngineToMowerModal({
         model: engine.model,
         serialNumber: engine.serialNumber,
         mowerId: data.mowerId,
-        ...(formattedInstallDate && { installDate: formattedInstallDate }),
         ...(formattedWarrantyExpires && { warrantyExpires: formattedWarrantyExpires }),
         condition: engine.condition,
         status: engine.status,
@@ -145,7 +132,7 @@ export default function AllocateEngineToMowerModal({
       };
       
       // Final validation before API submission
-      if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
+      if (!validateDateFieldsForAPI(engineData, ['warrantyExpires'])) {
         throw new Error("Date validation failed. Please check the date formats.");
       }
       
@@ -173,19 +160,13 @@ export default function AllocateEngineToMowerModal({
   });
 
   const replaceEngineMutation = useMutation({
-    mutationFn: async (data: { mowerId: number; installDate?: Date; notes?: string }) => {
+    mutationFn: async (data: { mowerId: number; notes?: string }) => {
       if (!currentEngineToReplace) {
         throw new Error("No engine to replace");
       }
 
-      // Validate and format dates early
-      const formattedInstallDate = safeFormatDateForAPI(data.installDate);
+      // Validate and format warranty date
       const formattedWarrantyExpires = safeFormatDateForAPI(engine.warrantyExpires);
-      
-      // Stop if date validation failed for provided dates
-      if (data.installDate && formattedInstallDate === null) {
-        throw new Error("Invalid install date provided. Please select a valid date.");
-      }
       
       if (engine.warrantyExpires && formattedWarrantyExpires === null) {
         throw new Error("Invalid warranty expiration date in engine data.");
@@ -209,7 +190,6 @@ export default function AllocateEngineToMowerModal({
         model: engine.model,
         serialNumber: engine.serialNumber,
         mowerId: data.mowerId,
-        ...(formattedInstallDate && { installDate: formattedInstallDate }),
         ...(formattedWarrantyExpires && { warrantyExpires: formattedWarrantyExpires }),
         condition: engine.condition,
         status: engine.status,
@@ -218,7 +198,7 @@ export default function AllocateEngineToMowerModal({
       };
       
       // Final validation before API submission
-      if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
+      if (!validateDateFieldsForAPI(engineData, ['warrantyExpires'])) {
         throw new Error("Date validation failed. Please check the date formats.");
       }
       
@@ -259,7 +239,6 @@ export default function AllocateEngineToMowerModal({
         setSelectedMowerForReplacement(selectedMower);
         setCurrentEngineToReplace(existingEngine);
         // Transfer form data to replacement form
-        replaceForm.setValue('installDate', data.installDate);
         replaceForm.setValue('notes', data.notes || '');
         setShowReplaceConfirmation(true);
       }
@@ -274,7 +253,6 @@ export default function AllocateEngineToMowerModal({
       const replaceFormData = replaceForm.getValues();
       replaceEngineMutation.mutate({
         mowerId: selectedMowerForReplacement.id,
-        installDate: replaceFormData.installDate,
         notes: replaceFormData.notes,
       });
     }
@@ -285,7 +263,6 @@ export default function AllocateEngineToMowerModal({
     setSelectedMowerForReplacement(null);
     setCurrentEngineToReplace(null);
     replaceForm.reset({
-      installDate: undefined,
       notes: "",
     });
   };
@@ -404,64 +381,6 @@ export default function AllocateEngineToMowerModal({
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              {/* Install Date */}
-              <FormField
-                control={form.control}
-                name="installDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Install Date (Optional)</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick install date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value || undefined}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                        />
-                        {field.value && (
-                          <div className="p-3 border-t">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => field.onChange(undefined)}
-                              className="w-full"
-                            >
-                              Clear Date
-                            </Button>
-                          </div>
-                        )}
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
             {/* Notes */}
             <FormField
               control={form.control}
@@ -525,62 +444,6 @@ export default function AllocateEngineToMowerModal({
         <div className="space-y-4 py-4">
           <Form {...replaceForm}>
             <div className="grid grid-cols-1 gap-4">
-              {/* Install Date for Replacement */}
-              <FormField
-                control={replaceForm.control}
-                name="installDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Install Date (Optional)</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick install date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value || undefined}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                        />
-                        {field.value && (
-                          <div className="p-3 border-t">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => field.onChange(undefined)}
-                              className="w-full"
-                            >
-                              Clear Date
-                            </Button>
-                          </div>
-                        )}
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               {/* Notes for Replacement */}
               <FormField
                 control={replaceForm.control}

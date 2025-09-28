@@ -22,7 +22,6 @@ import type { Engine, InsertEngine } from "@shared/schema";
 
 const engineAllocationFormSchema = z.object({
   engineId: z.number().min(1, "Engine selection is required"),
-  installDate: z.date().optional(),
   notes: z.string().optional(),
 });
 
@@ -72,7 +71,6 @@ export default function AllocateEngineModal({
     resolver: zodResolver(engineAllocationFormSchema),
     defaultValues: {
       engineId: 0,
-      installDate: undefined, // Start with no date selected
       notes: "",
     },
   });
@@ -82,7 +80,6 @@ export default function AllocateEngineModal({
     if (isOpen) {
       form.reset({
         engineId: 0,
-        installDate: undefined, // Start with no date selected to allow omitting blank dates
         notes: "",
       });
       setSearchQuery("");
@@ -97,14 +94,8 @@ export default function AllocateEngineModal({
         throw new Error('Selected engine not found');
       }
 
-      // Validate and format dates early
-      const formattedInstallDate = safeFormatDateForAPI(data.installDate);
+      // Validate and format warranty date
       const formattedWarrantyExpires = safeFormatDateForAPI(selectedEngine.warrantyExpires);
-      
-      // Stop if date validation failed for provided dates
-      if (data.installDate && formattedInstallDate === null) {
-        throw new Error("Invalid install date provided. Please select a valid date.");
-      }
       
       if (selectedEngine.warrantyExpires && formattedWarrantyExpires === null) {
         throw new Error("Invalid warranty expiration date in selected engine data.");
@@ -133,7 +124,6 @@ export default function AllocateEngineModal({
         model: selectedEngine.model,
         serialNumber: selectedEngine.serialNumber,
         mowerId: parseInt(mowerId),
-        ...(formattedInstallDate && { installDate: formattedInstallDate }),
         ...(formattedWarrantyExpires && { warrantyExpires: formattedWarrantyExpires }),
         condition: selectedEngine.condition,
         status: selectedEngine.status,
@@ -142,7 +132,7 @@ export default function AllocateEngineModal({
       };
       
       // Final validation before API submission
-      if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
+      if (!validateDateFieldsForAPI(engineData, ['warrantyExpires'])) {
         throw new Error("Date validation failed. Please check the date formats.");
       }
       
@@ -302,61 +292,6 @@ export default function AllocateEngineModal({
             {form.watch("engineId") > 0 && (
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="installDate"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Install Date (Optional)</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pick install date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value || undefined}
-                              onSelect={field.onChange}
-                              disabled={(date) =>
-                                date > new Date() || date < new Date("1900-01-01")
-                              }
-                              initialFocus
-                            />
-                            {field.value && (
-                              <div className="p-3 border-t">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => field.onChange(undefined)}
-                                  className="w-full"
-                                >
-                                  Clear Date
-                                </Button>
-                              </div>
-                            )}
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   <FormField
                     control={form.control}
                     name="notes"
