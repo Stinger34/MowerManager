@@ -381,7 +381,7 @@ export default function AllocateEngineToMowerModal({
                             {field.value ? (
                               format(field.value, "PPP")
                             ) : (
-                              <span>Pick a date</span>
+                              <span>Pick install date</span>
                             )}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
@@ -390,13 +390,26 @@ export default function AllocateEngineToMowerModal({
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
                           mode="single"
-                          selected={field.value}
+                          selected={field.value || undefined}
                           onSelect={field.onChange}
                           disabled={(date) =>
                             date > new Date() || date < new Date("1900-01-01")
                           }
                           initialFocus
                         />
+                        {field.value && (
+                          <div className="p-3 border-t">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => field.onChange(undefined)}
+                              className="w-full"
+                            >
+                              Clear Date
+                            </Button>
+                          </div>
+                        )}
                       </PopoverContent>
                     </Popover>
                     <FormMessage />
