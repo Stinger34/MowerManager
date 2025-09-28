@@ -205,6 +205,7 @@ export default function AllocateEngineToMowerModal({
         ...currentEngineToReplace,
         mowerId: null,
         installDate: null,
+        warrantyExpires: safeFormatDateForAPI(currentEngineToReplace.warrantyExpires),
       });
 
       // Step 2: Create the new engine allocation
