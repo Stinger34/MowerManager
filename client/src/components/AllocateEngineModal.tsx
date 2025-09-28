@@ -129,11 +129,12 @@ export default function AllocateEngineModal({
         const currentEngine = mowerEngines[0];
         
         // Step 1: Update the current engine to be unassigned (return to catalog)
+        const currentEngineWarrantyExpires = safeFormatDateForAPI(currentEngine.warrantyExpires);
         await apiRequest("PUT", `/api/engines/${currentEngine.id}`, {
           ...currentEngine,
           mowerId: null,
           installDate: null,
-          warrantyExpires: safeFormatDateForAPI(currentEngine.warrantyExpires),
+          ...(currentEngineWarrantyExpires !== null && { warrantyExpires: currentEngineWarrantyExpires }),
         });
       }
 
@@ -145,8 +146,8 @@ export default function AllocateEngineModal({
         model: selectedEngine.model,
         serialNumber: selectedEngine.serialNumber,
         mowerId: parseInt(mowerId),
-        installDate: formattedInstallDate,
-        warrantyExpires: formattedWarrantyExpires,
+        ...(formattedInstallDate !== null && { installDate: formattedInstallDate }),
+        ...(formattedWarrantyExpires !== null && { warrantyExpires: formattedWarrantyExpires }),
         condition: selectedEngine.condition,
         status: selectedEngine.status,
         cost: selectedEngine.cost,
