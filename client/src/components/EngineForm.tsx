@@ -95,8 +95,8 @@ export default function EngineForm({
       const engineData: InsertEngine = {
         ...data,
         mowerId: 1, // TODO: This should be selected from a mower dropdown
-        installDate,
-        warrantyExpires,
+        ...(installDate !== null && { installDate }),
+        ...(warrantyExpires !== null && { warrantyExpires }),
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,

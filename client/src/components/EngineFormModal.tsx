@@ -152,8 +152,8 @@ export default function EngineFormModal({
       const engineData: InsertEngine = {
         ...data,
         mowerId: isGlobalEngine ? null : parseInt(mowerId!), // Global engines have null mowerId
-        installDate,
-        warrantyExpires,
+        ...(installDate !== null && { installDate }),
+        ...(warrantyExpires !== null && { warrantyExpires }),
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,
@@ -238,8 +238,8 @@ export default function EngineFormModal({
 
       const engineData = {
         ...data,
-        installDate,
-        warrantyExpires,
+        ...(installDate !== null && { installDate }),
+        ...(warrantyExpires !== null && { warrantyExpires }),
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,

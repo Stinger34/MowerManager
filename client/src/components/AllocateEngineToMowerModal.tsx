@@ -135,8 +135,8 @@ export default function AllocateEngineToMowerModal({
         model: engine.model,
         serialNumber: engine.serialNumber,
         mowerId: data.mowerId,
-        installDate: formattedInstallDate,
-        warrantyExpires: formattedWarrantyExpires,
+        ...(formattedInstallDate !== null && { installDate: formattedInstallDate }),
+        ...(formattedWarrantyExpires !== null && { warrantyExpires: formattedWarrantyExpires }),
         condition: engine.condition,
         status: engine.status,
         cost: engine.cost,
@@ -201,11 +201,12 @@ export default function AllocateEngineToMowerModal({
 
       // Step 1: Update the current engine to be unassigned (return to catalog)
       // Remove mowerId to make it a global engine again, preserving part allocations
+      const currentEngineWarrantyExpires = safeFormatDateForAPI(currentEngineToReplace.warrantyExpires);
       await apiRequest("PUT", `/api/engines/${currentEngineToReplace.id}`, {
         ...currentEngineToReplace,
         mowerId: null,
         installDate: null,
-        warrantyExpires: safeFormatDateForAPI(currentEngineToReplace.warrantyExpires),
+        ...(currentEngineWarrantyExpires !== null && { warrantyExpires: currentEngineWarrantyExpires }),
       });
 
       // Step 2: Create the new engine allocation
@@ -217,8 +218,8 @@ export default function AllocateEngineToMowerModal({
         model: engine.model,
         serialNumber: engine.serialNumber,
         mowerId: data.mowerId,
-        installDate: formattedInstallDate,
-        warrantyExpires: formattedWarrantyExpires,
+        ...(formattedInstallDate !== null && { installDate: formattedInstallDate }),
+        ...(formattedWarrantyExpires !== null && { warrantyExpires: formattedWarrantyExpires }),
         condition: engine.condition,
         status: engine.status,
         cost: engine.cost,
