@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Search, Plus } from "lucide-react";
+import { CalendarIcon, Search, Plus, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -80,17 +80,6 @@ export default function AllocateEngineModal({
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Check if mower already has an engine
-      if (mowerEngines.length > 0) {
-        toast({
-          title: "Engine Already Allocated",
-          description: "This mower already has an engine allocated. Only one engine per mower is allowed.",
-          variant: "destructive",
-        });
-        onClose();
-        return;
-      }
-      
       form.reset({
         engineId: 0,
         installDate: undefined,
@@ -98,7 +87,7 @@ export default function AllocateEngineModal({
       });
       setSearchQuery("");
     }
-  }, [isOpen, mowerEngines, form, toast, onClose]);
+  }, [isOpen, form]);
 
   const allocateEngineMutation = useMutation({
     mutationFn: async (data: EngineAllocationFormData) => {
@@ -106,6 +95,18 @@ export default function AllocateEngineModal({
       const selectedEngine = globalEngines.find(c => c.id === data.engineId);
       if (!selectedEngine) {
         throw new Error('Selected engine not found');
+      }
+
+      // Check if mower already has an engine - if so, replace it
+      if (mowerEngines.length > 0) {
+        const currentEngine = mowerEngines[0];
+        
+        // Step 1: Update the current engine to be unassigned (return to catalog)
+        await apiRequest("PUT", `/api/engines/${currentEngine.id}`, {
+          ...currentEngine,
+          mowerId: null,
+          installDate: null,
+        });
       }
 
       const engineData: InsertEngine = {
@@ -129,9 +130,14 @@ export default function AllocateEngineModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'components'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
+      
+      const hasExistingEngine = mowerEngines.length > 0;
       toast({
         title: "Success",
-        description: "Engine allocated successfully",
+        description: hasExistingEngine 
+          ? "Engine replaced successfully. Previous engine returned to catalog with parts history preserved." 
+          : "Engine allocated successfully",
       });
       form.reset();
       onClose();
@@ -171,10 +177,25 @@ export default function AllocateEngineModal({
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Allocate Engine to Mower</DialogTitle>
+            <DialogTitle>
+              {mowerEngines.length > 0 ? "Replace Engine on Mower" : "Allocate Engine to Mower"}
+            </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Replacement Warning */}
+            {mowerEngines.length > 0 && (
+              <div className="p-4 border border-orange-200 bg-orange-50 rounded-lg">
+                <div className="flex items-center gap-2 text-orange-800">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="font-medium">Replacing Existing Engine</span>
+                </div>
+                <p className="text-sm text-orange-700 mt-1">
+                  Current engine: <strong>{mowerEngines[0]?.name}</strong> will be unassigned and returned to the catalog with its parts history preserved.
+                </p>
+              </div>
+            )}
+            
             {/* Search and Create Section */}
             <div className="space-y-3">
               <div className="flex gap-2">
@@ -326,10 +347,11 @@ export default function AllocateEngineModal({
                     <Button 
                       type="submit" 
                       disabled={allocateEngineMutation.isPending}
+                      className={mowerEngines.length > 0 ? "bg-orange-600 hover:bg-orange-700" : ""}
                     >
                       {allocateEngineMutation.isPending 
-                        ? "Allocating..." 
-                        : "Allocate Engine"
+                        ? (mowerEngines.length > 0 ? "Replacing..." : "Allocating...") 
+                        : (mowerEngines.length > 0 ? "Replace Engine" : "Allocate Engine")
                       }
                     </Button>
                   </div>
