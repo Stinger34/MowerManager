@@ -384,10 +384,22 @@ export default function MowerDetails() {
       const engineResponse = await apiRequest('GET', `/api/engines/${engineId}`);
       const engine = await engineResponse.json();
       
-      // Update engine to remove mower assignment (return to catalog)
+      // Update engine to remove mower assignment and preserve only basic engine info
       const updatedEngine = {
-        ...engine,
+        // Preserve basic engine identification info only
+        name: engine.name,
+        model: engine.model,
+        serialNumber: engine.serialNumber,
+        manufacturer: engine.manufacturer,
+        partNumber: engine.partNumber,
+        // Reset mower-specific fields
         mowerId: null,
+        description: null,
+        installDate: null,
+        condition: "good", // Reset to default
+        status: "active", // Reset to default
+        cost: null,
+        notes: null,
       };
       
       await apiRequest('PUT', `/api/engines/${engineId}`, updatedEngine);
@@ -397,7 +409,7 @@ export default function MowerDetails() {
       queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
       toast({ 
         title: "Success", 
-        description: "Engine unallocated successfully and returned to catalog with history preserved" 
+        description: "Engine unallocated successfully and returned to catalog with basic info only" 
       });
       setShowDeleteEngineDialog(false);
       setEngineToDelete(null);
