@@ -29,7 +29,7 @@ import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Engine, Part, 
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
 import { motion } from "framer-motion";
-import { safeFormatDateForDisplay } from "@/lib/utils";
+import { safeFormatDateForDisplay, safeFormatDateForAPI } from "@/lib/utils";
 
 interface AttachmentFile {
   file: File;
@@ -1038,11 +1038,11 @@ export default function MowerDetails() {
                 priority: task.priority as "low" | "medium" | "high" | "urgent",
                 status: task.status as "pending" | "in_progress" | "completed" | "cancelled",
                 category: task.category as "maintenance" | "repair" | "parts" | "inspection" | "other",
-                dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : undefined,
+                dueDate: task.dueDate ? safeFormatDateForAPI(task.dueDate) || undefined : undefined,
                 estimatedCost: task.estimatedCost ? `$${task.estimatedCost}` : undefined,
                 partNumber: task.partNumber || undefined,
-                createdAt: new Date(task.createdAt).toISOString(),
-                completedAt: task.completedAt ? new Date(task.completedAt).toISOString() : undefined,
+                createdAt: safeFormatDateForAPI(task.createdAt) || new Date().toISOString(),
+                completedAt: task.completedAt ? safeFormatDateForAPI(task.completedAt) || undefined : undefined,
               }))}
               onAddTask={(task) => addTaskMutation.mutate({
                 ...task,
