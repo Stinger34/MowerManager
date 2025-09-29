@@ -126,7 +126,7 @@ export default function AllocateEngineToMowerModal({
         serialNumber: engine.serialNumber,
         mowerId: data.mowerId,
         installDate: safeFormatDateForAPI(currentDate), // Set install date to today
-        ...(formattedWarrantyExpires && { warrantyExpires: formattedWarrantyExpires }),
+        warrantyExpires: formattedWarrantyExpires, // Always include, even if null
         condition: engine.condition,
         status: engine.status,
         cost: engine.cost,
@@ -182,12 +182,15 @@ export default function AllocateEngineToMowerModal({
         throw new Error("Invalid warranty expiration date in current engine data during replacement.");
       }
       
-      await apiRequest("PUT", `/api/engines/${currentEngineToReplace.id}`, {
+      const currentEngineUpdatePayload = {
         ...currentEngineToReplace,
         mowerId: null,
         installDate: null,
-        ...(currentEngineWarrantyExpires !== null && { warrantyExpires: currentEngineWarrantyExpires }),
-      });
+        warrantyExpires: currentEngineWarrantyExpires,
+      };
+      
+      console.log("Engine update payload (returning to catalog):", currentEngineUpdatePayload);
+      await apiRequest("PUT", `/api/engines/${currentEngineToReplace.id}`, currentEngineUpdatePayload);
 
       // Step 2: Allocate new engine to mower
       const currentDate = new Date();
@@ -200,7 +203,7 @@ export default function AllocateEngineToMowerModal({
         serialNumber: engine.serialNumber,
         mowerId: data.mowerId,
         installDate: safeFormatDateForAPI(currentDate), // Set install date to today
-        ...(formattedWarrantyExpires && { warrantyExpires: formattedWarrantyExpires }),
+        warrantyExpires: formattedWarrantyExpires, // Always include, even if null
         condition: engine.condition,
         status: engine.status,
         cost: engine.cost,
