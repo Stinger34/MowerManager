@@ -95,13 +95,6 @@ export default function AllocateEngineToMowerModal({
 
   const allocateEngineMutation = useMutation({
     mutationFn: async (data: EngineAllocationFormData) => {
-      // Validate and format warranty date
-      const formattedWarrantyExpires = safeFormatDateForAPI(engine.warrantyExpires);
-      
-      if (engine.warrantyExpires && formattedWarrantyExpires === null) {
-        throw new Error("Invalid warranty expiration date in engine data.");
-      }
-      
       // Prepare engine data for allocation
       const currentDate = new Date();
       const engineData: InsertComponent = {
@@ -113,7 +106,6 @@ export default function AllocateEngineToMowerModal({
         serialNumber: engine.serialNumber,
         mowerId: data.mowerId,
         installDate: safeFormatDateForAPI(currentDate), // Set install date to today
-        ...(formattedWarrantyExpires && { warrantyExpires: formattedWarrantyExpires }),
         condition: engine.condition,
         status: engine.status,
         cost: engine.cost,
@@ -121,7 +113,7 @@ export default function AllocateEngineToMowerModal({
       };
       
       // Final validation before API submission
-      if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
+      if (!validateDateFieldsForAPI(engineData, ['installDate'])) {
         throw new Error("Date validation failed. Please check the date formats.");
       }
       

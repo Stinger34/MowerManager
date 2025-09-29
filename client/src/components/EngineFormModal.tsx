@@ -29,7 +29,6 @@ const engineFormSchema = z.object({
   model: z.string().optional(),
   serialNumber: z.string().optional(),
   installDate: z.date().optional(),
-  warrantyExpires: z.date().optional(),
   condition: z.enum(["excellent", "good", "fair", "poor"]).default("good"),
   status: z.enum(["active", "maintenance", "retired"]).default("active"),
   cost: z.string().optional(),
@@ -76,7 +75,6 @@ export default function EngineFormModal({
       model: "",
       serialNumber: "",
       installDate: undefined,
-      warrantyExpires: undefined,
       condition: "good",
       status: "active",
       cost: "",
@@ -112,7 +110,6 @@ export default function EngineFormModal({
         model: engine?.model || "",
         serialNumber: engine?.serialNumber || "",
         installDate: safeConvertToDate(engine?.installDate),
-        warrantyExpires: safeConvertToDate(engine?.warrantyExpires),
         condition: (engine?.condition as "excellent" | "good" | "fair" | "poor") || "good",
         status: (engine?.status as "active" | "maintenance" | "retired") || "active",
         cost: engine?.cost || "",
@@ -135,17 +132,9 @@ export default function EngineFormModal({
           variant: "destructive",
         });
       });
-      
-      const warrantyExpires = safeFormatDateForAPI(data.warrantyExpires, (error) => {
-        toast({
-          title: "Date Error", 
-          description: "Invalid warranty expiration date. Please select a valid date.",
-          variant: "destructive",
-        });
-      });
 
       // Stop submission if date validation failed
-      if ((data.installDate && installDate === null) || (data.warrantyExpires && warrantyExpires === null)) {
+      if (data.installDate && installDate === null) {
         throw new Error("Please correct the date errors before submitting.");
       }
 
@@ -155,7 +144,6 @@ export default function EngineFormModal({
         status: data.status,
         mowerId: isGlobalEngine ? null : parseInt(mowerId!), // Global engines have null mowerId
         installDate,
-        warrantyExpires,
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,
@@ -166,7 +154,7 @@ export default function EngineFormModal({
       };
       
       // Validate date fields before API submission
-      if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
+      if (!validateDateFieldsForAPI(engineData, ['installDate'])) {
         throw new Error("Date validation failed. Please check the date formats.");
       }
       
@@ -229,24 +217,15 @@ export default function EngineFormModal({
           variant: "destructive",
         });
       });
-      
-      const warrantyExpires = safeFormatDateForAPI(data.warrantyExpires, (error) => {
-        toast({
-          title: "Date Error",
-          description: "Invalid warranty expiration date. Please select a valid date.",
-          variant: "destructive",
-        });
-      });
 
       // Stop submission if date validation failed
-      if ((data.installDate && installDate === null) || (data.warrantyExpires && warrantyExpires === null)) {
+      if (data.installDate && installDate === null) {
         throw new Error("Please correct the date errors before submitting.");
       }
 
       const engineData = {
         ...data,
         ...(installDate !== null && { installDate }),
-        ...(warrantyExpires !== null && { warrantyExpires }),
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,
@@ -509,46 +488,6 @@ export default function EngineFormModal({
                           disabled={(date) =>
                             date > new Date() || date < new Date("1900-01-01")
                           }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="warrantyExpires"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Warranty Expires</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) => date < new Date("1900-01-01")}
                           initialFocus
                         />
                       </PopoverContent>

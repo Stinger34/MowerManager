@@ -74,7 +74,6 @@ export const engines = pgTable("engines", {
   model: text("model"),
   serialNumber: text("serial_number"),
   installDate: date("install_date"),
-  warrantyExpires: date("warranty_expires"),
   condition: text("condition").notNull().default("good"), // excellent, good, fair, poor
   status: text("status").notNull().default("active"), // active, maintenance, retired
   cost: decimal("cost", { precision: 10, scale: 2 }),
