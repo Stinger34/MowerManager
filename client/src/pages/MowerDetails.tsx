@@ -18,7 +18,7 @@ import EngineFormModal from "@/components/EngineFormModal";
 import AllocateEngineModal from "@/components/AllocateEngineModal";
 import AllocatePartModal from "@/components/AllocatePartModal";
 import PartFormModal from "@/components/PartFormModal";
-import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench, Camera, FolderOpen } from "lucide-react";
+import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench, Camera, FolderOpen, Unlink } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMowerThumbnail } from "@/hooks/useThumbnails";
@@ -377,22 +377,36 @@ export default function MowerDetails() {
     },
   });
 
-  // Component mutations
-  const deleteEngineMutation = useMutation({
+  // Component mutations - Unallocate instead of delete
+  const unallocateEngineMutation = useMutation({
     mutationFn: async (engineId: number) => {
-      await apiRequest('DELETE', `/api/engines/${engineId}`);
+      // Get engine details first
+      const engineResponse = await apiRequest('GET', `/api/engines/${engineId}`);
+      const engine = await engineResponse.json();
+      
+      // Update engine to remove mower assignment (return to catalog)
+      const updatedEngine = {
+        ...engine,
+        mowerId: null,
+        // Preserve install date and other history when returning to catalog
+      };
+      
+      await apiRequest('PUT', `/api/engines/${engineId}`, updatedEngine);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'engines'] });
       queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
-      toast({ title: "Success", description: "Engine deleted successfully" });
+      toast({ 
+        title: "Success", 
+        description: "Engine unallocated successfully and returned to catalog with history preserved" 
+      });
       setShowDeleteEngineDialog(false);
       setEngineToDelete(null);
     },
     onError: (error: Error) => {
       toast({ 
         title: "Error", 
-        description: error.message || "Failed to delete component", 
+        description: error.message || "Failed to unallocate engine", 
         variant: "destructive" 
       });
     },
@@ -419,8 +433,8 @@ export default function MowerDetails() {
   });
 
   // More backwards compatibility aliases that depend on mutations
-  const handleConfirmDeleteComponent = () => deleteEngineMutation.mutate(engineToDelete!.id);
-  const deleteComponentMutation = deleteEngineMutation;
+  const handleConfirmDeleteComponent = () => unallocateEngineMutation.mutate(engineToDelete!.id);
+  const deleteComponentMutation = unallocateEngineMutation;
 
   // File upload handler (legacy)
   const handleFileUpload = () => {
@@ -612,7 +626,15 @@ export default function MowerDetails() {
   };
 
   const handleAllocateEngine = () => {
-    // Allow opening the modal even if mower has an engine (replacement will be handled in modal)
+    // Check if mower already has an engine - strict one-engine-per-mower rule
+    if (components.length > 0) {
+      toast({
+        title: "Engine Already Allocated",
+        description: "This mower already has an engine allocated. Only one engine per mower is allowed. Please unallocate the current engine first.",
+        variant: "destructive",
+      });
+      return;
+    }
     setShowAllocateEngineModal(true);
   };
 
@@ -628,7 +650,7 @@ export default function MowerDetails() {
 
   const handleConfirmDeleteEngine = () => {
     if (engineToDelete) {
-      deleteEngineMutation.mutate(engineToDelete.id);
+      unallocateEngineMutation.mutate(engineToDelete.id);
     }
   };
 
@@ -669,8 +691,21 @@ export default function MowerDetails() {
 
   // Engine/Component compatibility handlers
   const handleAllocateComponent = () => {
-    // Allow opening the modal even if mower has an engine (replacement will be handled in modal)
+    // Check if mower already has an engine - strict one-engine-per-mower rule
+    if (components.length > 0) {
+      toast({
+        title: "Engine Already Allocated",
+        description: "This mower already has an engine allocated. Only one engine per mower is allowed. Please unallocate the current engine first.",
+        variant: "destructive",
+      });
+      return;
+    }
     setShowAllocateEngineModal(true);
+  };
+
+  const handleUnallocateEngine = (engine: Engine) => {
+    setEngineToDelete(engine);
+    setShowDeleteEngineDialog(true);
   };
 
   const handleEditComponent = (engine: Engine) => {
@@ -679,8 +714,7 @@ export default function MowerDetails() {
   };
 
   const handleDeleteComponent = (engine: Engine) => {
-    setEngineToDelete(engine);
-    setShowDeleteEngineDialog(true);
+    handleUnallocateEngine(engine);
   };
 
   // Modal state compatibility aliases
@@ -1104,11 +1138,11 @@ export default function MowerDetails() {
                         size="sm" 
                         onClick={handleAllocateComponent} 
                         data-testid="button-allocate-component"
-                        title={components.length > 0 ? "Replace current engine with one from catalog" : "Allocate engine from catalog"}
-                        className={components.length > 0 ? "text-orange-600 border-orange-200 hover:bg-orange-50" : ""}
+                        title="Allocate engine from catalog"
+                        disabled={components.length > 0}
                       >
                         <Wrench className="h-4 w-4 mr-2" />
-                        {components.length > 0 ? "Replace Engine" : "Allocate Engine"}
+                        Allocate Engine
                       </Button>
                       <Button 
                         variant="outline" 
@@ -1127,7 +1161,7 @@ export default function MowerDetails() {
                 <CardContent>
                   {components.length === 0 ? (
                     <p className="text-muted-foreground text-center py-8">
-                      No engines yet. Use "Allocate Engine" to select from existing engines or "Create Engine" to create a new one.
+                      No engines allocated. Use "Allocate Engine" to select from existing engines or "Create Engine" to create a new one.
                     </p>
                   ) : (
                     <div className="space-y-3">
@@ -1190,8 +1224,10 @@ export default function MowerDetails() {
                                 variant="ghost" 
                                 size="sm"
                                 onClick={() => handleDeleteComponent(component)}
+                                title="Unallocate this engine and return it to catalog"
+                                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Unlink className="h-4 w-4" />
                               </Button>
                             </div>
                           </div>
@@ -1435,13 +1471,13 @@ export default function MowerDetails() {
         onSuccess={handleModalSuccess}
       />
 
-      {/* Delete Component Confirmation Dialog */}
+      {/* Unallocate Engine Confirmation Dialog */}
       <AlertDialog open={showDeleteComponentDialog} onOpenChange={setShowDeleteComponentDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Engine</AlertDialogTitle>
+            <AlertDialogTitle>Unallocate Engine</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the engine "{componentToDelete?.name}"? This action cannot be undone and will also remove any part allocations to this engine.
+              Are you sure you want to unallocate the engine "{componentToDelete?.name}" from this mower? The engine will be returned to the catalog with its history preserved, but any part allocations to this engine will also be removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1454,9 +1490,9 @@ export default function MowerDetails() {
             <AlertDialogAction
               onClick={handleConfirmDeleteComponent}
               disabled={deleteComponentMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-orange-600 text-white hover:bg-orange-700"
             >
-              {deleteComponentMutation.isPending ? "Deleting..." : "Delete Engine"}
+              {deleteComponentMutation.isPending ? "Unallocating..." : "Unallocate Engine"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
