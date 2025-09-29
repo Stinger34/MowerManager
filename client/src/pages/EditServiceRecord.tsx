@@ -13,6 +13,7 @@ import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { safeFormatDateForAPI } from "@/lib/utils";
 import type { Mower, ServiceRecord } from "@shared/schema";
 
 const serviceRecordSchema = z.object({
@@ -61,9 +62,7 @@ export default function EditServiceRecord() {
   // Update form values when service record is loaded
   useEffect(() => {
     if (serviceRecord) {
-      const serviceDate = serviceRecord.serviceDate instanceof Date 
-        ? serviceRecord.serviceDate.toISOString().split('T')[0]
-        : new Date(serviceRecord.serviceDate).toISOString().split('T')[0];
+      const serviceDate = safeFormatDateForAPI(serviceRecord.serviceDate) || "";
 
       form.reset({
         serviceType: serviceRecord.serviceType,
