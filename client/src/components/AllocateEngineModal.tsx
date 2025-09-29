@@ -115,7 +115,8 @@ export default function AllocateEngineModal({
         await apiRequest("PUT", `/api/engines/${currentEngine.id}`, {
           ...currentEngine,
           mowerId: null,
-          installDate: null,
+          // Preserve original install date when returning to catalog
+          installDate: currentEngine.installDate,
           ...(currentEngineWarrantyExpires !== null && { warrantyExpires: currentEngineWarrantyExpires }),
         });
       }
