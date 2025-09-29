@@ -13,7 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { safeFormatDateForDisplay, safeFormatTimeForDisplay, safeIsDateBefore } from "@/lib/utils";
 import EngineFormModal from "@/components/EngineFormModal";
-import AllocateEngineModal from "@/components/AllocateEngineModal";
+
 import AllocatePartModal from "@/components/AllocatePartModal";
 import AllocateEngineToMowerModal from "@/components/AllocateEngineToMowerModal";
 import type { Engine, Attachment, AssetPartWithDetails, AssetPart } from "@shared/schema";
@@ -28,7 +28,6 @@ export default function EngineDetails() {
 
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showAllocateModal, setShowAllocateModal] = useState(false);
   const [showAllocatePartModal, setShowAllocatePartModal] = useState(false);
   const [showAllocateEngineToMowerModal, setShowAllocateEngineToMowerModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -87,11 +86,6 @@ export default function EngineDetails() {
     if (engine) {
       deleteMutation.mutate(engine.id);
     }
-  };
-
-  const handleAllocate = () => {
-    // We need to pass a mowerId to allocate to a mower, or handle global engines differently
-    setShowAllocateModal(true);
   };
 
   const handleAllocatePart = () => {
@@ -187,10 +181,6 @@ export default function EngineDetails() {
           </Button>
           {!engine.mowerId && (
             <>
-              <Button variant="outline" size="sm" onClick={handleAllocate}>
-                <Plus className="h-4 w-4 mr-2" />
-                Allocate
-              </Button>
               <Button variant="outline" size="sm" onClick={handleAllocateEngineToMower}>
                 <Wrench className="h-4 w-4 mr-2" />
                 Allocate to Mower
@@ -468,16 +458,6 @@ export default function EngineDetails() {
         engine={engine}
         onSuccess={handleModalSuccess}
       />
-
-      {/* Allocate Component Modal - Only for global engines */}
-      {!engine?.mowerId && (
-        <AllocateEngineModal
-          isOpen={showAllocateModal}
-          onClose={() => setShowAllocateModal(false)}
-          mowerId=""
-          onSuccess={handleModalSuccess}
-        />
-      )}
 
       {/* Allocate Part Modal */}
       <AllocatePartModal
