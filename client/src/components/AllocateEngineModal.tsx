@@ -99,29 +99,26 @@ export default function AllocateEngineModal({
         throw new Error('Selected engine not found');
       }
 
-      // Prepare engine data for allocation
+      // Check if engine is already allocated to another mower
+      if (selectedEngine.mowerId !== null) {
+        throw new Error('This engine is already allocated to another mower. Please select a different engine.');
+      }
+
+      // Prepare update data for allocation - we UPDATE the existing engine instead of creating a new one
       const currentDate = new Date();
-      const engineData: InsertEngine = {
-        name: selectedEngine.name,
-        description: selectedEngine.description,
-        partNumber: selectedEngine.partNumber,
-        manufacturer: selectedEngine.manufacturer,
-        model: selectedEngine.model,
-        serialNumber: selectedEngine.serialNumber,
+      const updateData = {
         mowerId: parseInt(mowerId),
         installDate: safeFormatDateForAPI(currentDate), // Set install date to today
-        condition: selectedEngine.condition,
-        status: selectedEngine.status,
-        cost: selectedEngine.cost,
         notes: data.notes || selectedEngine.notes,
       };
       
       // Final validation before API submission
-      if (!validateDateFieldsForAPI(engineData, ['installDate'])) {
+      if (!validateDateFieldsForAPI(updateData, ['installDate'])) {
         throw new Error("Date validation failed. Please check the date formats.");
       }
       
-      const response = await apiRequest("POST", `/api/mowers/${mowerId}/engines`, engineData);
+      // Update the existing engine to allocate it to the mower
+      const response = await apiRequest("PUT", `/api/engines/${selectedEngine.id}`, updateData);
       return response.json();
     },
     onSuccess: () => {

@@ -1204,13 +1204,10 @@ export default function MowerDetails() {
                                 {component.model && <span>Model: {component.model}</span>}
                                 {component.cost && <span>Cost: ${component.cost}</span>}
                               </div>
-                              {(component.installDate || component.warrantyExpires) && (
+                              {component.installDate && (
                                 <div className="flex gap-4 text-sm text-muted-foreground mt-1">
                                   {component.installDate && (
                                     <span>Installed: {safeFormatDateForDisplay(component.installDate)}</span>
-                                  )}
-                                  {component.warrantyExpires && (
-                                    <span>Warranty: {safeFormatDateForDisplay(component.warrantyExpires)}</span>
                                   )}
                                 </div>
                               )}
