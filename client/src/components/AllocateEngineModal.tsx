@@ -107,6 +107,11 @@ export default function AllocateEngineModal({
         
         // Return current engine to catalog (make it global again)
         const currentEngineWarrantyExpires = safeFormatDateForAPI(currentEngine.warrantyExpires);
+        
+        if (currentEngine.warrantyExpires && currentEngineWarrantyExpires === null) {
+          throw new Error("Invalid warranty expiration date in current engine data during replacement.");
+        }
+        
         await apiRequest("PUT", `/api/engines/${currentEngine.id}`, {
           ...currentEngine,
           mowerId: null,
@@ -116,6 +121,7 @@ export default function AllocateEngineModal({
       }
 
       // Prepare engine data for allocation
+      const currentDate = new Date();
       const engineData: InsertEngine = {
         name: selectedEngine.name,
         description: selectedEngine.description,
@@ -124,6 +130,7 @@ export default function AllocateEngineModal({
         model: selectedEngine.model,
         serialNumber: selectedEngine.serialNumber,
         mowerId: parseInt(mowerId),
+        installDate: safeFormatDateForAPI(currentDate), // Set install date to today
         ...(formattedWarrantyExpires && { warrantyExpires: formattedWarrantyExpires }),
         condition: selectedEngine.condition,
         status: selectedEngine.status,
@@ -132,7 +139,7 @@ export default function AllocateEngineModal({
       };
       
       // Final validation before API submission
-      if (!validateDateFieldsForAPI(engineData, ['warrantyExpires'])) {
+      if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
         throw new Error("Date validation failed. Please check the date formats.");
       }
       
