@@ -24,7 +24,6 @@ const engineFormSchema = z.object({
   model: z.string().optional(),
   serialNumber: z.string().optional(),
   installDate: z.date().optional(),
-  warrantyExpires: z.date().optional(),
   condition: z.enum(["excellent", "good", "fair", "poor"]).default("good"),
   status: z.enum(["active", "maintenance", "retired"]).default("active"),
   cost: z.string().optional(),
@@ -59,7 +58,6 @@ export default function EngineForm({
       model: initialData?.model || "",
       serialNumber: initialData?.serialNumber || "",
       installDate: safeConvertToDate(initialData?.installDate),
-      warrantyExpires: safeConvertToDate(initialData?.warrantyExpires),
       condition: (initialData?.condition as "excellent" | "good" | "fair" | "poor") || "good",
       status: (initialData?.status as "active" | "maintenance" | "retired") || "active",
       cost: initialData?.cost || "",
@@ -78,17 +76,9 @@ export default function EngineForm({
           variant: "destructive",
         });
       });
-      
-      const warrantyExpires = safeFormatDateForAPI(data.warrantyExpires, (error) => {
-        toast({
-          title: "Date Error",
-          description: "Invalid warranty expiration date. Please select a valid date.",
-          variant: "destructive",
-        });
-      });
 
       // Stop submission if date validation failed
-      if ((data.installDate && installDate === null) || (data.warrantyExpires && warrantyExpires === null)) {
+      if (data.installDate && installDate === null) {
         throw new Error("Please correct the date errors before submitting.");
       }
 
@@ -98,7 +88,6 @@ export default function EngineForm({
         status: data.status,
         mowerId: 1, // TODO: This should be selected from a mower dropdown
         installDate,
-        warrantyExpires,
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,
@@ -109,7 +98,7 @@ export default function EngineForm({
       };
       
       // Validate date fields before API submission
-      if (!validateDateFieldsForAPI(engineData, ['installDate', 'warrantyExpires'])) {
+      if (!validateDateFieldsForAPI(engineData, ['installDate'])) {
         throw new Error("Date validation failed. Please check the date formats.");
       }
       
@@ -317,47 +306,6 @@ export default function EngineForm({
                           disabled={(date) =>
                             date > new Date() || date < new Date("1900-01-01")
                           }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="warrantyExpires"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Warranty Expires</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                            data-testid="date-warranty"
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) => date < new Date("1900-01-01")}
                           initialFocus
                         />
                       </PopoverContent>

@@ -388,7 +388,6 @@ export default function MowerDetails() {
       const updatedEngine = {
         ...engine,
         mowerId: null,
-        // Preserve install date and other history when returning to catalog
       };
       
       await apiRequest('PUT', `/api/engines/${engineId}`, updatedEngine);

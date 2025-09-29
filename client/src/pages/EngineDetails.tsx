@@ -297,21 +297,6 @@ export default function EngineDetails() {
                   </div>
                 )}
 
-                {engine.warrantyExpires && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Warranty Expires</label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      <span className={safeIsDateBefore(engine.warrantyExpires) ? 'text-red-600' : 'text-gray-800'}>
-                        {safeFormatDateForDisplay(engine.warrantyExpires)}
-                      </span>
-                      {safeIsDateBefore(engine.warrantyExpires) && (
-                        <Badge variant="destructive" className="ml-2">Expired</Badge>
-                      )}
-                    </div>
-                  </div>
-                )}
-
                 {engine.mowerId && (
                   <div>
                     <label className="text-sm font-medium text-gray-600">Associated Mower</label>
