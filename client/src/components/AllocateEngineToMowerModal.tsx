@@ -136,6 +136,7 @@ export default function AllocateEngineToMowerModal({
         throw new Error("Date validation failed. Please check the date formats.");
       }
       
+      console.log("Engine allocation payload:", engineData);
       const response = await apiRequest("POST", `/api/mowers/${data.mowerId}/engines`, engineData);
       return response.json();
     },
@@ -202,6 +203,7 @@ export default function AllocateEngineToMowerModal({
         throw new Error("Date validation failed. Please check the date formats.");
       }
       
+      console.log("Engine replacement payload:", engineData);
       const response = await apiRequest("POST", `/api/mowers/${data.mowerId}/engines`, engineData);
       return response.json();
     },
