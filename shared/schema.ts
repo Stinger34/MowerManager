@@ -77,6 +77,7 @@ export const engines = pgTable("engines", {
   condition: text("condition").notNull().default("good"), // excellent, good, fair, poor
   status: text("status").notNull().default("active"), // active, maintenance, retired
   cost: decimal("cost", { precision: 10, scale: 2 }),
+  thumbnailAttachmentId: varchar("thumbnail_attachment_id"), // References attachments.id
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -92,6 +93,7 @@ export const parts = pgTable("parts", {
   unitCost: decimal("unit_cost", { precision: 10, scale: 2 }),
   stockQuantity: integer("stock_quantity").notNull().default(0),
   minStockLevel: integer("min_stock_level").default(0),
+  thumbnailAttachmentId: varchar("thumbnail_attachment_id"), // References attachments.id
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -173,11 +175,19 @@ export const enginesRelations = relations(engines, ({ one, many }) => ({
   }),
   assetParts: many(assetParts),
   attachments: many(attachments),
+  thumbnailAttachment: one(attachments, {
+    fields: [engines.thumbnailAttachmentId],
+    references: [attachments.id],
+  }),
 }));
 
-export const partsRelations = relations(parts, ({ many }) => ({
+export const partsRelations = relations(parts, ({ one, many }) => ({
   assetParts: many(assetParts),
   attachments: many(attachments),
+  thumbnailAttachment: one(attachments, {
+    fields: [parts.thumbnailAttachmentId],
+    references: [attachments.id],
+  }),
 }));
 
 export const assetPartsRelations = relations(assetParts, ({ one }) => ({
