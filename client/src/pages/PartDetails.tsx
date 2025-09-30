@@ -17,6 +17,7 @@ import type { Part, Attachment, AssetPartWithDetails } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
 import { safeFormatDateForDisplay } from "@/lib/utils";
+import { usePartThumbnail } from "@/hooks/useThumbnails";
 
 export default function PartDetails() {
   const [, params] = useRoute("/catalog/parts/:partId");
@@ -37,6 +38,9 @@ export default function PartDetails() {
     queryKey: ['/api/parts', partId],
     enabled: !!partId,
   });
+
+  // Fetch thumbnail for this part
+  const { data: thumbnail } = usePartThumbnail(partId || '');
 
   // Fetch part attachments
   const { data: attachments = [], isLoading: isAttachmentsLoading } = useQuery<Omit<Attachment, 'fileData'>[]>({
@@ -155,6 +159,15 @@ export default function PartDetails() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Catalog
           </Button>
+          {thumbnail && (
+            <div className="w-20 h-20 rounded-lg overflow-hidden shadow-sm border" data-testid="img-part-thumbnail">
+              <img 
+                src={thumbnail.downloadUrl}
+                alt={part.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
           <h1 className="text-3xl font-bold tracking-tight text-text-dark">{part.name}</h1>
         </div>
         <div className="flex items-center gap-2">

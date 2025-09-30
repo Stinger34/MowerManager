@@ -241,6 +241,20 @@ export default function PartsCatalog() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredParts.map((part) => (
                 <Card key={part.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                  {part.thumbnailAttachmentId && (
+                    <div className="w-full h-48 overflow-hidden rounded-t-card">
+                      <img 
+                        src={`/api/parts/${part.id}/thumbnail`}
+                        alt={part.name}
+                        className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
+                        onClick={() => handleViewPartDetails(part.id)}
+                        onError={(e) => {
+                          // Hide image if it fails to load
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
                   <CardHeader onClick={() => handleViewPartDetails(part.id)}>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{part.name}</CardTitle>
@@ -341,6 +355,20 @@ export default function PartsCatalog() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {allEngines.map((component) => (
                 <Card key={component.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                  {component.thumbnailAttachmentId && (
+                    <div className="w-full h-48 overflow-hidden rounded-t-card">
+                      <img 
+                        src={`/api/engines/${component.id}/thumbnail`}
+                        alt={component.name}
+                        className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
+                        onClick={() => handleViewEngineDetails(component.id)}
+                        onError={(e) => {
+                          // Hide image if it fails to load
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
                   <CardHeader onClick={() => handleViewEngineDetails(component.id)}>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{component.name}</CardTitle>

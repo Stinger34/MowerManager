@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { Mower } from '@shared/schema';
+import type { Mower, Part, Engine } from '@shared/schema';
 
 interface ThumbnailData {
   id: string;
@@ -14,6 +14,42 @@ export function useMowerThumbnail(mowerId: string | number) {
     queryKey: ['mower-thumbnail', mowerId],
     queryFn: async () => {
       const response = await fetch(`/api/mowers/${mowerId}/thumbnail`);
+      if (response.status === 404) {
+        return null; // No thumbnail available
+      }
+      if (!response.ok) {
+        throw new Error('Failed to fetch thumbnail');
+      }
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// Hook to fetch thumbnail for a single part
+export function usePartThumbnail(partId: string | number) {
+  return useQuery<ThumbnailData | null>({
+    queryKey: ['part-thumbnail', partId],
+    queryFn: async () => {
+      const response = await fetch(`/api/parts/${partId}/thumbnail`);
+      if (response.status === 404) {
+        return null; // No thumbnail available
+      }
+      if (!response.ok) {
+        throw new Error('Failed to fetch thumbnail');
+      }
+      return response.json();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// Hook to fetch thumbnail for a single engine
+export function useEngineThumbnail(engineId: string | number) {
+  return useQuery<ThumbnailData | null>({
+    queryKey: ['engine-thumbnail', engineId],
+    queryFn: async () => {
+      const response = await fetch(`/api/engines/${engineId}/thumbnail`);
       if (response.status === 404) {
         return null; // No thumbnail available
       }
