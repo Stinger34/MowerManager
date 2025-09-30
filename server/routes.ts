@@ -1115,6 +1115,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ---------------------------------------------------------------------------
+  // Database Stats
+  // ---------------------------------------------------------------------------
+  app.get("/api/stats", async (_req, res) => {
+    try {
+      const [mowers, serviceRecords, attachments, tasks, engines, parts, assetParts] = await Promise.all([
+        storage.getAllMowers(),
+        storage.getAllServiceRecords(),
+        storage.getAllAttachments(),
+        storage.getAllTasks(),
+        storage.getAllEngines(),
+        storage.getAllParts(),
+        storage.getAllAssetParts()
+      ]);
+
+      // Calculate total attachment size
+      const totalAttachmentSize = attachments.reduce((sum, att) => sum + (att.fileSize || 0), 0);
+
+      const stats = {
+        counts: {
+          mowers: mowers.length,
+          serviceRecords: serviceRecords.length,
+          attachments: attachments.length,
+          tasks: tasks.length,
+          engines: engines.length,
+          parts: parts.length,
+          assetParts: assetParts.length
+        },
+        totals: {
+          activeMowers: mowers.filter(m => m.status === 'active').length,
+          maintenanceMowers: mowers.filter(m => m.status === 'maintenance').length,
+          retiredMowers: mowers.filter(m => m.status === 'retired').length,
+          completedTasks: tasks.filter(t => t.status === 'completed').length,
+          pendingTasks: tasks.filter(t => t.status === 'pending').length,
+          totalAttachmentSize: totalAttachmentSize
+        }
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error('Stats error:', error);
+      res.status(500).json({ error: "Failed to fetch database stats" });
+    }
+  });
+
+  // ---------------------------------------------------------------------------
   // Catch-all & Server Init
   // ---------------------------------------------------------------------------
   app.use("/api", (_req, res) => {

@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, Database, Settings as SettingsIcon, AlertCircle, CheckCircle } from "lucide-react";
+import { Download, Upload, Database, Settings as SettingsIcon, AlertCircle, CheckCircle, BarChart3, HardDrive } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Settings() {
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -14,6 +16,37 @@ export default function Settings() {
   const [restoreProgress, setRestoreProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
+
+  // Fetch database stats
+  const { data: stats, isLoading: isLoadingStats } = useQuery<{
+    counts: {
+      mowers: number;
+      serviceRecords: number;
+      attachments: number;
+      tasks: number;
+      engines: number;
+      parts: number;
+      assetParts: number;
+    };
+    totals: {
+      activeMowers: number;
+      maintenanceMowers: number;
+      retiredMowers: number;
+      completedTasks: number;
+      pendingTasks: number;
+      totalAttachmentSize: number;
+    };
+  }>({
+    queryKey: ['/api/stats'],
+  });
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  };
 
   const handleBackup = async () => {
     setIsBackingUp(true);
@@ -169,130 +202,254 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Backup & Restore Section */}
-      <Card className="bg-white border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-text-primary">
-            <Database className="h-5 w-5 text-accent-teal" />
+      {/* Tabs Container */}
+      <Tabs defaultValue="backup" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="backup" className="flex items-center gap-2">
+            <Database className="h-4 w-4" />
             Backup & Restore
-          </CardTitle>
-          <CardDescription className="text-text-muted">
-            Create backups of your mower data or restore from a previous backup. 
-            Backups include all mowers, service records, attachments, and tasks.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Backup Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-text-primary">Create Backup</h3>
-                <p className="text-sm text-text-muted">
-                  Download a complete backup of all your data as a ZIP file
-                </p>
-              </div>
-              <Button 
-                onClick={handleBackup} 
-                disabled={isBackingUp || isRestoring}
-                className="bg-accent-teal text-white hover:bg-accent-teal/90 rounded-button flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                {isBackingUp ? 'Creating Backup...' : 'Create Backup'}
-              </Button>
-            </div>
-            
-            {isBackingUp && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm text-text-muted">
-                  <span>Creating backup...</span>
-                  <span>{backupProgress}%</span>
-                </div>
-                <Progress value={backupProgress} className="h-2" />
-              </div>
-            )}
-          </div>
+          </TabsTrigger>
+          <TabsTrigger value="stats" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Stats
+          </TabsTrigger>
+        </TabsList>
 
-          <div className="border-t border-card-border pt-6">
-            {/* Restore Section */}
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-text-primary">Restore from Backup</h3>
-                <p className="text-sm text-text-muted">
-                  Upload a backup file to restore your data. This will replace all current data.
-                </p>
-              </div>
-
-              <Alert className="border-accent-orange/20 bg-accent-orange/10">
-                <AlertCircle className="h-4 w-4 text-accent-orange" />
-                <AlertDescription className="text-text-primary">
-                  <strong>Warning:</strong> Restoring from a backup will permanently replace all current data. 
-                  Consider creating a backup first.
-                </AlertDescription>
-              </Alert>
-
-              <div className="flex items-center gap-4">
-                <Input
-                  type="file"
-                  accept=".zip,application/zip,application/x-zip-compressed,multipart/x-zip"
-                  onChange={handleFileSelect}
-                  disabled={isBackingUp || isRestoring}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={handleRestore}
-                  disabled={!selectedFile || isBackingUp || isRestoring}
-                  variant="destructive"
-                  className="flex items-center gap-2 rounded-button"
-                >
-                  <Upload className="h-4 w-4" />
-                  {isRestoring ? 'Restoring...' : 'Restore Backup'}
-                </Button>
-              </div>
-
-              {selectedFile && (
-                <div className="text-sm text-text-muted">
-                  Selected file: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                </div>
-              )}
-
-              {isRestoring && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm text-text-muted">
-                    <span>Restoring backup...</span>
-                    <span>{restoreProgress}%</span>
+        {/* Backup & Restore Tab */}
+        <TabsContent value="backup" className="space-y-6">
+          {/* Backup & Restore Section */}
+          <Card className="bg-white border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-text-primary">
+                <Database className="h-5 w-5 text-accent-teal" />
+                Backup & Restore
+              </CardTitle>
+              <CardDescription className="text-text-muted">
+                Create backups of your mower data or restore from a previous backup. 
+                Backups include all mowers, service records, attachments, and tasks.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Backup Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary">Create Backup</h3>
+                    <p className="text-sm text-text-muted">
+                      Download a complete backup of all your data as a ZIP file
+                    </p>
                   </div>
-                  <Progress value={restoreProgress} className="h-2" />
+                  <Button 
+                    onClick={handleBackup} 
+                    disabled={isBackingUp || isRestoring}
+                    className="bg-accent-teal text-white hover:bg-accent-teal/90 rounded-button flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    {isBackingUp ? 'Creating Backup...' : 'Create Backup'}
+                  </Button>
+                </div>
+                
+                {isBackingUp && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm text-text-muted">
+                      <span>Creating backup...</span>
+                      <span>{backupProgress}%</span>
+                    </div>
+                    <Progress value={backupProgress} className="h-2" />
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-card-border pt-6">
+                {/* Restore Section */}
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary">Restore from Backup</h3>
+                    <p className="text-sm text-text-muted">
+                      Upload a backup file to restore your data. This will replace all current data.
+                    </p>
+                  </div>
+
+                  <Alert className="border-accent-orange/20 bg-accent-orange/10">
+                    <AlertCircle className="h-4 w-4 text-accent-orange" />
+                    <AlertDescription className="text-text-primary">
+                      <strong>Warning:</strong> Restoring from a backup will permanently replace all current data. 
+                      Consider creating a backup first.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="file"
+                      accept=".zip,application/zip,application/x-zip-compressed,multipart/x-zip"
+                      onChange={handleFileSelect}
+                      disabled={isBackingUp || isRestoring}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={handleRestore}
+                      disabled={!selectedFile || isBackingUp || isRestoring}
+                      variant="destructive"
+                      className="flex items-center gap-2 rounded-button"
+                    >
+                      <Upload className="h-4 w-4" />
+                      {isRestoring ? 'Restoring...' : 'Restore Backup'}
+                    </Button>
+                  </div>
+
+                  {selectedFile && (
+                    <div className="text-sm text-text-muted">
+                      Selected file: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </div>
+                  )}
+
+                  {isRestoring && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm text-text-muted">
+                        <span>Restoring backup...</span>
+                        <span>{restoreProgress}%</span>
+                      </div>
+                      <Progress value={restoreProgress} className="h-2" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Backup Information */}
+          <Card className="bg-white border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-text-primary">
+                <CheckCircle className="h-5 w-5 text-accent-teal" />
+                Backup Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <p className="text-text-primary"><strong>What's included in backups:</strong></p>
+                <ul className="list-disc list-inside space-y-1 text-text-muted">
+                  <li>All mower records and details</li>
+                  <li>Service history and maintenance records</li>
+                  <li>File attachments (images, PDFs, documents)</li>
+                  <li>Tasks and maintenance schedules</li>
+                  <li>Parts catalog and inventory</li>
+                  <li>Engine information</li>
+                </ul>
+                <p className="mt-4 text-text-primary"><strong>File format:</strong> ZIP archive with JSON database dump and attachments</p>
+                <p className="text-text-primary"><strong>Compatibility:</strong> Works with all versions of MowerM8</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Stats Tab */}
+        <TabsContent value="stats" className="space-y-6">
+          <Card className="bg-white border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-text-primary">
+                <BarChart3 className="h-5 w-5 text-accent-teal" />
+                Database Statistics
+              </CardTitle>
+              <CardDescription className="text-text-muted">
+                Overview of your database records and storage usage
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingStats ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-text-muted">Loading statistics...</div>
+                </div>
+              ) : stats ? (
+                <div className="space-y-6">
+                  {/* Record Counts */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-4">Record Counts</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="p-4 bg-accent-teal/10 rounded-lg border border-accent-teal/20">
+                        <div className="text-2xl font-bold text-accent-teal">{stats.counts.mowers}</div>
+                        <div className="text-sm text-text-muted">Mowers</div>
+                      </div>
+                      <div className="p-4 bg-accent-blue/10 rounded-lg border border-accent-blue/20">
+                        <div className="text-2xl font-bold text-accent-blue">{stats.counts.serviceRecords}</div>
+                        <div className="text-sm text-text-muted">Service Records</div>
+                      </div>
+                      <div className="p-4 bg-accent-orange/10 rounded-lg border border-accent-orange/20">
+                        <div className="text-2xl font-bold text-accent-orange">{stats.counts.attachments}</div>
+                        <div className="text-sm text-text-muted">Attachments</div>
+                      </div>
+                      <div className="p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                        <div className="text-2xl font-bold text-purple-600">{stats.counts.tasks}</div>
+                        <div className="text-sm text-text-muted">Tasks</div>
+                      </div>
+                      <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                        <div className="text-2xl font-bold text-green-600">{stats.counts.engines}</div>
+                        <div className="text-sm text-text-muted">Engines</div>
+                      </div>
+                      <div className="p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                        <div className="text-2xl font-bold text-yellow-600">{stats.counts.parts}</div>
+                        <div className="text-sm text-text-muted">Parts</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mower Status Breakdown */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-4">Mower Status</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                        <div className="text-2xl font-bold text-green-600">{stats.totals.activeMowers}</div>
+                        <div className="text-sm text-text-muted">Active</div>
+                      </div>
+                      <div className="p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                        <div className="text-2xl font-bold text-yellow-600">{stats.totals.maintenanceMowers}</div>
+                        <div className="text-sm text-text-muted">In Maintenance</div>
+                      </div>
+                      <div className="p-4 bg-gray-500/10 rounded-lg border border-gray-500/20">
+                        <div className="text-2xl font-bold text-gray-600">{stats.totals.retiredMowers}</div>
+                        <div className="text-sm text-text-muted">Retired</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Task Status */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-4">Task Status</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-4 bg-accent-teal/10 rounded-lg border border-accent-teal/20">
+                        <div className="text-2xl font-bold text-accent-teal">{stats.totals.completedTasks}</div>
+                        <div className="text-sm text-text-muted">Completed Tasks</div>
+                      </div>
+                      <div className="p-4 bg-accent-orange/10 rounded-lg border border-accent-orange/20">
+                        <div className="text-2xl font-bold text-accent-orange">{stats.totals.pendingTasks}</div>
+                        <div className="text-sm text-text-muted">Pending Tasks</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Storage Information */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-4">Storage</h3>
+                    <div className="p-4 bg-accent-blue/10 rounded-lg border border-accent-blue/20">
+                      <div className="flex items-center gap-2">
+                        <HardDrive className="h-5 w-5 text-accent-blue" />
+                        <div>
+                          <div className="text-2xl font-bold text-accent-blue">{formatBytes(stats.totals.totalAttachmentSize)}</div>
+                          <div className="text-sm text-text-muted">Total Attachment Storage</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-text-muted">Failed to load statistics</div>
                 </div>
               )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Backup Information */}
-      <Card className="bg-white border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-text-primary">
-            <CheckCircle className="h-5 w-5 text-accent-teal" />
-            Backup Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm">
-            <p className="text-text-primary"><strong>What's included in backups:</strong></p>
-            <ul className="list-disc list-inside space-y-1 text-text-muted">
-              <li>All mower records and details</li>
-              <li>Service history and maintenance records</li>
-              <li>File attachments (images, PDFs, documents)</li>
-              <li>Tasks and maintenance schedules</li>
-              <li>Parts catalog and inventory</li>
-              <li>Engine information</li>
-            </ul>
-            <p className="mt-4 text-text-primary"><strong>File format:</strong> ZIP archive with JSON database dump and attachments</p>
-            <p className="text-text-primary"><strong>Compatibility:</strong> Works with all versions of MowerM8</p>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
