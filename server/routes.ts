@@ -13,7 +13,7 @@ import {
   insertNotificationSchema
 } from "@shared/schema";
 import { processPDF, getDocumentPageCount, generateTxtThumbnail } from "./pdfUtils";
-import { createBackup, validateBackupFile, restoreFromBackup } from "./backup";
+import { createBackup, validateBackupFile, restoreFromBackup, getBackupMetadata } from "./backup";
 import { NotificationService } from "./notificationService";
 import { webSocketService } from "./websocketService";
 
@@ -973,6 +973,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!res.headersSent) {
         res.status(500).json({ error: "Failed to create backup", details: error instanceof Error ? error.message : String(error) });
       }
+    }
+  });
+
+  app.get("/api/backup/metadata", async (_req, res) => {
+    try {
+      const metadata = await getBackupMetadata();
+      res.json(metadata || { lastBackupDate: null, lastBackupSize: 0, totalRecords: 0 });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch backup metadata", details: error instanceof Error ? error.message : String(error) });
     }
   });
 

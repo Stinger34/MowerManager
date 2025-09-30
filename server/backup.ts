@@ -3,6 +3,8 @@ import yauzl from 'yauzl';
 import { Readable } from 'stream';
 import { storage } from './storage';
 import type { Response } from 'express';
+import fs from 'fs/promises';
+import path from 'path';
 
 export interface BackupManifest {
   version: string;
@@ -20,6 +22,12 @@ export interface BackupManifest {
   };
 }
 
+export interface BackupMetadata {
+  lastBackupDate: string;
+  lastBackupSize: number;
+  totalRecords: number;
+}
+
 export interface BackupData {
   mowers: any[];
   serviceRecords: any[];
@@ -28,6 +36,26 @@ export interface BackupData {
   engines: any[];
   parts: any[];
   assetParts: any[];
+}
+
+const METADATA_FILE = path.join(process.cwd(), '.backup-metadata.json');
+
+async function saveBackupMetadata(metadata: BackupMetadata): Promise<void> {
+  try {
+    await fs.writeFile(METADATA_FILE, JSON.stringify(metadata, null, 2));
+  } catch (error) {
+    console.error('Failed to save backup metadata:', error);
+  }
+}
+
+export async function getBackupMetadata(): Promise<BackupMetadata | null> {
+  try {
+    const data = await fs.readFile(METADATA_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    // File doesn't exist or can't be read
+    return null;
+  }
 }
 
 export async function createBackup(res: Response): Promise<void> {
@@ -43,12 +71,20 @@ export async function createBackup(res: Response): Promise<void> {
       zlib: { level: 9 } // Maximum compression
     });
 
+    // Track backup size
+    let backupSize = 0;
+
     // Handle archive errors
     archive.on('error', (err) => {
       console.error('Archive error:', err);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Failed to create backup archive' });
       }
+    });
+
+    // Track data flowing through the archive
+    archive.on('data', (chunk) => {
+      backupSize += chunk.length;
     });
 
     // Pipe archive to response
@@ -95,12 +131,14 @@ export async function createBackup(res: Response): Promise<void> {
       assetParts
     };
 
+    const totalRecords = mowers.length + serviceRecords.length + attachments.length + tasks.length + engines.length + parts.length + assetParts.length;
+
     // Create manifest
     const manifest: BackupManifest = {
       version: '1.3.4',
       timestamp: new Date().toISOString(),
       schemaVersion: '1.3.4',
-      totalRecords: mowers.length + serviceRecords.length + attachments.length + tasks.length + engines.length + parts.length + assetParts.length,
+      totalRecords,
       tables: {
         mowers: mowers.length,
         serviceRecords: serviceRecords.length,
@@ -149,6 +187,13 @@ export async function createBackup(res: Response): Promise<void> {
     console.log('Finalizing archive...');
     // Finalize the archive
     await archive.finalize();
+
+    // Save backup metadata after completion
+    await saveBackupMetadata({
+      lastBackupDate: new Date().toISOString(),
+      lastBackupSize: backupSize,
+      totalRecords
+    });
     
     console.log('Backup creation completed successfully');
   } catch (error) {

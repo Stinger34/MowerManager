@@ -14,3 +14,6 @@ client/src/version.ts
 deploy.log
 migrations/temp_migration_*.sql
 .detected_changes
+
+# Backup metadata
+.backup-metadata.json
