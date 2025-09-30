@@ -11,8 +11,7 @@ import { Button } from "@/components/ui/button";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Part, InsertPart, InsertAssetPart } from "@shared/schema";
-import AttachmentUploadArea from "./AttachmentUploadArea";
-import { uploadAttachmentsForEntity } from "@/lib/attachmentUpload";
+import UnifiedFileUploadArea from "./UnifiedFileUploadArea";
 
 const partFormSchema = z.object({
   name: z.string().min(1, "Part name is required"),
@@ -34,6 +33,8 @@ interface AttachmentFile {
     title: string;
     description: string;
   };
+  previewUrl?: string;
+  isThumbnail?: boolean;
 }
 
 interface PartFormModalProps {
@@ -54,6 +55,7 @@ export default function PartFormModal({
   const { toast } = useToast();
   const isEditing = !!part;
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentFile[]>([]);
+  const [thumbnail, setThumbnail] = useState<AttachmentFile | null>(null);
 
   const form = useForm<PartFormData>({
     resolver: zodResolver(partFormSchema),
@@ -111,9 +113,72 @@ export default function PartFormModal({
       
       const createdPart = await response.json();
       
-      // Upload attachments if any
+      // Upload regular attachments if any
       if (pendingAttachments.length > 0) {
-        await uploadAttachmentsForEntity('parts', createdPart.id, pendingAttachments);
+        for (const attachment of pendingAttachments) {
+          try {
+            const formData = new FormData();
+            formData.append('file', attachment.file);
+            formData.append('title', attachment.metadata.title);
+            formData.append('description', attachment.metadata.description);
+            
+            const attachResponse = await fetch(`/api/parts/${createdPart.id}/attachments`, {
+              method: 'POST',
+              body: formData,
+              credentials: 'include',
+            });
+            
+            if (!attachResponse.ok) {
+              throw new Error(`Failed to upload attachment: ${attachment.metadata.title}`);
+            }
+          } catch (error) {
+            console.error('Failed to upload attachment:', error);
+            toast({
+              title: "Attachment Upload Warning",
+              description: `Failed to upload attachment: ${attachment.metadata.title}`,
+              variant: "destructive",
+            });
+          }
+        }
+      }
+      
+      // Handle thumbnail upload and assignment
+      if (thumbnail) {
+        try {
+          // Upload thumbnail as attachment
+          const formData = new FormData();
+          formData.append('file', thumbnail.file);
+          formData.append('title', thumbnail.metadata?.title || 'Part Thumbnail');
+          formData.append('description', thumbnail.metadata?.description || 'Main thumbnail image for this part');
+          
+          const response = await fetch(`/api/parts/${createdPart.id}/attachments`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to upload thumbnail');
+          }
+          
+          const attachment = await response.json();
+          
+          // Set the uploaded attachment as the thumbnail
+          const thumbnailResponse = await apiRequest('PUT', `/api/parts/${createdPart.id}/thumbnail`, {
+            attachmentId: attachment.id
+          });
+          
+          if (!thumbnailResponse.ok) {
+            throw new Error('Failed to set thumbnail');
+          }
+        } catch (error) {
+          console.error('Failed to upload/set thumbnail:', error);
+          toast({
+            title: "Thumbnail Upload Warning",
+            description: "Failed to upload or set thumbnail, but part was created successfully",
+            variant: "destructive",
+          });
+        }
       }
       
       // Auto-allocate to mower if mowerId is provided
@@ -144,6 +209,7 @@ export default function PartFormModal({
       });
       form.reset();
       setPendingAttachments([]);
+      setThumbnail(null);
       onClose();
       onSuccess?.();
     },
@@ -205,6 +271,7 @@ export default function PartFormModal({
   const handleClose = () => {
     form.reset();
     setPendingAttachments([]);
+    setThumbnail(null);
     onClose();
   };
 
@@ -387,9 +454,12 @@ export default function PartFormModal({
 
             {/* Only show attachment upload during creation */}
             {!isEditing && (
-              <AttachmentUploadArea
+              <UnifiedFileUploadArea
                 onAttachmentsChange={setPendingAttachments}
+                onThumbnailChange={setThumbnail}
                 disabled={createMutation.isPending}
+                showThumbnailSelection={true}
+                mode="creation"
               />
             )}
 

@@ -18,8 +18,7 @@ import { cn, safeFormatDateForAPI, safeConvertToDate, validateDateFieldsForAPI }
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Engine, InsertEngine } from "@shared/schema";
-import AttachmentUploadArea from "./AttachmentUploadArea";
-import { uploadAttachmentsForEntity } from "@/lib/attachmentUpload";
+import UnifiedFileUploadArea from "./UnifiedFileUploadArea";
 
 const engineFormSchema = z.object({
   name: z.string().min(1, "Engine name is required"),
@@ -43,6 +42,8 @@ interface AttachmentFile {
     title: string;
     description: string;
   };
+  previewUrl?: string;
+  isThumbnail?: boolean;
 }
 
 interface EngineFormModalProps {
@@ -64,6 +65,7 @@ export default function EngineFormModal({
   const isEditing = !!engine;
   const isGlobalEngine = !mowerId || mowerId === "0";
   const [pendingAttachments, setPendingAttachments] = useState<AttachmentFile[]>([]);
+  const [thumbnail, setThumbnail] = useState<AttachmentFile | null>(null);
 
   const form = useForm<EngineFormData>({
     resolver: zodResolver(engineFormSchema),
@@ -173,9 +175,72 @@ export default function EngineFormModal({
       
       const createdComponent = await response.json();
       
-      // Upload attachments if any
+      // Upload regular attachments if any
       if (pendingAttachments.length > 0) {
-        await uploadAttachmentsForEntity('engines', createdComponent.id, pendingAttachments);
+        for (const attachment of pendingAttachments) {
+          try {
+            const formData = new FormData();
+            formData.append('file', attachment.file);
+            formData.append('title', attachment.metadata.title);
+            formData.append('description', attachment.metadata.description);
+            
+            const attachResponse = await fetch(`/api/engines/${createdComponent.id}/attachments`, {
+              method: 'POST',
+              body: formData,
+              credentials: 'include',
+            });
+            
+            if (!attachResponse.ok) {
+              throw new Error(`Failed to upload attachment: ${attachment.metadata.title}`);
+            }
+          } catch (error) {
+            console.error('Failed to upload attachment:', error);
+            toast({
+              title: "Attachment Upload Warning",
+              description: `Failed to upload attachment: ${attachment.metadata.title}`,
+              variant: "destructive",
+            });
+          }
+        }
+      }
+      
+      // Handle thumbnail upload and assignment
+      if (thumbnail) {
+        try {
+          // Upload thumbnail as attachment
+          const formData = new FormData();
+          formData.append('file', thumbnail.file);
+          formData.append('title', thumbnail.metadata?.title || 'Engine Thumbnail');
+          formData.append('description', thumbnail.metadata?.description || 'Main thumbnail image for this engine');
+          
+          const response = await fetch(`/api/engines/${createdComponent.id}/attachments`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to upload thumbnail');
+          }
+          
+          const attachment = await response.json();
+          
+          // Set the uploaded attachment as the thumbnail
+          const thumbnailResponse = await apiRequest('PUT', `/api/engines/${createdComponent.id}/thumbnail`, {
+            attachmentId: attachment.id
+          });
+          
+          if (!thumbnailResponse.ok) {
+            throw new Error('Failed to set thumbnail');
+          }
+        } catch (error) {
+          console.error('Failed to upload/set thumbnail:', error);
+          toast({
+            title: "Thumbnail Upload Warning",
+            description: "Failed to upload or set thumbnail, but engine was created successfully",
+            variant: "destructive",
+          });
+        }
       }
       
       return createdComponent;
@@ -194,6 +259,7 @@ export default function EngineFormModal({
       });
       form.reset();
       setPendingAttachments([]);
+      setThumbnail(null);
       onClose();
       onSuccess?.();
     },
@@ -281,6 +347,7 @@ export default function EngineFormModal({
   const handleClose = () => {
     form.reset();
     setPendingAttachments([]);
+    setThumbnail(null);
     onClose();
   };
 
@@ -514,9 +581,12 @@ export default function EngineFormModal({
 
             {/* Only show attachment upload during creation */}
             {!isEditing && (
-              <AttachmentUploadArea
+              <UnifiedFileUploadArea
                 onAttachmentsChange={setPendingAttachments}
+                onThumbnailChange={setThumbnail}
                 disabled={createMutation.isPending}
+                showThumbnailSelection={true}
+                mode="creation"
               />
             )}
 
