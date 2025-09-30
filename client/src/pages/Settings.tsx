@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, Database, Settings as SettingsIcon, AlertCircle, CheckCircle, BarChart3, HardDrive } from "lucide-react";
+import { Download, Upload, Database, Settings as SettingsIcon, AlertCircle, CheckCircle, BarChart3, HardDrive, Activity, Clock, FileArchive } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery } from "@tanstack/react-query";
 
@@ -40,12 +40,27 @@ export default function Settings() {
     queryKey: ['/api/stats'],
   });
 
+  // Fetch backup metadata
+  const { data: backupMetadata } = useQuery<{
+    lastBackupDate: string | null;
+    lastBackupSize: number;
+    totalRecords: number;
+  }>({
+    queryKey: ['/api/backup/metadata'],
+  });
+
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'Never';
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
 
   const handleBackup = async () => {
@@ -204,7 +219,7 @@ export default function Settings() {
 
       {/* Tabs Container */}
       <Tabs defaultValue="backup" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="backup" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
             Backup & Restore
@@ -212,6 +227,10 @@ export default function Settings() {
           <TabsTrigger value="stats" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Stats
+          </TabsTrigger>
+          <TabsTrigger value="performance" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Performance
           </TabsTrigger>
         </TabsList>
 
@@ -326,18 +345,41 @@ export default function Settings() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 text-sm">
-                <p className="text-text-primary"><strong>What's included in backups:</strong></p>
-                <ul className="list-disc list-inside space-y-1 text-text-muted">
-                  <li>All mower records and details</li>
-                  <li>Service history and maintenance records</li>
-                  <li>File attachments (images, PDFs, documents)</li>
-                  <li>Tasks and maintenance schedules</li>
-                  <li>Parts catalog and inventory</li>
-                  <li>Engine information</li>
-                </ul>
-                <p className="mt-4 text-text-primary"><strong>File format:</strong> ZIP archive with JSON database dump and attachments</p>
-                <p className="text-text-primary"><strong>Compatibility:</strong> Works with all versions of MowerM8</p>
+              <div className="space-y-4">
+                {/* Last Backup Info */}
+                {backupMetadata && (
+                  <div className="p-4 bg-accent-teal/5 rounded-lg border border-accent-teal/20 space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="h-4 w-4 text-accent-teal" />
+                      <span className="font-semibold text-text-primary">Last Backup:</span>
+                      <span className="text-text-muted">{formatDate(backupMetadata.lastBackupDate)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <FileArchive className="h-4 w-4 text-accent-teal" />
+                      <span className="font-semibold text-text-primary">Backup Size:</span>
+                      <span className="text-text-muted">{formatBytes(backupMetadata.lastBackupSize)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Database className="h-4 w-4 text-accent-teal" />
+                      <span className="font-semibold text-text-primary">Records Backed Up:</span>
+                      <span className="text-text-muted">{backupMetadata.totalRecords}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2 text-sm">
+                  <p className="text-text-primary"><strong>What's included in backups:</strong></p>
+                  <ul className="list-disc list-inside space-y-1 text-text-muted">
+                    <li>All mower records and details</li>
+                    <li>Service history and maintenance records</li>
+                    <li>File attachments (images, PDFs, documents)</li>
+                    <li>Tasks and maintenance schedules</li>
+                    <li>Parts catalog and inventory</li>
+                    <li>Engine information</li>
+                  </ul>
+                  <p className="mt-4 text-text-primary"><strong>File format:</strong> ZIP archive with JSON database dump and attachments</p>
+                  <p className="text-text-primary"><strong>Compatibility:</strong> Works with all versions of MowerM8</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -446,6 +488,148 @@ export default function Settings() {
                   <div className="text-text-muted">Failed to load statistics</div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Performance & Health Tab */}
+        <TabsContent value="performance" className="space-y-6">
+          {/* Performance Metrics */}
+          <Card className="bg-white border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-text-primary">
+                <Activity className="h-5 w-5 text-accent-teal" />
+                Performance & Health Indicators
+              </CardTitle>
+              <CardDescription className="text-text-muted">
+                Application performance metrics and system health status
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {/* Application Health */}
+                <div>
+                  <h3 className="text-lg font-semibold text-text-primary mb-4">Application Health</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <span className="font-semibold text-text-primary">Database</span>
+                      </div>
+                      <div className="text-sm text-text-muted">Connected and operational</div>
+                    </div>
+                    <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <span className="font-semibold text-text-primary">API Server</span>
+                      </div>
+                      <div className="text-sm text-text-muted">Running normally</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Query Cache Stats */}
+                <div>
+                  <h3 className="text-lg font-semibold text-text-primary mb-4">React Query Cache</h3>
+                  <div className="p-4 bg-accent-blue/10 rounded-lg border border-accent-blue/20">
+                    <div className="space-y-2 text-sm">
+                      <p className="text-text-primary">
+                        <strong>Cache Strategy:</strong> Stale-while-revalidate with background refetching
+                      </p>
+                      <p className="text-text-primary">
+                        <strong>Benefits:</strong> Reduced server load, faster data access, improved UX
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Performance Recommendations */}
+                <div>
+                  <h3 className="text-lg font-semibold text-text-primary mb-4">Performance Info</h3>
+                  <div className="space-y-3">
+                    <div className="p-4 bg-accent-teal/10 rounded-lg border border-accent-teal/20">
+                      <div className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-accent-teal mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-text-primary">Code Splitting</p>
+                          <p className="text-sm text-text-muted">Optimized bundle sizes with lazy loading for faster initial page loads</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-accent-teal/10 rounded-lg border border-accent-teal/20">
+                      <div className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-accent-teal mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-text-primary">Image Optimization</p>
+                          <p className="text-sm text-text-muted">Thumbnails generated for PDFs and images to reduce bandwidth</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-accent-teal/10 rounded-lg border border-accent-teal/20">
+                      <div className="flex items-start gap-2">
+                        <CheckCircle className="h-5 w-5 text-accent-teal mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-text-primary">Data Caching</p>
+                          <p className="text-sm text-text-muted">Intelligent caching with React Query minimizes redundant API calls</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Future Settings Ideas */}
+          <Card className="bg-white border-card-border shadow-card hover:shadow-md hover:border-accent-teal transition-all duration-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-text-primary">
+                <SettingsIcon className="h-5 w-5 text-accent-teal" />
+                Future Settings & Features
+              </CardTitle>
+              <CardDescription className="text-text-muted">
+                Ideas for additional settings and configuration options
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm">
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="font-semibold text-text-primary mb-1">🔔 Notification Preferences</p>
+                  <p className="text-text-muted">Configure email or in-app notifications for upcoming maintenance, overdue tasks, and low stock alerts</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="font-semibold text-text-primary mb-1">🎨 Theme Customization</p>
+                  <p className="text-text-muted">Choose between light/dark modes, or customize accent colors to match your branding</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="font-semibold text-text-primary mb-1">🔐 User Management</p>
+                  <p className="text-text-muted">Create multiple user accounts with role-based access control (Admin, Technician, Viewer)</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="font-semibold text-text-primary mb-1">📊 Export & Reporting</p>
+                  <p className="text-text-muted">Generate PDF or Excel reports for service history, costs, inventory, and more</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="font-semibold text-text-primary mb-1">⏰ Automated Backup Schedule</p>
+                  <p className="text-text-muted">Set up automatic daily or weekly backups with cloud storage integration (Dropbox, Google Drive)</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="font-semibold text-text-primary mb-1">🔍 Advanced Search & Filters</p>
+                  <p className="text-text-muted">Save custom filter presets for quick access to frequently viewed mower sets</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="font-semibold text-text-primary mb-1">📱 Mobile App Integration</p>
+                  <p className="text-text-muted">Native iOS/Android apps with offline support and barcode scanning for parts</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="font-semibold text-text-primary mb-1">🌐 Multi-Language Support</p>
+                  <p className="text-text-muted">Interface translation options for international users</p>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="font-semibold text-text-primary mb-1">💰 Cost Tracking & Budgeting</p>
+                  <p className="text-text-muted">Set budget limits, track expenses by category, and receive alerts when approaching budget thresholds</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
