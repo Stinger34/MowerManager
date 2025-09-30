@@ -50,6 +50,7 @@ export interface IStorage {
   updateEngine(id: string, engine: Partial<InsertEngine>): Promise<Engine | undefined>;
   deleteEngine(id: string): Promise<boolean>;
   mowerHasEngine(mowerId: string): Promise<boolean>;
+  engineIsAllocated(engineId: string): Promise<boolean>;
   
   // Part methods
   getPart(id: string): Promise<Part | undefined>;
@@ -391,7 +392,6 @@ export class MemStorage implements IStorage {
       model: insertEngine.model || null,
       serialNumber: insertEngine.serialNumber || null,
       installDate: insertEngine.installDate || null,
-      warrantyExpires: insertEngine.warrantyExpires || null,
       cost: insertEngine.cost || null,
       notes: insertEngine.notes || null,
       createdAt: now,
@@ -404,6 +404,23 @@ export class MemStorage implements IStorage {
   async updateEngine(id: string, updateData: Partial<InsertEngine>): Promise<Engine | undefined> {
     const engine = this.engines.get(id);
     if (!engine) return undefined;
+    
+    // Check if trying to allocate engine to a mower
+    if (updateData.mowerId !== undefined) {
+      // If allocating to a mower (mowerId is not null)
+      if (updateData.mowerId !== null) {
+        // Check if the target mower already has an engine
+        const hasEngine = await this.mowerHasEngine(updateData.mowerId.toString());
+        if (hasEngine) {
+          throw new Error("Mower already has an engine allocated. Only one engine per mower is allowed.");
+        }
+        
+        // Check if this engine is already allocated to a different mower
+        if (engine.mowerId !== null && engine.mowerId !== updateData.mowerId) {
+          throw new Error("Engine is already allocated to another mower. Please unallocate it first.");
+        }
+      }
+    }
     
     const updatedEngine: Engine = {
       ...engine,
@@ -422,6 +439,11 @@ export class MemStorage implements IStorage {
     return Array.from(this.engines.values()).some(engine => 
       engine.mowerId !== null && engine.mowerId.toString() === mowerId
     );
+  }
+
+  async engineIsAllocated(engineId: string): Promise<boolean> {
+    const engine = this.engines.get(engineId);
+    return engine?.mowerId !== null && engine?.mowerId !== undefined;
   }
 
   // Part methods
@@ -930,6 +952,27 @@ export class DbStorage implements IStorage {
   }
 
   async updateEngine(id: string, updateData: Partial<InsertEngine>): Promise<Engine | undefined> {
+    // Get current engine
+    const currentEngine = await this.getEngine(id);
+    if (!currentEngine) return undefined;
+    
+    // Check if trying to allocate engine to a mower
+    if (updateData.mowerId !== undefined) {
+      // If allocating to a mower (mowerId is not null)
+      if (updateData.mowerId !== null) {
+        // Check if the target mower already has an engine
+        const hasEngine = await this.mowerHasEngine(updateData.mowerId.toString());
+        if (hasEngine) {
+          throw new Error("Mower already has an engine allocated. Only one engine per mower is allowed.");
+        }
+        
+        // Check if this engine is already allocated to a different mower
+        if (currentEngine.mowerId !== null && currentEngine.mowerId !== updateData.mowerId) {
+          throw new Error("Engine is already allocated to another mower. Please unallocate it first.");
+        }
+      }
+    }
+    
     const result = await db.update(engines)
       .set({ ...updateData, updatedAt: new Date() })
       .where(eq(engines.id, parseInt(id)))
@@ -947,6 +990,13 @@ export class DbStorage implements IStorage {
       .from(engines)
       .where(eq(engines.mowerId, parseInt(mowerId)));
     return (result[0]?.count ?? 0) > 0;
+  }
+
+  async engineIsAllocated(engineId: string): Promise<boolean> {
+    const result = await db.select({ mowerId: engines.mowerId })
+      .from(engines)
+      .where(eq(engines.id, parseInt(engineId)));
+    return result[0]?.mowerId !== null;
   }
 
   // Part methods
