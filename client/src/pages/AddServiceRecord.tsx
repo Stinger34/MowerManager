@@ -14,6 +14,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Mower } from "@shared/schema";
+import ServiceRecordPartsSelector, { type ServiceRecordPart } from "@/components/ServiceRecordPartsSelector";
 
 const serviceRecordSchema = z.object({
   serviceType: z.string().min(1, "Service type is required"),
@@ -31,6 +32,8 @@ export default function AddServiceRecord() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const mowerId = params?.id;
+  const [selectedParts, setSelectedParts] = useState<ServiceRecordPart[]>([]);
+  const [calculatedCost, setCalculatedCost] = useState<number>(0);
 
   const { data: mower, isLoading } = useQuery<Mower>({
     queryKey: ['/api/mowers', mowerId],
@@ -61,7 +64,27 @@ export default function AddServiceRecord() {
         mileage: data.mileage ? parseInt(data.mileage) : null,
       };
       
-      return apiRequest('POST', `/api/mowers/${mowerId}/service`, serviceData);
+      // Create the service record first
+      const response = await apiRequest('POST', `/api/mowers/${mowerId}/service`, serviceData);
+      const serviceRecord = await response.json();
+      
+      // Then create asset parts for each selected part
+      if (selectedParts.length > 0) {
+        for (const part of selectedParts) {
+          if (part.partId) {
+            const assetPartData = {
+              partId: part.partId,
+              mowerId: part.engineId ? undefined : parseInt(mowerId!),
+              engineId: part.engineId || undefined,
+              quantity: part.quantity,
+              serviceRecordId: serviceRecord.id,
+            };
+            await apiRequest('POST', '/api/asset-parts', assetPartData);
+          }
+        }
+      }
+      
+      return serviceRecord;
     },
     onSuccess: () => {
       toast({
@@ -71,6 +94,7 @@ export default function AddServiceRecord() {
       queryClient.invalidateQueries({ queryKey: ['/api/mowers'] });
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId] });
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'service'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/parts'] });
       setLocation(`/mowers/${mowerId}`);
     },
     onError: (error) => {
@@ -89,6 +113,14 @@ export default function AddServiceRecord() {
 
   const handleCancel = () => {
     setLocation(`/mowers/${mowerId}`);
+  };
+
+  const handleCostChange = (totalCost: number) => {
+    setCalculatedCost(totalCost);
+    // Update the cost field with the calculated value
+    if (totalCost > 0) {
+      form.setValue("cost", totalCost.toFixed(2));
+    }
   };
 
   if (isLoading) {
@@ -150,7 +182,6 @@ export default function AddServiceRecord() {
                             <SelectItem value="maintenance">Maintenance</SelectItem>
                             <SelectItem value="repair">Repair</SelectItem>
                             <SelectItem value="inspection">Inspection</SelectItem>
-                            <SelectItem value="warranty">Warranty</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -195,6 +226,16 @@ export default function AddServiceRecord() {
                   )}
                 />
 
+                {/* Parts Selection */}
+                <div className="pt-4">
+                  <ServiceRecordPartsSelector
+                    mowerId={mowerId!}
+                    parts={selectedParts}
+                    onPartsChange={setSelectedParts}
+                    onCostChange={handleCostChange}
+                  />
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
@@ -211,6 +252,11 @@ export default function AddServiceRecord() {
                             data-testid="input-cost"
                           />
                         </FormControl>
+                        {calculatedCost > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Auto-calculated from parts: ${calculatedCost.toFixed(2)}
+                          </p>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )}
