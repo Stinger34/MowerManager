@@ -1178,65 +1178,80 @@ export default function MowerDetails() {
                     <div className="space-y-3">
                       {components.map((component) => (
                         <div key={component.id} className="border rounded-lg p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
+                          <div className="flex items-start gap-4">
+                            {component.thumbnailAttachmentId && (
+                              <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md border">
+                                <img 
+                                  src={`/api/engines/${component.id}/thumbnail`}
+                                  alt={component.name}
+                                  className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => setLocation(`/catalog/engines/${component.id}`)}
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <div className="flex items-start justify-between flex-1">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <Button 
+                                    variant="ghost" 
+                                    className="p-0 h-auto font-medium text-left justify-start"
+                                    onClick={() => setLocation(`/catalog/engines/${component.id}`)}
+                                  >
+                                    {component.name}
+                                  </Button>
+                                  <Badge variant="outline" className="text-xs">
+                                    {component.status}
+                                  </Badge>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {component.condition}
+                                  </Badge>
+                                </div>
+                                {component.description && (
+                                  <p className="text-sm text-muted-foreground mt-1">{component.description}</p>
+                                )}
+                                <div className="flex gap-4 text-sm text-muted-foreground mt-2">
+                                  {component.partNumber && <span>Part: {component.partNumber}</span>}
+                                  {component.manufacturer && <span>Mfg: {component.manufacturer}</span>}
+                                  {component.model && <span>Model: {component.model}</span>}
+                                  {component.cost && <span>Cost: ${component.cost}</span>}
+                                </div>
+                                {component.installDate && (
+                                  <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                                    {component.installDate && (
+                                      <span>Installed: {safeFormatDateForDisplay(component.installDate)}</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2">
                                 <Button 
                                   variant="ghost" 
-                                  className="p-0 h-auto font-medium text-left justify-start"
-                                  onClick={() => setLocation(`/catalog/engines/${component.id}`)}
+                                  size="sm"
+                                  onClick={() => handleAllocatePartToEngine(component.id.toString())}
+                                  title="Allocate parts to this component"
                                 >
-                                  {component.name}
+                                  <Plus className="h-4 w-4" />
                                 </Button>
-                                <Badge variant="outline" className="text-xs">
-                                  {component.status}
-                                </Badge>
-                                <Badge variant="secondary" className="text-xs">
-                                  {component.condition}
-                                </Badge>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleEditComponent(component)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleDeleteComponent(component)}
+                                  title="Unallocate this engine and return it to catalog"
+                                  className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                                >
+                                  <Unlink className="h-4 w-4" />
+                                </Button>
                               </div>
-                              {component.description && (
-                                <p className="text-sm text-muted-foreground mt-1">{component.description}</p>
-                              )}
-                              <div className="flex gap-4 text-sm text-muted-foreground mt-2">
-                                {component.partNumber && <span>Part: {component.partNumber}</span>}
-                                {component.manufacturer && <span>Mfg: {component.manufacturer}</span>}
-                                {component.model && <span>Model: {component.model}</span>}
-                                {component.cost && <span>Cost: ${component.cost}</span>}
-                              </div>
-                              {component.installDate && (
-                                <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                                  {component.installDate && (
-                                    <span>Installed: {safeFormatDateForDisplay(component.installDate)}</span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => handleAllocatePartToEngine(component.id.toString())}
-                                title="Allocate parts to this component"
-                              >
-                                <Plus className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => handleEditComponent(component)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => handleDeleteComponent(component)}
-                                title="Unallocate this engine and return it to catalog"
-                                className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                              >
-                                <Unlink className="h-4 w-4" />
-                              </Button>
                             </div>
                           </div>
                         </div>
@@ -1275,78 +1290,93 @@ export default function MowerDetails() {
                     <div className="space-y-3">
                       {mowerParts.map((assetPart) => (
                         <div key={assetPart.id} className="border rounded-lg p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
+                          <div className="flex items-start gap-4">
+                            {assetPart.part?.thumbnailAttachmentId && (
+                              <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md border">
+                                <img 
+                                  src={`/api/parts/${assetPart.partId}/thumbnail`}
+                                  alt={assetPart.part?.name || 'Part'}
+                                  className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => setLocation(`/catalog/parts/${assetPart.partId}`)}
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <div className="flex items-start justify-between flex-1">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <Button 
+                                    variant="ghost" 
+                                    className="p-0 h-auto font-medium text-left justify-start"
+                                    onClick={() => setLocation(`/catalog/parts/${assetPart.partId}`)}
+                                  >
+                                    {assetPart.part?.name || `Part ID: ${assetPart.partId}`}
+                                  </Button>
+                                  <Badge variant="outline" className="text-xs">
+                                    {assetPart.part?.category || 'Unknown'}
+                                  </Badge>
+                                  <span className="text-sm text-muted-foreground">
+                                    Qty: {assetPart.quantity}
+                                  </span>
+                                </div>
+                                
+                                {assetPart.part && (
+                                  <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                                    <span>Part #: {assetPart.part.partNumber}</span>
+                                    {assetPart.part.manufacturer && <span>Mfg: {assetPart.part.manufacturer}</span>}
+                                    {assetPart.part.unitCost && <span>Unit Cost: ${assetPart.part.unitCost}</span>}
+                                  </div>
+                                )}
+                                
+                                {assetPart.engineId && (
+                                  <div className="text-sm text-muted-foreground mt-1">
+                                    <span>Allocated to Engine: </span>
+                                    {assetPart.engine ? (
+                                      <Button 
+                                        variant="ghost" 
+                                        className="p-0 h-auto text-sm text-blue-600 underline"
+                                        onClick={() => setLocation(`/catalog/engines/${assetPart.engineId}`)}
+                                      >
+                                        {assetPart.engine.name}
+                                      </Button>
+                                    ) : (
+                                      <span>ID: {assetPart.engineId}</span>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                                  {assetPart.installDate && (
+                                    <span>Installed: {safeFormatDateForDisplay(assetPart.installDate)}</span>
+                                  )}
+                                </div>
+                                
+                                {assetPart.part?.description && (
+                                  <p className="text-sm text-muted-foreground mt-2">{assetPart.part.description}</p>
+                                )}
+                                
+                                {assetPart.notes && (
+                                  <p className="text-sm text-muted-foreground mt-2 italic">{assetPart.notes}</p>
+                                )}
+                              </div>
                               <div className="flex items-center gap-2">
                                 <Button 
                                   variant="ghost" 
-                                  className="p-0 h-auto font-medium text-left justify-start"
-                                  onClick={() => setLocation(`/catalog/parts/${assetPart.partId}`)}
+                                  size="sm"
+                                  onClick={() => handleEditAssetPart(assetPart)}
                                 >
-                                  {assetPart.part?.name || `Part ID: ${assetPart.partId}`}
+                                  <Edit className="h-4 w-4" />
                                 </Button>
-                                <Badge variant="outline" className="text-xs">
-                                  {assetPart.part?.category || 'Unknown'}
-                                </Badge>
-                                <span className="text-sm text-muted-foreground">
-                                  Qty: {assetPart.quantity}
-                                </span>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleDeleteAssetPart(assetPart)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </div>
-                              
-                              {assetPart.part && (
-                                <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                                  <span>Part #: {assetPart.part.partNumber}</span>
-                                  {assetPart.part.manufacturer && <span>Mfg: {assetPart.part.manufacturer}</span>}
-                                  {assetPart.part.unitCost && <span>Unit Cost: ${assetPart.part.unitCost}</span>}
-                                </div>
-                              )}
-                              
-                              {assetPart.engineId && (
-                                <div className="text-sm text-muted-foreground mt-1">
-                                  <span>Allocated to Engine: </span>
-                                  {assetPart.engine ? (
-                                    <Button 
-                                      variant="ghost" 
-                                      className="p-0 h-auto text-sm text-blue-600 underline"
-                                      onClick={() => setLocation(`/catalog/engines/${assetPart.engineId}`)}
-                                    >
-                                      {assetPart.engine.name}
-                                    </Button>
-                                  ) : (
-                                    <span>ID: {assetPart.engineId}</span>
-                                  )}
-                                </div>
-                              )}
-                              
-                              <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                                {assetPart.installDate && (
-                                  <span>Installed: {safeFormatDateForDisplay(assetPart.installDate)}</span>
-                                )}
-                              </div>
-                              
-                              {assetPart.part?.description && (
-                                <p className="text-sm text-muted-foreground mt-2">{assetPart.part.description}</p>
-                              )}
-                              
-                              {assetPart.notes && (
-                                <p className="text-sm text-muted-foreground mt-2 italic">{assetPart.notes}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => handleEditAssetPart(assetPart)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => handleDeleteAssetPart(assetPart)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
                             </div>
                           </div>
                         </div>
