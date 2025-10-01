@@ -19,7 +19,45 @@ import AllocateEngineToMowerModal from "@/components/AllocateEngineToMowerModal"
 import type { Engine, Attachment, AssetPartWithDetails, AssetPart } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
-import { useEngineThumbnail } from "@/hooks/useThumbnails";
+import { useEngineThumbnail, usePartThumbnail } from "@/hooks/useThumbnails";
+
+// Helper component for rendering part thumbnail with fallback
+function PartThumbnailImage({ partId, partName, onClick }: { partId: number; partName: string; onClick: () => void }) {
+  const { data: thumbnail, isLoading } = usePartThumbnail(partId);
+  
+  if (isLoading) {
+    return (
+      <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md bg-muted animate-pulse" />
+    );
+  }
+  
+  if (!thumbnail) {
+    return (
+      <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors" onClick={onClick}>
+        <ImageOff className="h-8 w-8 text-muted-foreground opacity-50" />
+      </div>
+    );
+  }
+  
+  return (
+    <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md">
+      <img 
+        src={thumbnail.downloadUrl}
+        alt={partName}
+        className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={onClick}
+        onError={(e) => {
+          // Replace with placeholder on error
+          const parent = e.currentTarget.parentElement;
+          if (parent) {
+            parent.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-muted cursor-pointer"><svg class="h-8 w-8 text-muted-foreground opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" x2="6" y1="13.5" y2="21"/><line x1="18" x2="21" y1="12" y2="15"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/></svg></div>';
+            parent.addEventListener('click', onClick);
+          }
+        }}
+      />
+    </div>
+  );
+}
 
 export default function EngineDetails() {
   const [, params] = useRoute("/catalog/engines/:engineId");
@@ -371,36 +409,43 @@ export default function EngineDetails() {
                   <div className="space-y-3">
                     {allocatedParts.map((allocation) => (
                       <div key={allocation.id} className="border rounded-lg p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="font-medium">{allocation.part.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              Part #: {allocation.part.partNumber} • Quantity: {allocation.quantity}
-                              {allocation.installDate && (
-                                <span className="ml-2">
-                                  • Installed: {safeFormatDateForDisplay(allocation.installDate)}
-                                </span>
+                        <div className="flex items-start gap-4">
+                          <PartThumbnailImage 
+                            partId={allocation.part.id}
+                            partName={allocation.part.name}
+                            onClick={() => setLocation(`/catalog/parts/${allocation.part.id}`)}
+                          />
+                          <div className="flex items-start justify-between flex-1">
+                            <div className="flex-1">
+                              <div className="font-medium">{allocation.part.name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                Part #: {allocation.part.partNumber} • Quantity: {allocation.quantity}
+                                {allocation.installDate && (
+                                  <span className="ml-2">
+                                    • Installed: {safeFormatDateForDisplay(allocation.installDate)}
+                                  </span>
+                                )}
+                              </div>
+                              {allocation.notes && (
+                                <p className="text-sm text-muted-foreground mt-1">{allocation.notes}</p>
                               )}
                             </div>
-                            {allocation.notes && (
-                              <p className="text-sm text-muted-foreground mt-1">{allocation.notes}</p>
-                            )}
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setLocation(`/catalog/parts/${allocation.part.id}`)}
-                            >
-                              View Part
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditAssetPart(allocation)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setLocation(`/catalog/parts/${allocation.part.id}`)}
+                              >
+                                View Part
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditAssetPart(allocation)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
