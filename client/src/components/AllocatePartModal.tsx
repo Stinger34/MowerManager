@@ -9,11 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Search } from "lucide-react";
-import { format } from "date-fns";
-import { cn, safeFormatDateForAPI, validateDateFieldsForAPI } from "@/lib/utils";
+import { Search } from "lucide-react";
+import { safeFormatDateForAPI, validateDateFieldsForAPI } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Part, Engine, AssetPart, InsertAssetPart } from "@shared/schema";
@@ -23,7 +20,7 @@ const assetPartFormSchema = z.object({
   mowerId: z.number().optional(),
   engineId: z.number().optional(),
   quantity: z.number().min(1, "Quantity must be at least 1").default(1),
-  installDate: z.date().optional(),
+  installDate: z.string().optional(),
   notes: z.string().optional(),
 }).refine(
   (data) => data.mowerId || data.engineId,
@@ -74,7 +71,11 @@ export default function AllocatePartModal({
       mowerId: engineId ? undefined : parseInt(mowerId),
       engineId: engineId ? parseInt(engineId) : assetPart?.engineId || undefined,
       quantity: assetPart?.quantity || 1,
-      installDate: assetPart?.installDate ? new Date(assetPart.installDate) : undefined,
+      installDate: assetPart?.installDate 
+        ? (typeof assetPart.installDate === 'string' 
+          ? assetPart.installDate.split('T')[0]
+          : new Date(assetPart.installDate).toISOString().split('T')[0])
+        : "",
       notes: assetPart?.notes || "",
     },
   });
@@ -87,7 +88,11 @@ export default function AllocatePartModal({
         mowerId: engineId ? undefined : parseInt(mowerId),
         engineId: engineId ? parseInt(engineId) : assetPart?.engineId || undefined,
         quantity: assetPart?.quantity || 1,
-        installDate: assetPart?.installDate ? new Date(assetPart.installDate) : undefined,
+        installDate: assetPart?.installDate 
+          ? (typeof assetPart.installDate === 'string' 
+            ? assetPart.installDate.split('T')[0]
+            : new Date(assetPart.installDate).toISOString().split('T')[0])
+          : "",
         notes: assetPart?.notes || "",
       });
     }
@@ -95,19 +100,8 @@ export default function AllocatePartModal({
 
   const createMutation = useMutation({
     mutationFn: async (data: AssetPartFormData) => {
-      // Validate and format the install date
-      const formattedInstallDate = safeFormatDateForAPI(data.installDate, (error) => {
-        toast({
-          title: "Date Error",
-          description: "Invalid install date provided. Please select a valid date.",
-          variant: "destructive",
-        });
-      });
-      
-      // If date validation failed and we had a date, stop the mutation
-      if (data.installDate && formattedInstallDate === null) {
-        throw new Error("Invalid install date provided");
-      }
+      // Use the install date directly as a string
+      const formattedInstallDate = data.installDate || null;
 
       const assetPartData: InsertAssetPart = {
         partId: data.partId,
@@ -150,19 +144,8 @@ export default function AllocatePartModal({
 
   const updateMutation = useMutation({
     mutationFn: async (data: AssetPartFormData) => {
-      // Validate and format the install date
-      const formattedInstallDate = safeFormatDateForAPI(data.installDate, (error) => {
-        toast({
-          title: "Date Error",
-          description: "Invalid install date provided. Please select a valid date.",
-          variant: "destructive",
-        });
-      });
-      
-      // If date validation failed and we had a date, stop the mutation
-      if (data.installDate && formattedInstallDate === null) {
-        throw new Error("Invalid install date provided");
-      }
+      // Use the install date directly as a string
+      const formattedInstallDate = data.installDate || null;
 
       const assetPartData = {
         partId: data.partId,
@@ -373,39 +356,16 @@ export default function AllocatePartModal({
                 control={form.control}
                 name="installDate"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
+                  <FormItem>
                     <FormLabel>Install Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        {...field}
+                        value={field.value || ""}
+                        data-testid="input-install-date"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

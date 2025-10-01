@@ -8,10 +8,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, InfoIcon } from "lucide-react";
-import { format, addMonths } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { InfoIcon } from "lucide-react";
+import { addMonths } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import UnifiedFileUploadArea from "@/components/UnifiedFileUploadArea";
 import type { InsertMower } from "@shared/schema";
@@ -21,12 +19,12 @@ const mowerFormSchema = z.object({
   model: z.string().min(1, "Model is required"),
   year: z.number().min(1900).max(new Date().getFullYear() + 1).optional(),
   serialNumber: z.string().optional(),
-  purchaseDate: z.date().optional(),
+  purchaseDate: z.string().optional(),
   purchasePrice: z.string().optional(),
   condition: z.enum(["excellent", "good", "fair", "poor"]),
   status: z.enum(["active", "maintenance", "retired"]),
-  lastServiceDate: z.date().optional(),
-  nextServiceDate: z.date().optional(),
+  lastServiceDate: z.string().optional(),
+  nextServiceDate: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -43,7 +41,19 @@ interface AttachmentFile {
 }
 
 interface MowerFormProps {
-  initialData?: Partial<MowerFormData>;
+  initialData?: Partial<{
+    make: string;
+    model: string;
+    year: number;
+    serialNumber: string;
+    purchaseDate: string | Date;
+    purchasePrice: string;
+    condition: "excellent" | "good" | "fair" | "poor";
+    status: "active" | "maintenance" | "retired";
+    lastServiceDate: string | Date;
+    nextServiceDate: string | Date;
+    notes: string;
+  }>;
   onSubmit: (data: InsertMower, attachments?: AttachmentFile[], thumbnail?: AttachmentFile) => void;
   onCancel: () => void;
   isEditing?: boolean;
@@ -66,12 +76,24 @@ export default function MowerForm({
       model: initialData?.model || "",
       year: initialData?.year || new Date().getFullYear(),
       serialNumber: initialData?.serialNumber || "",
-      purchaseDate: initialData?.purchaseDate,
+      purchaseDate: initialData?.purchaseDate 
+        ? (typeof initialData.purchaseDate === 'string' 
+          ? initialData.purchaseDate.split('T')[0]
+          : initialData.purchaseDate.toISOString().split('T')[0])
+        : "",
       purchasePrice: initialData?.purchasePrice || "",
       condition: initialData?.condition || "good",
       status: initialData?.status || "active",
-      lastServiceDate: initialData?.lastServiceDate,
-      nextServiceDate: initialData?.nextServiceDate,
+      lastServiceDate: initialData?.lastServiceDate
+        ? (typeof initialData.lastServiceDate === 'string'
+          ? initialData.lastServiceDate.split('T')[0]
+          : initialData.lastServiceDate.toISOString().split('T')[0])
+        : "",
+      nextServiceDate: initialData?.nextServiceDate
+        ? (typeof initialData.nextServiceDate === 'string'
+          ? initialData.nextServiceDate.split('T')[0]
+          : initialData.nextServiceDate.toISOString().split('T')[0])
+        : "",
       notes: initialData?.notes || "",
     },
   });
@@ -82,8 +104,12 @@ export default function MowerForm({
   useEffect(() => {
     if (lastServiceDate && !initialData?.nextServiceDate) {
       // Auto-calculate next service date as 12 months from last service
-      const nextService = addMonths(lastServiceDate, 12);
-      form.setValue('nextServiceDate', nextService);
+      const lastDate = new Date(lastServiceDate);
+      if (!isNaN(lastDate.getTime())) {
+        const nextService = addMonths(lastDate, 12);
+        const nextServiceStr = nextService.toISOString().split('T')[0];
+        form.setValue('nextServiceDate', nextServiceStr);
+      }
     }
   }, [lastServiceDate, form, initialData?.nextServiceDate]);
 
@@ -91,12 +117,12 @@ export default function MowerForm({
     setIsSubmitting(true);
     console.log('Form submitted:', data);
     
-    // Convert Date objects to strings for API
+    // Date strings are already in the correct format for API
     const apiData = {
       ...data,
-      purchaseDate: data.purchaseDate ? format(data.purchaseDate, 'yyyy-MM-dd') : null,
-      lastServiceDate: data.lastServiceDate ? format(data.lastServiceDate, 'yyyy-MM-dd') : null,
-      nextServiceDate: data.nextServiceDate ? format(data.nextServiceDate, 'yyyy-MM-dd') : null,
+      purchaseDate: data.purchaseDate || null,
+      lastServiceDate: data.lastServiceDate || null,
+      nextServiceDate: data.nextServiceDate || null,
     };
     
     onSubmit(apiData as any, attachments, thumbnail || undefined);
@@ -186,35 +212,14 @@ export default function MowerForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Purchase Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className="w-full pl-3 text-left font-normal"
-                            data-testid="button-purchase-date"
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span className="text-muted-foreground">Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        {...field}
+                        value={field.value || ""}
+                        data-testid="input-purchase-date"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -302,35 +307,14 @@ export default function MowerForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Last Service Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              className="w-full pl-3 text-left font-normal"
-                              data-testid="button-last-service-date"
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span className="text-muted-foreground">Pick last service date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) =>
-                              date > new Date() || date < new Date("1900-01-01")
-                            }
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          {...field}
+                          value={field.value || ""}
+                          data-testid="input-last-service-date"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -342,35 +326,14 @@ export default function MowerForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Next Service Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              className="w-full pl-3 text-left font-normal"
-                              data-testid="button-next-service-date"
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span className="text-muted-foreground">Pick next service date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) =>
-                              date < new Date("1900-01-01")
-                            }
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          {...field}
+                          value={field.value || ""}
+                          data-testid="input-next-service-date"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
