@@ -985,7 +985,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/engines/:engineId/parts", async (req, res) => {
-    try { res.json(await storage.getAssetPartsByEngineId(req.params.engineId)); }
+    try { res.json(await storage.getAssetPartsWithDetailsByEngineId(req.params.engineId)); }
     catch { res.status(500).json({ error: "Failed to fetch engine parts" }); }
   });
 

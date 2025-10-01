@@ -65,6 +65,7 @@ export interface IStorage {
   getAssetPartsByMowerId(mowerId: string): Promise<AssetPart[]>;
   getAssetPartsWithDetailsByMowerId(mowerId: string): Promise<AssetPartWithDetails[]>;
   getAssetPartsByEngineId(engineId: string): Promise<AssetPart[]>;
+  getAssetPartsWithDetailsByEngineId(engineId: string): Promise<AssetPartWithDetails[]>;
   getAssetPartsByPartId(partId: string): Promise<AssetPartWithDetails[]>;
   getAllAssetParts(): Promise<AssetPart[]>;
   getAssetPart(id: string): Promise<AssetPart | undefined>;
@@ -542,6 +543,27 @@ export class MemStorage implements IStorage {
     return Array.from(this.assetParts.values()).filter(assetPart => 
       assetPart.engineId && assetPart.engineId.toString() === engineId
     );
+  }
+
+  async getAssetPartsWithDetailsByEngineId(engineId: string): Promise<AssetPartWithDetails[]> {
+    const assetPartsList = Array.from(this.assetParts.values()).filter(assetPart => 
+      assetPart.engineId && assetPart.engineId.toString() === engineId
+    );
+    
+    return assetPartsList.map(assetPart => {
+      const part = this.parts.get(assetPart.partId.toString());
+      const mower = assetPart.mowerId ? this.mowers.get(assetPart.mowerId.toString()) : undefined;
+      const engine = assetPart.engineId ? this.engines.get(assetPart.engineId.toString()) : undefined;
+      const serviceRecord = assetPart.serviceRecordId ? this.serviceRecords.get(assetPart.serviceRecordId) : undefined;
+      
+      return {
+        ...assetPart,
+        part: part!,
+        mower,
+        engine,
+        serviceRecord
+      } as AssetPartWithDetails;
+    }).filter(item => item.part); // Filter out any where part wasn't found
   }
 
   async getAssetPartsByPartId(partId: string): Promise<AssetPartWithDetails[]> {
@@ -1112,6 +1134,40 @@ export class DbStorage implements IStorage {
 
   async getAssetPartsByEngineId(engineId: string): Promise<AssetPart[]> {
     return await db.select().from(assetParts).where(eq(assetParts.engineId, parseInt(engineId)));
+  }
+
+  async getAssetPartsWithDetailsByEngineId(engineId: string): Promise<AssetPartWithDetails[]> {
+    const result = await db
+      .select({
+        id: assetParts.id,
+        partId: assetParts.partId,
+        mowerId: assetParts.mowerId,
+        engineId: assetParts.engineId,
+        quantity: assetParts.quantity,
+        installDate: assetParts.installDate,
+        serviceRecordId: assetParts.serviceRecordId,
+        notes: assetParts.notes,
+        createdAt: assetParts.createdAt,
+        part: {
+          id: parts.id,
+          name: parts.name,
+          description: parts.description,
+          partNumber: parts.partNumber,
+          manufacturer: parts.manufacturer,
+          category: parts.category,
+          unitCost: parts.unitCost,
+          stockQuantity: parts.stockQuantity,
+          minStockLevel: parts.minStockLevel,
+          notes: parts.notes,
+          createdAt: parts.createdAt,
+          updatedAt: parts.updatedAt,
+        }
+      })
+      .from(assetParts)
+      .innerJoin(parts, eq(assetParts.partId, parts.id))
+      .where(eq(assetParts.engineId, parseInt(engineId)));
+    
+    return result as AssetPartWithDetails[];
   }
 
   async getAssetPartsByPartId(partId: string): Promise<AssetPartWithDetails[]> {
