@@ -10,11 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { cn, safeFormatDateForAPI, safeConvertToDate, validateDateFieldsForAPI } from "@/lib/utils";
+import { safeFormatDateForAPI, validateDateFieldsForAPI } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Engine, InsertEngine } from "@shared/schema";
@@ -27,7 +23,7 @@ const engineFormSchema = z.object({
   manufacturer: z.string().optional(),
   model: z.string().optional(),
   serialNumber: z.string().optional(),
-  installDate: z.date().optional(),
+  installDate: z.string().optional(),
   condition: z.enum(["excellent", "good", "fair", "poor"]).default("good"),
   status: z.enum(["active", "maintenance", "retired"]).default("active"),
   cost: z.string().optional(),
@@ -76,7 +72,7 @@ export default function EngineFormModal({
       manufacturer: "",
       model: "",
       serialNumber: "",
-      installDate: undefined,
+      installDate: "",
       condition: "good",
       status: "active",
       cost: "",
@@ -111,7 +107,11 @@ export default function EngineFormModal({
         manufacturer: engine?.manufacturer || "",
         model: engine?.model || "",
         serialNumber: engine?.serialNumber || "",
-        installDate: safeConvertToDate(engine?.installDate),
+        installDate: engine?.installDate 
+          ? (typeof engine.installDate === 'string' 
+            ? engine.installDate.split('T')[0]
+            : new Date(engine.installDate).toISOString().split('T')[0])
+          : "",
         condition: (engine?.condition as "excellent" | "good" | "fair" | "poor") || "good",
         status: (engine?.status as "active" | "maintenance" | "retired") || "active",
         cost: engine?.cost || "",
@@ -126,19 +126,8 @@ export default function EngineFormModal({
 
   const createMutation = useMutation({
     mutationFn: async (data: EngineFormData) => {
-      // Validate dates first
-      const installDate = safeFormatDateForAPI(data.installDate, (error) => {
-        toast({
-          title: "Date Error",
-          description: "Invalid install date. Please select a valid date.",
-          variant: "destructive",
-        });
-      });
-
-      // Stop submission if date validation failed
-      if (data.installDate && installDate === null) {
-        throw new Error("Please correct the date errors before submitting.");
-      }
+      // Use the install date directly as a string
+      const installDate = data.installDate || null;
 
       const engineData: InsertEngine = {
         name: data.name,
@@ -275,23 +264,12 @@ export default function EngineFormModal({
 
   const updateMutation = useMutation({
     mutationFn: async (data: EngineFormData) => {
-      // Validate dates first
-      const installDate = safeFormatDateForAPI(data.installDate, (error) => {
-        toast({
-          title: "Date Error",
-          description: "Invalid install date. Please select a valid date.",
-          variant: "destructive",
-        });
-      });
-
-      // Stop submission if date validation failed
-      if (data.installDate && installDate === null) {
-        throw new Error("Please correct the date errors before submitting.");
-      }
+      // Use the install date directly as a string
+      const installDate = data.installDate || null;
 
       const engineData = {
         ...data,
-        ...(installDate !== null && { installDate }),
+        installDate,
         cost: data.cost || null,
         description: data.description || null,
         partNumber: data.partNumber || null,
@@ -526,39 +504,16 @@ export default function EngineFormModal({
                 control={form.control}
                 name="installDate"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
+                  <FormItem>
                     <FormLabel>Install Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        {...field}
+                        value={field.value || ""}
+                        data-testid="input-install-date"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
