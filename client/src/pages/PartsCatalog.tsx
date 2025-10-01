@@ -6,14 +6,89 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Search, Plus, Package, Wrench, Edit, Trash2, AlertTriangle } from "lucide-react";
+import { Search, Plus, Package, Wrench, Edit, Trash2, AlertTriangle, ImageOff } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
+import { usePartThumbnail, useEngineThumbnail } from "@/hooks/useThumbnails";
 import EngineFormModal from "@/components/EngineFormModal";
 import PartFormModal from "@/components/PartFormModal";
 import type { Part, Engine } from "@shared/schema";
+
+// Helper component for rendering part thumbnail with fallback
+function PartThumbnailImage({ partId, partName, onClick }: { partId: number; partName: string; onClick: () => void }) {
+  const { data: thumbnail, isLoading } = usePartThumbnail(partId);
+  
+  if (isLoading) {
+    return (
+      <div className="w-full h-48 overflow-hidden rounded-t-card bg-muted animate-pulse" />
+    );
+  }
+  
+  if (!thumbnail) {
+    return (
+      <div className="w-full h-48 overflow-hidden rounded-t-card bg-muted flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors" onClick={onClick}>
+        <ImageOff className="h-16 w-16 text-muted-foreground opacity-50" />
+      </div>
+    );
+  }
+  
+  return (
+    <div className="w-full h-48 overflow-hidden rounded-t-card">
+      <img 
+        src={thumbnail.downloadUrl}
+        alt={partName}
+        className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
+        onClick={onClick}
+        onError={(e) => {
+          // Replace with placeholder on error
+          const parent = e.currentTarget.parentElement;
+          if (parent) {
+            parent.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-muted"><svg class="h-16 w-16 text-muted-foreground opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" x2="6" y1="13.5" y2="21"/><line x1="18" x2="21" y1="12" y2="15"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/></svg></div>';
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+// Helper component for rendering engine thumbnail with fallback
+function EngineThumbnailImage({ engineId, engineName, onClick }: { engineId: number; engineName: string; onClick: () => void }) {
+  const { data: thumbnail, isLoading } = useEngineThumbnail(engineId);
+  
+  if (isLoading) {
+    return (
+      <div className="w-full h-48 overflow-hidden rounded-t-card bg-muted animate-pulse" />
+    );
+  }
+  
+  if (!thumbnail) {
+    return (
+      <div className="w-full h-48 overflow-hidden rounded-t-card bg-muted flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors" onClick={onClick}>
+        <ImageOff className="h-16 w-16 text-muted-foreground opacity-50" />
+      </div>
+    );
+  }
+  
+  return (
+    <div className="w-full h-48 overflow-hidden rounded-t-card">
+      <img 
+        src={thumbnail.downloadUrl}
+        alt={engineName}
+        className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
+        onClick={onClick}
+        onError={(e) => {
+          // Replace with placeholder on error
+          const parent = e.currentTarget.parentElement;
+          if (parent) {
+            parent.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-muted"><svg class="h-16 w-16 text-muted-foreground opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" x2="6" y1="13.5" y2="21"/><line x1="18" x2="21" y1="12" y2="15"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/></svg></div>';
+          }
+        }}
+      />
+    </div>
+  );
+}
 
 export default function PartsCatalog() {
   const [, setLocation] = useLocation();
@@ -241,20 +316,7 @@ export default function PartsCatalog() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredParts.map((part) => (
                 <Card key={part.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                  {part.thumbnailAttachmentId && (
-                    <div className="w-full h-48 overflow-hidden rounded-t-card">
-                      <img 
-                        src={`/api/parts/${part.id}/thumbnail`}
-                        alt={part.name}
-                        className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
-                        onClick={() => handleViewPartDetails(part.id)}
-                        onError={(e) => {
-                          // Hide image if it fails to load
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  )}
+                  <PartThumbnailImage partId={part.id} partName={part.name} onClick={() => handleViewPartDetails(part.id)} />
                   <CardHeader onClick={() => handleViewPartDetails(part.id)}>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{part.name}</CardTitle>
@@ -355,20 +417,7 @@ export default function PartsCatalog() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {allEngines.map((component) => (
                 <Card key={component.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                  {component.thumbnailAttachmentId && (
-                    <div className="w-full h-48 overflow-hidden rounded-t-card">
-                      <img 
-                        src={`/api/engines/${component.id}/thumbnail`}
-                        alt={component.name}
-                        className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
-                        onClick={() => handleViewEngineDetails(component.id)}
-                        onError={(e) => {
-                          // Hide image if it fails to load
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  )}
+                  <EngineThumbnailImage engineId={component.id} engineName={component.name} onClick={() => handleViewEngineDetails(component.id)} />
                   <CardHeader onClick={() => handleViewEngineDetails(component.id)}>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">{component.name}</CardTitle>
