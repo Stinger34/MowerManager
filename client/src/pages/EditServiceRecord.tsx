@@ -14,7 +14,8 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { safeFormatDateForAPI } from "@/lib/utils";
-import type { Mower, ServiceRecord } from "@shared/schema";
+import type { Mower, ServiceRecord, AssetPartWithDetails } from "@shared/schema";
+import ServiceRecordPartsSelector, { type ServiceRecordPart } from "@/components/ServiceRecordPartsSelector";
 
 const serviceRecordSchema = z.object({
   serviceType: z.string().min(1, "Service type is required"),
@@ -33,6 +34,8 @@ export default function EditServiceRecord() {
   const { toast } = useToast();
   const mowerId = params?.id;
   const serviceId = params?.serviceId;
+  const [selectedParts, setSelectedParts] = useState<ServiceRecordPart[]>([]);
+  const [calculatedCost, setCalculatedCost] = useState<number>(0);
 
   const { data: mower, isLoading: mowerLoading } = useQuery<Mower>({
     queryKey: ['/api/mowers', mowerId],
@@ -43,6 +46,12 @@ export default function EditServiceRecord() {
   const { data: serviceRecords, isLoading: serviceLoading } = useQuery<ServiceRecord[]>({
     queryKey: ['/api/mowers', mowerId, 'service'],
     enabled: !!mowerId,
+  });
+
+  // Fetch existing asset parts for this service record
+  const { data: existingAssetParts = [], isLoading: assetPartsLoading } = useQuery<AssetPartWithDetails[]>({
+    queryKey: ['/api/asset-parts'],
+    enabled: !!serviceId,
   });
 
   const serviceRecord = serviceRecords?.find(record => record.id === serviceId);
@@ -75,6 +84,22 @@ export default function EditServiceRecord() {
     }
   }, [serviceRecord, form]);
 
+  // Load existing parts for this service record
+  useEffect(() => {
+    if (serviceId && existingAssetParts.length > 0) {
+      const serviceParts = existingAssetParts
+        .filter(ap => ap.serviceRecordId === serviceId)
+        .map(ap => ({
+          partId: ap.partId,
+          quantity: ap.quantity,
+          engineId: ap.engineId || null,
+        }));
+      if (serviceParts.length > 0) {
+        setSelectedParts(serviceParts);
+      }
+    }
+  }, [serviceId, existingAssetParts]);
+
   const updateServiceMutation = useMutation({
     mutationFn: async (data: ServiceRecordData) => {
       const serviceData = {
@@ -86,7 +111,54 @@ export default function EditServiceRecord() {
         mileage: data.mileage ? parseInt(data.mileage) : null,
       };
       
-      return apiRequest('PUT', `/api/service/${serviceId}`, serviceData);
+      // Update the service record first
+      const updated = await apiRequest('PUT', `/api/service/${serviceId}`, serviceData);
+      
+      // Get existing asset parts for this service record
+      const existingParts = existingAssetParts.filter(ap => ap.serviceRecordId === serviceId);
+      
+      // Delete removed parts
+      for (const existingPart of existingParts) {
+        const stillExists = selectedParts.some(sp => 
+          sp.partId === existingPart.partId && 
+          sp.engineId === existingPart.engineId
+        );
+        if (!stillExists) {
+          await apiRequest('DELETE', `/api/asset-parts/${existingPart.id}`);
+        }
+      }
+      
+      // Add or update parts
+      for (const part of selectedParts) {
+        if (part.partId) {
+          // Check if this part already exists
+          const existing = existingParts.find(ep => 
+            ep.partId === part.partId && 
+            ep.engineId === part.engineId
+          );
+          
+          if (existing) {
+            // Update if quantity changed
+            if (existing.quantity !== part.quantity) {
+              await apiRequest('PUT', `/api/asset-parts/${existing.id}`, {
+                quantity: part.quantity,
+              });
+            }
+          } else {
+            // Create new
+            const assetPartData = {
+              partId: part.partId,
+              mowerId: part.engineId ? undefined : parseInt(mowerId!),
+              engineId: part.engineId || undefined,
+              quantity: part.quantity,
+              serviceRecordId: serviceId,
+            };
+            await apiRequest('POST', '/api/asset-parts', assetPartData);
+          }
+        }
+      }
+      
+      return updated;
     },
     onSuccess: () => {
       toast({
@@ -96,6 +168,8 @@ export default function EditServiceRecord() {
       queryClient.invalidateQueries({ queryKey: ['/api/mowers'] });
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId] });
       queryClient.invalidateQueries({ queryKey: ['/api/mowers', mowerId, 'service'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/parts'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/asset-parts'] });
       setLocation(`/mowers/${mowerId}`);
     },
     onError: (error) => {
@@ -116,7 +190,15 @@ export default function EditServiceRecord() {
     setLocation(`/mowers/${mowerId}`);
   };
 
-  if (mowerLoading || serviceLoading) {
+  const handleCostChange = (totalCost: number) => {
+    setCalculatedCost(totalCost);
+    // Update the cost field with the calculated value
+    if (totalCost > 0) {
+      form.setValue("cost", totalCost.toFixed(2));
+    }
+  };
+
+  if (mowerLoading || serviceLoading || assetPartsLoading) {
     return <div>Loading...</div>;
   }
 
@@ -179,7 +261,6 @@ export default function EditServiceRecord() {
                             <SelectItem value="maintenance">Maintenance</SelectItem>
                             <SelectItem value="repair">Repair</SelectItem>
                             <SelectItem value="inspection">Inspection</SelectItem>
-                            <SelectItem value="warranty">Warranty</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -224,6 +305,16 @@ export default function EditServiceRecord() {
                   )}
                 />
 
+                {/* Parts Selection */}
+                <div className="pt-4">
+                  <ServiceRecordPartsSelector
+                    mowerId={mowerId!}
+                    parts={selectedParts}
+                    onPartsChange={setSelectedParts}
+                    onCostChange={handleCostChange}
+                  />
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
@@ -240,6 +331,11 @@ export default function EditServiceRecord() {
                             data-testid="input-cost"
                           />
                         </FormControl>
+                        {calculatedCost > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Auto-calculated from parts: ${calculatedCost.toFixed(2)}
+                          </p>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )}
