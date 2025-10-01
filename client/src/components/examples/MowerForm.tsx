@@ -30,7 +30,7 @@ export default function MowerFormExample() {
               model: "X350",
               year: 2022,
               serialNumber: "JD123456",
-              purchaseDate: new Date("2022-03-15"),
+              purchaseDate: "2022-03-15",
               purchasePrice: "2499.99",
               condition: "good",
               status: "active",

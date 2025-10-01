@@ -8,11 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { cn, safeFormatDateForAPI, safeConvertToDate, validateDateFieldsForAPI } from "@/lib/utils";
+import { safeFormatDateForAPI, validateDateFieldsForAPI } from "@/lib/utils";
 import type { Engine, InsertEngine } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,7 +19,7 @@ const engineFormSchema = z.object({
   manufacturer: z.string().optional(),
   model: z.string().optional(),
   serialNumber: z.string().optional(),
-  installDate: z.date().optional(),
+  installDate: z.string().optional(),
   condition: z.enum(["excellent", "good", "fair", "poor"]).default("good"),
   status: z.enum(["active", "maintenance", "retired"]).default("active"),
   cost: z.string().optional(),
@@ -57,7 +53,11 @@ export default function EngineForm({
       manufacturer: initialData?.manufacturer || "",
       model: initialData?.model || "",
       serialNumber: initialData?.serialNumber || "",
-      installDate: safeConvertToDate(initialData?.installDate),
+      installDate: initialData?.installDate 
+        ? (typeof initialData.installDate === 'string' 
+          ? initialData.installDate.split('T')[0]
+          : new Date(initialData.installDate).toISOString().split('T')[0])
+        : "",
       condition: (initialData?.condition as "excellent" | "good" | "fair" | "poor") || "good",
       status: (initialData?.status as "active" | "maintenance" | "retired") || "active",
       cost: initialData?.cost || "",
@@ -68,19 +68,8 @@ export default function EngineForm({
   const handleSubmit = async (data: EngineFormData) => {
     setIsSubmitting(true);
     try {
-      // Validate dates first
-      const installDate = safeFormatDateForAPI(data.installDate, (error) => {
-        toast({
-          title: "Date Error",
-          description: "Invalid install date. Please select a valid date.",
-          variant: "destructive",
-        });
-      });
-
-      // Stop submission if date validation failed
-      if (data.installDate && installDate === null) {
-        throw new Error("Please correct the date errors before submitting.");
-      }
+      // Convert date string to API format if present
+      const installDate = data.installDate || null;
 
       const engineData: InsertEngine = {
         name: data.name,
@@ -276,40 +265,16 @@ export default function EngineForm({
                 control={form.control}
                 name="installDate"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
+                  <FormItem>
                     <FormLabel>Install Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                            data-testid="date-install"
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        {...field}
+                        value={field.value || ""}
+                        data-testid="input-install-date"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
