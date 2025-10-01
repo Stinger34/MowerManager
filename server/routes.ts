@@ -660,6 +660,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     catch { res.status(500).json({ error: "Failed to fetch engine attachments" }); }
   });
 
+  app.get("/api/engines/:id/thumbnail", async (req, res) => {
+    try {
+      const engine = await storage.getEngine(req.params.id);
+      if (!engine) return res.status(404).json({ error: "Engine not found" });
+      let thumb = null;
+      if (engine.thumbnailAttachmentId) {
+        try {
+          const att = await storage.getAttachment(engine.thumbnailAttachmentId);
+          if (att && att.fileType.startsWith("image") && att.engineId === engine.id) {
+            thumb = att;
+          }
+        } catch { /* ignore */ }
+      }
+      if (!thumb) {
+        const attachments = await storage.getAttachmentsByEngineId(req.params.id);
+        thumb = attachments.find(a => a.fileType.startsWith("image")) || null;
+      }
+      if (!thumb) return res.status(404).json({ error: "No image attachments found" });
+      res.json({
+        id: thumb.id,
+        fileName: thumb.fileName,
+        fileType: thumb.fileType,
+        downloadUrl: `/api/attachments/${thumb.id}/download?inline=1`
+      });
+    } catch {
+      res.status(500).json({ error: "Failed to get thumbnail" });
+    }
+  });
+
+  app.put("/api/engines/:id/thumbnail", async (req, res) => {
+    try {
+      const { attachmentId } = req.body;
+      if (attachmentId) {
+        const att = await storage.getAttachment(attachmentId);
+        if (!att) return res.status(404).json({ error: "Attachment not found" });
+        if (att.engineId !== parseInt(req.params.id)) return res.status(400).json({ error: "Attachment does not belong to this engine" });
+        if (!att.fileType.startsWith("image")) return res.status(400).json({ error: "Attachment must be an image" });
+      }
+      const updated = await storage.updateEngineThumbnail(req.params.id, attachmentId || null);
+      if (!updated) return res.status(404).json({ error: "Engine not found" });
+      res.json({ success: true, thumbnailAttachmentId: attachmentId || null });
+    } catch {
+      res.status(500).json({ error: "Failed to set thumbnail" });
+    }
+  });
+
   // ---------------------------------------------------------------------------
   // Deprecated Components Compatibility Routes
   // ---------------------------------------------------------------------------
@@ -877,6 +923,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/parts/:id/attachments", async (req, res) => {
     try { res.json((await storage.getAttachmentsByPartId(req.params.id)).map(({ fileData, ...a }) => a)); }
     catch { res.status(500).json({ error: "Failed to fetch part attachments" }); }
+  });
+
+  app.get("/api/parts/:id/thumbnail", async (req, res) => {
+    try {
+      const part = await storage.getPart(req.params.id);
+      if (!part) return res.status(404).json({ error: "Part not found" });
+      let thumb = null;
+      if (part.thumbnailAttachmentId) {
+        try {
+          const att = await storage.getAttachment(part.thumbnailAttachmentId);
+          if (att && att.fileType.startsWith("image") && att.partId === part.id) {
+            thumb = att;
+          }
+        } catch { /* ignore */ }
+      }
+      if (!thumb) {
+        const attachments = await storage.getAttachmentsByPartId(req.params.id);
+        thumb = attachments.find(a => a.fileType.startsWith("image")) || null;
+      }
+      if (!thumb) return res.status(404).json({ error: "No image attachments found" });
+      res.json({
+        id: thumb.id,
+        fileName: thumb.fileName,
+        fileType: thumb.fileType,
+        downloadUrl: `/api/attachments/${thumb.id}/download?inline=1`
+      });
+    } catch {
+      res.status(500).json({ error: "Failed to get thumbnail" });
+    }
+  });
+
+  app.put("/api/parts/:id/thumbnail", async (req, res) => {
+    try {
+      const { attachmentId } = req.body;
+      if (attachmentId) {
+        const att = await storage.getAttachment(attachmentId);
+        if (!att) return res.status(404).json({ error: "Attachment not found" });
+        if (att.partId !== parseInt(req.params.id)) return res.status(400).json({ error: "Attachment does not belong to this part" });
+        if (!att.fileType.startsWith("image")) return res.status(400).json({ error: "Attachment must be an image" });
+      }
+      const updated = await storage.updatePartThumbnail(req.params.id, attachmentId || null);
+      if (!updated) return res.status(404).json({ error: "Part not found" });
+      res.json({ success: true, thumbnailAttachmentId: attachmentId || null });
+    } catch {
+      res.status(500).json({ error: "Failed to set thumbnail" });
+    }
   });
 
   app.get("/api/parts/:id/allocations", async (req, res) => {

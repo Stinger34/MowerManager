@@ -19,6 +19,7 @@ import AllocateEngineToMowerModal from "@/components/AllocateEngineToMowerModal"
 import type { Engine, Attachment, AssetPartWithDetails, AssetPart } from "@shared/schema";
 import { CardLoadingSkeleton } from "@/components/ui/loading-components";
 import GenericAttachmentGallery from "@/components/GenericAttachmentGallery";
+import { useEngineThumbnail } from "@/hooks/useThumbnails";
 
 export default function EngineDetails() {
   const [, params] = useRoute("/catalog/engines/:engineId");
@@ -41,6 +42,9 @@ export default function EngineDetails() {
     queryKey: ['/api/engines', engineId],
     enabled: !!engineId,
   });
+
+  // Fetch thumbnail for this engine
+  const { data: thumbnail } = useEngineThumbnail(engineId || '');
 
   // Fetch engine attachments
   const { data: attachments = [], isLoading: isAttachmentsLoading } = useQuery<Omit<Attachment, 'fileData'>[]>({
@@ -172,6 +176,15 @@ export default function EngineDetails() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Catalog
           </Button>
+          {thumbnail && (
+            <div className="w-20 h-20 rounded-lg overflow-hidden shadow-sm border" data-testid="img-engine-thumbnail">
+              <img 
+                src={thumbnail.downloadUrl}
+                alt={engine.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
           <h1 className="text-3xl font-bold tracking-tight text-text-dark">{engine.name}</h1>
         </div>
         <div className="flex items-center gap-2">

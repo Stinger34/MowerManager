@@ -48,6 +48,7 @@ export interface IStorage {
   getAllEngines(): Promise<Engine[]>;
   createEngine(engine: InsertEngine): Promise<Engine>;
   updateEngine(id: string, engine: Partial<InsertEngine>): Promise<Engine | undefined>;
+  updateEngineThumbnail(engineId: string, thumbnailAttachmentId: string | null): Promise<boolean>;
   deleteEngine(id: string): Promise<boolean>;
   mowerHasEngine(mowerId: string): Promise<boolean>;
   engineIsAllocated(engineId: string): Promise<boolean>;
@@ -57,6 +58,7 @@ export interface IStorage {
   getAllParts(): Promise<Part[]>;
   createPart(part: InsertPart): Promise<Part>;
   updatePart(id: string, part: Partial<InsertPart>): Promise<Part | undefined>;
+  updatePartThumbnail(partId: string, thumbnailAttachmentId: string | null): Promise<boolean>;
   deletePart(id: string): Promise<boolean>;
   
   // Asset Part allocation methods
@@ -435,6 +437,18 @@ export class MemStorage implements IStorage {
     return this.engines.delete(id);
   }
 
+  async updateEngineThumbnail(engineId: string, thumbnailAttachmentId: string | null): Promise<boolean> {
+    const existingEngine = this.engines.get(engineId);
+    if (!existingEngine) return false;
+    
+    const updatedEngine: Engine = {
+      ...existingEngine,
+      thumbnailAttachmentId
+    };
+    this.engines.set(engineId, updatedEngine);
+    return true;
+  }
+
   async mowerHasEngine(mowerId: string): Promise<boolean> {
     return Array.from(this.engines.values()).some(engine => 
       engine.mowerId !== null && engine.mowerId.toString() === mowerId
@@ -489,6 +503,18 @@ export class MemStorage implements IStorage {
 
   async deletePart(id: string): Promise<boolean> {
     return this.parts.delete(id);
+  }
+
+  async updatePartThumbnail(partId: string, thumbnailAttachmentId: string | null): Promise<boolean> {
+    const existingPart = this.parts.get(partId);
+    if (!existingPart) return false;
+    
+    const updatedPart: Part = {
+      ...existingPart,
+      thumbnailAttachmentId
+    };
+    this.parts.set(partId, updatedPart);
+    return true;
   }
 
   // Asset Part allocation methods
@@ -985,6 +1011,15 @@ export class DbStorage implements IStorage {
     return (result.rowCount ?? 0) > 0;
   }
 
+  async updateEngineThumbnail(engineId: string, thumbnailAttachmentId: string | null): Promise<boolean> {
+    const result = await db
+      .update(engines)
+      .set({ thumbnailAttachmentId })
+      .where(eq(engines.id, parseInt(engineId)))
+      .returning();
+    return result.length > 0;
+  }
+
   async mowerHasEngine(mowerId: string): Promise<boolean> {
     const result = await db.select({ count: sql<number>`count(*)` })
       .from(engines)
@@ -1025,6 +1060,15 @@ export class DbStorage implements IStorage {
   async deletePart(id: string): Promise<boolean> {
     const result = await db.delete(parts).where(eq(parts.id, parseInt(id)));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async updatePartThumbnail(partId: string, thumbnailAttachmentId: string | null): Promise<boolean> {
+    const result = await db
+      .update(parts)
+      .set({ thumbnailAttachmentId })
+      .where(eq(parts.id, parseInt(partId)))
+      .returning();
+    return result.length > 0;
   }
 
   // Asset Part allocation methods
