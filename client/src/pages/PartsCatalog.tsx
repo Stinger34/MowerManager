@@ -22,20 +22,20 @@ function PartThumbnailImage({ partId, partName, onClick }: { partId: number; par
   
   if (isLoading) {
     return (
-      <div className="w-full h-48 overflow-hidden rounded-t-card bg-muted animate-pulse" />
+      <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md bg-muted animate-pulse" />
     );
   }
   
   if (!thumbnail) {
     return (
-      <div className="w-full h-48 overflow-hidden rounded-t-card bg-muted flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors" onClick={onClick}>
-        <ImageOff className="h-16 w-16 text-muted-foreground opacity-50" />
+      <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors" onClick={onClick}>
+        <ImageOff className="h-8 w-8 text-muted-foreground opacity-50" />
       </div>
     );
   }
   
   return (
-    <div className="w-full h-48 overflow-hidden rounded-t-card">
+    <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md">
       <img 
         src={thumbnail.downloadUrl}
         alt={partName}
@@ -45,7 +45,7 @@ function PartThumbnailImage({ partId, partName, onClick }: { partId: number; par
           // Replace with placeholder on error
           const parent = e.currentTarget.parentElement;
           if (parent) {
-            parent.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-muted"><svg class="h-16 w-16 text-muted-foreground opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" x2="6" y1="13.5" y2="21"/><line x1="18" x2="21" y1="12" y2="15"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/></svg></div>';
+            parent.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-muted"><svg class="h-8 w-8 text-muted-foreground opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" x2="6" y1="13.5" y2="21"/><line x1="18" x2="21" y1="12" y2="15"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/></svg></div>';
           }
         }}
       />
@@ -59,20 +59,20 @@ function EngineThumbnailImage({ engineId, engineName, onClick }: { engineId: num
   
   if (isLoading) {
     return (
-      <div className="w-full h-48 overflow-hidden rounded-t-card bg-muted animate-pulse" />
+      <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md bg-muted animate-pulse" />
     );
   }
   
   if (!thumbnail) {
     return (
-      <div className="w-full h-48 overflow-hidden rounded-t-card bg-muted flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors" onClick={onClick}>
-        <ImageOff className="h-16 w-16 text-muted-foreground opacity-50" />
+      <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md bg-muted flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors" onClick={onClick}>
+        <ImageOff className="h-8 w-8 text-muted-foreground opacity-50" />
       </div>
     );
   }
   
   return (
-    <div className="w-full h-48 overflow-hidden rounded-t-card">
+    <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md">
       <img 
         src={thumbnail.downloadUrl}
         alt={engineName}
@@ -82,7 +82,7 @@ function EngineThumbnailImage({ engineId, engineName, onClick }: { engineId: num
           // Replace with placeholder on error
           const parent = e.currentTarget.parentElement;
           if (parent) {
-            parent.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-muted"><svg class="h-16 w-16 text-muted-foreground opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" x2="6" y1="13.5" y2="21"/><line x1="18" x2="21" y1="12" y2="15"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/></svg></div>';
+            parent.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-muted"><svg class="h-8 w-8 text-muted-foreground opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" x2="6" y1="13.5" y2="21"/><line x1="18" x2="21" y1="12" y2="15"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/></svg></div>';
           }
         }}
       />
@@ -313,74 +313,78 @@ export default function PartsCatalog() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredParts.map((part) => (
                 <Card key={part.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                  <PartThumbnailImage partId={part.id} partName={part.name} onClick={() => handleViewPartDetails(part.id)} />
-                  <CardHeader onClick={() => handleViewPartDetails(part.id)}>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{part.name}</CardTitle>
-                      <div className="flex items-center gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditPart(part);
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeletePart(part);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent onClick={() => handleViewPartDetails(part.id)}>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Part Number:</span>
-                        <span className="font-mono">{part.partNumber}</span>
-                      </div>
-                      {part.manufacturer && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Manufacturer:</span>
-                          <span>{part.manufacturer}</span>
+                  <div className="flex gap-4 p-4">
+                    <PartThumbnailImage partId={part.id} partName={part.name} onClick={() => handleViewPartDetails(part.id)} />
+                    <div className="flex-1 min-w-0">
+                      <CardHeader className="p-0 pb-3" onClick={() => handleViewPartDetails(part.id)}>
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="text-lg leading-tight">{part.name}</CardTitle>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditPart(part);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeletePart(part);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                      )}
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Category:</span>
-                        <Badge variant="secondary">{part.category}</Badge>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Stock:</span>
-                        <span className={`font-medium ${
-                          part.minStockLevel && part.stockQuantity <= part.minStockLevel 
-                            ? 'text-amber-600' 
-                            : 'text-green-600'
-                        }`}>
-                          {part.stockQuantity} units
-                        </span>
-                      </div>
-                      {part.unitCost && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Unit Cost:</span>
-                          <span className="font-medium">${part.unitCost}</span>
+                      </CardHeader>
+                      <CardContent className="p-0" onClick={() => handleViewPartDetails(part.id)}>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Part Number:</span>
+                            <span className="font-mono text-xs">{part.partNumber}</span>
+                          </div>
+                          {part.manufacturer && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Manufacturer:</span>
+                              <span className="truncate ml-2">{part.manufacturer}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Category:</span>
+                            <Badge variant="secondary">{part.category}</Badge>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Stock:</span>
+                            <span className={`font-medium ${
+                              part.minStockLevel && part.stockQuantity <= part.minStockLevel 
+                                ? 'text-amber-600' 
+                                : 'text-green-600'
+                            }`}>
+                              {part.stockQuantity} units
+                            </span>
+                          </div>
+                          {part.unitCost && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Unit Cost:</span>
+                              <span className="font-medium">${part.unitCost}</span>
+                            </div>
+                          )}
+                          {part.description && (
+                            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{part.description}</p>
+                          )}
                         </div>
-                      )}
-                      {part.description && (
-                        <p className="text-sm text-muted-foreground mt-2">{part.description}</p>
-                      )}
+                      </CardContent>
                     </div>
-                  </CardContent>
+                  </div>
                 </Card>
               ))}
             </div>
@@ -414,72 +418,76 @@ export default function PartsCatalog() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {allEngines.map((component) => (
                 <Card key={component.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                  <EngineThumbnailImage engineId={component.id} engineName={component.name} onClick={() => handleViewEngineDetails(component.id)} />
-                  <CardHeader onClick={() => handleViewEngineDetails(component.id)}>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{component.name}</CardTitle>
-                      <div className="flex items-center gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditEngine(component);
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteEngine(component);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                  <div className="flex gap-4 p-4">
+                    <EngineThumbnailImage engineId={component.id} engineName={component.name} onClick={() => handleViewEngineDetails(component.id)} />
+                    <div className="flex-1 min-w-0">
+                      <CardHeader className="p-0 pb-3" onClick={() => handleViewEngineDetails(component.id)}>
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="text-lg leading-tight">{component.name}</CardTitle>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditEngine(component);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteEngine(component);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0" onClick={() => handleViewEngineDetails(component.id)}>
+                        <div className="space-y-2">
+                          {component.partNumber && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Part Number:</span>
+                              <span className="font-mono text-xs">{component.partNumber}</span>
+                            </div>
+                          )}
+                          {component.manufacturer && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Manufacturer:</span>
+                              <span className="truncate ml-2">{component.manufacturer}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Status:</span>
+                            <Badge variant={component.status === 'active' ? 'default' : 'secondary'}>
+                              {component.status}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Condition:</span>
+                            <Badge variant="outline">{component.condition}</Badge>
+                          </div>
+                          {component.cost && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Cost:</span>
+                              <span className="font-medium">${component.cost}</span>
+                            </div>
+                          )}
+                          {component.description && (
+                            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{component.description}</p>
+                          )}
+                        </div>
+                      </CardContent>
                     </div>
-                  </CardHeader>
-                  <CardContent onClick={() => handleViewEngineDetails(component.id)}>
-                    <div className="space-y-2">
-                      {component.partNumber && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Part Number:</span>
-                          <span className="font-mono">{component.partNumber}</span>
-                        </div>
-                      )}
-                      {component.manufacturer && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Manufacturer:</span>
-                          <span>{component.manufacturer}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Status:</span>
-                        <Badge variant={component.status === 'active' ? 'default' : 'secondary'}>
-                          {component.status}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Condition:</span>
-                        <Badge variant="outline">{component.condition}</Badge>
-                      </div>
-                      {component.cost && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Cost:</span>
-                          <span className="font-medium">${component.cost}</span>
-                        </div>
-                      )}
-                      {component.description && (
-                        <p className="text-sm text-muted-foreground mt-2">{component.description}</p>
-                      )}
-                    </div>
-                  </CardContent>
+                  </div>
                 </Card>
               ))}
             </div>
