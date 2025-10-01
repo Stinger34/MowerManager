@@ -18,10 +18,10 @@ import EngineFormModal from "@/components/EngineFormModal";
 import AllocateEngineModal from "@/components/AllocateEngineModal";
 import AllocatePartModal from "@/components/AllocatePartModal";
 import PartFormModal from "@/components/PartFormModal";
-import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench, Camera, FolderOpen, Unlink } from "lucide-react";
+import { ArrowLeft, Edit, Plus, Calendar, MapPin, DollarSign, FileText, Loader2, Trash2, Wrench, Camera, FolderOpen, Unlink, ImageOff } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useMowerThumbnail } from "@/hooks/useThumbnails";
+import { useMowerThumbnail, useEngineThumbnail } from "@/hooks/useThumbnails";
 import { useCameraCapture } from "@/hooks/useCameraCapture";
 import { useAssetEventsRefresh } from "@/hooks/useAssetEventsRefresh";
 import type { Mower, Task, InsertTask, ServiceRecord, Attachment, Engine, Part, AssetPart, AssetPartWithDetails } from "@shared/schema";
@@ -30,6 +30,44 @@ import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner, ButtonLoading, CardLoadingSkeleton } from "@/components/ui/loading-components";
 import { motion } from "framer-motion";
 import { safeFormatDateForDisplay, safeFormatDateForAPI } from "@/lib/utils";
+
+// Helper component for rendering engine thumbnail with fallback in MowerDetails
+function EngineThumbnailSmall({ engineId, engineName, onClick }: { engineId: number; engineName: string; onClick: () => void }) {
+  const { data: thumbnail, isLoading } = useEngineThumbnail(engineId);
+  
+  if (isLoading) {
+    return (
+      <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md border bg-muted animate-pulse" />
+    );
+  }
+  
+  if (!thumbnail) {
+    return (
+      <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md border bg-muted flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors" onClick={onClick}>
+        <ImageOff className="h-10 w-10 text-muted-foreground opacity-50" />
+      </div>
+    );
+  }
+  
+  return (
+    <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md border">
+      <img 
+        src={thumbnail.downloadUrl}
+        alt={engineName}
+        className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={onClick}
+        onError={(e) => {
+          // Replace with placeholder on error
+          const parent = e.currentTarget.parentElement;
+          if (parent) {
+            parent.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-muted cursor-pointer"><svg class="h-10 w-10 text-muted-foreground opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" x2="6" y1="13.5" y2="21"/><line x1="18" x2="21" y1="12" y2="15"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/></svg></div>';
+            parent.addEventListener('click', onClick);
+          }
+        }}
+      />
+    </div>
+  );
+}
 
 interface AttachmentFile {
   file: File;
@@ -1179,19 +1217,11 @@ export default function MowerDetails() {
                       {components.map((component) => (
                         <div key={component.id} className="border rounded-lg p-4">
                           <div className="flex items-start gap-4">
-                            {component.thumbnailAttachmentId && (
-                              <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-md border">
-                                <img 
-                                  src={`/api/engines/${component.id}/thumbnail`}
-                                  alt={component.name}
-                                  className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => setLocation(`/catalog/engines/${component.id}`)}
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                  }}
-                                />
-                              </div>
-                            )}
+                            <EngineThumbnailSmall 
+                              engineId={component.id} 
+                              engineName={component.name} 
+                              onClick={() => setLocation(`/catalog/engines/${component.id}`)} 
+                            />
                             <div className="flex items-start justify-between flex-1">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
