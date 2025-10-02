@@ -70,6 +70,7 @@ export default function EngineDetails() {
   const [showAllocatePartModal, setShowAllocatePartModal] = useState(false);
   const [showAllocateEngineToMowerModal, setShowAllocateEngineToMowerModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showUnallocateDialog, setShowUnallocateDialog] = useState(false);
   const [editingAssetPart, setEditingAssetPart] = useState<AssetPart | null>(null);
 
   // Initialize WebSocket for auto-refresh
@@ -115,6 +116,39 @@ export default function EngineDetails() {
     },
   });
 
+  // Unallocate mutation
+  const unallocateMutation = useMutation({
+    mutationFn: async (engineId: number) => {
+      // Get engine details first
+      const engineResponse = await apiRequest('GET', `/api/engines/${engineId}`);
+      const engine = await engineResponse.json();
+      
+      // Update engine to remove mower assignment
+      const updatedEngine = {
+        mowerId: null,
+      };
+      
+      await apiRequest('PUT', `/api/engines/${engineId}`, updatedEngine);
+      return engine;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/engines'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/engines', engineId] });
+      toast({ 
+        title: "Success", 
+        description: "Engine unallocated successfully and returned to catalog" 
+      });
+      setShowUnallocateDialog(false);
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to unallocate engine", 
+        variant: "destructive" 
+      });
+    },
+  });
+
   // Handlers
   const handleEdit = () => {
     setShowEditModal(true);
@@ -127,6 +161,16 @@ export default function EngineDetails() {
   const handleConfirmDelete = () => {
     if (engine) {
       deleteMutation.mutate(engine.id);
+    }
+  };
+
+  const handleUnallocate = () => {
+    setShowUnallocateDialog(true);
+  };
+
+  const handleConfirmUnallocate = () => {
+    if (engine) {
+      unallocateMutation.mutate(engine.id);
     }
   };
 
@@ -241,13 +285,16 @@ export default function EngineDetails() {
             <Edit className="h-4 w-4 mr-2" />
             Edit
           </Button>
-          {!engine.mowerId && (
-            <>
-              <Button variant="outline" size="sm" onClick={handleAllocateEngineToMower}>
-                <Wrench className="h-4 w-4 mr-2" />
-                Allocate to Mower
-              </Button>
-            </>
+          {!engine.mowerId ? (
+            <Button variant="outline" size="sm" onClick={handleAllocateEngineToMower}>
+              <Wrench className="h-4 w-4 mr-2" />
+              Allocate to Mower
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={handleUnallocate} className="border-orange-600 text-orange-600 hover:bg-orange-50">
+              <Wrench className="h-4 w-4 mr-2" />
+              Unallocate from Mower
+            </Button>
           )}
           <Button variant="outline" size="sm" onClick={handleDelete}>
             <Trash2 className="h-4 w-4 mr-2" />
@@ -319,6 +366,15 @@ export default function EngineDetails() {
                   <div className="mt-1">
                     <Badge variant={engine.status === 'active' ? 'default' : 'secondary'} className="capitalize">
                       {engine.status}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Allocation Status</label>
+                  <div className="mt-1">
+                    <Badge variant={engine.mowerId ? 'default' : 'outline'} className={engine.mowerId ? 'bg-orange-500' : ''}>
+                      {engine.mowerId ? 'Allocated to Mower' : 'Available'}
                     </Badge>
                   </div>
                 </div>
@@ -552,6 +608,30 @@ export default function EngineDetails() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Unallocate Engine Confirmation Dialog */}
+      <AlertDialog open={showUnallocateDialog} onOpenChange={setShowUnallocateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unallocate Engine from Mower</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to unallocate the engine "{engine?.name}" from its mower? The engine will be returned to the catalog and remain available for allocation to other mowers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowUnallocateDialog(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmUnallocate}
+              disabled={unallocateMutation.isPending}
+              className="bg-orange-600 text-white hover:bg-orange-700"
+            >
+              {unallocateMutation.isPending ? "Unallocating..." : "Unallocate Engine"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

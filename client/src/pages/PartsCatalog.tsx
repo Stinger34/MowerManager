@@ -472,6 +472,12 @@ export default function PartsCatalog() {
                             </Badge>
                           </div>
                           <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Allocation:</span>
+                            <Badge variant={component.mowerId ? 'default' : 'outline'} className={component.mowerId ? 'bg-orange-500' : ''}>
+                              {component.mowerId ? 'Allocated' : 'Available'}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">Condition:</span>
                             <Badge variant="outline">{component.condition}</Badge>
                           </div>

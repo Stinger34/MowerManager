@@ -514,9 +514,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/engines", async (_req, res) => {
     try { 
       const allEngines = await storage.getAllEngines();
-      // Only return global engines (not allocated to any mower)
-      const globalEngines = allEngines.filter(engine => engine.mowerId === null);
-      res.json(globalEngines);
+      // Return all engines (including allocated ones) so users can see them in the catalog
+      res.json(allEngines);
     }
     catch { res.status(500).json({ error: "Failed to fetch engines" }); }
   });
