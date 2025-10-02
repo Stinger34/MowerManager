@@ -151,7 +151,9 @@ export default function AddServiceRecord() {
         </div>
       </div>
 
-      <div className="max-w-2xl">
+      {/* Two-column layout for desktop, single column for mobile */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left column: Main service record details */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -225,16 +227,6 @@ export default function AddServiceRecord() {
                     </FormItem>
                   )}
                 />
-
-                {/* Parts Selection */}
-                <div className="pt-4">
-                  <ServiceRecordPartsSelector
-                    mowerId={mowerId!}
-                    parts={selectedParts}
-                    onPartsChange={setSelectedParts}
-                    onCostChange={handleCostChange}
-                  />
-                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
@@ -321,6 +313,16 @@ export default function AddServiceRecord() {
             </Form>
           </CardContent>
         </Card>
+
+        {/* Right column: Parts Used section */}
+        <div>
+          <ServiceRecordPartsSelector
+            mowerId={mowerId!}
+            parts={selectedParts}
+            onPartsChange={setSelectedParts}
+            onCostChange={handleCostChange}
+          />
+        </div>
       </div>
     </div>
   );

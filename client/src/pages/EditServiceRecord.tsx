@@ -230,7 +230,9 @@ export default function EditServiceRecord() {
         </div>
       </div>
 
-      <div className="max-w-2xl">
+      {/* Two-column layout for desktop, single column for mobile */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left column: Main service record details */}
         <Card className="bg-white border-panel-border shadow-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-text-primary">
@@ -304,16 +306,6 @@ export default function EditServiceRecord() {
                     </FormItem>
                   )}
                 />
-
-                {/* Parts Selection */}
-                <div className="pt-4">
-                  <ServiceRecordPartsSelector
-                    mowerId={mowerId!}
-                    parts={selectedParts}
-                    onPartsChange={setSelectedParts}
-                    onCostChange={handleCostChange}
-                  />
-                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
@@ -400,6 +392,16 @@ export default function EditServiceRecord() {
             </Form>
           </CardContent>
         </Card>
+
+        {/* Right column: Parts Used section */}
+        <div>
+          <ServiceRecordPartsSelector
+            mowerId={mowerId!}
+            parts={selectedParts}
+            onPartsChange={setSelectedParts}
+            onCostChange={handleCostChange}
+          />
+        </div>
       </div>
     </div>
   );
